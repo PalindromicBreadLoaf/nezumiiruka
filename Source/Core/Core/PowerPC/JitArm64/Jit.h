@@ -307,6 +307,11 @@ protected:
   void Cleanup();
   void ResetStack();
 
+#ifdef __SWITCH__
+  void EmitBeforeHostCall() override;
+  void EmitAfterHostCall() override;
+#endif
+
   void FreeRanges();
   void GenerateAsmAndResetFreeMemoryRanges();
   void ResetFreeMemoryRanges(size_t routines_near_size, size_t routines_far_size);
