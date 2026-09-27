@@ -19,9 +19,9 @@ std::ptrdiff_t g_rw_delta = 0;
 
 namespace
 {
-// JitArm64 takes 48 MiB of this and the rest goes to VertexLoaderARM64 at 4 KiB per loader.
+// JitArm64 takes 96 MiB of this and the rest goes to VertexLoaderARM64 at 4 KiB per loader.
 // Only the writable half is real memory.
-constexpr std::size_t ARENA_SIZE = 64 * 1024 * 1024;
+constexpr std::size_t ARENA_SIZE = 128 * 1024 * 1024;
 
 constexpr std::size_t BLOCK_ALIGN = 0x1000;
 

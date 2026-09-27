@@ -4,6 +4,7 @@
 #include "Core/PowerPC/JitArm64/Jit.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <optional>
 #include <span>
@@ -42,10 +43,8 @@
 using namespace Arm64Gen;
 
 #ifdef __SWITCH__
-// Running out of code space only costs a cache flush.
-// TODO: benchmark this.
-constexpr size_t NEAR_CODE_SIZE = 1024 * 1024 * 12;
-constexpr size_t FAR_CODE_SIZE = 1024 * 1024 * 12;
+constexpr size_t NEAR_CODE_SIZE = 1024 * 1024 * 16;
+constexpr size_t FAR_CODE_SIZE = 1024 * 1024 * 32;
 #else
 constexpr size_t NEAR_CODE_SIZE = 1024 * 1024 * 64;
 // We use a bigger farcode size for JitArm64 than Jit64, because JitArm64 always emits farcode
@@ -220,18 +219,42 @@ bool JitArm64::HandleFault(uintptr_t access_address, SContext* ctx)
 
 void JitArm64::ClearCache()
 {
+#ifdef __SWITCH__
+  // TODO: remove this timing once the multi-second flush is gone.
+  using Clock = std::chrono::steady_clock;
+  const auto start = Clock::now();
+  const size_t block_count = blocks.GetBlockCount();
+#endif
+
   m_fault_to_handler.clear();
 
   blocks.Clear();
   blocks.ClearRangesToFree();
+#ifdef __SWITCH__
+  const auto blocks_cleared = Clock::now();
+#endif
   const Common::ScopedJITPageWriteAndNoExecute enable_jit_page_writes;
   m_far_code_0.ClearCodeSpace();
   m_near_code_0.ClearCodeSpace();
   m_near_code_1.ClearCodeSpace();
   m_far_code_1.ClearCodeSpace();
+#ifdef __SWITCH__
+  const auto code_cleared = Clock::now();
+#endif
   RefreshConfig();
 
   GenerateAsmAndResetFreeMemoryRanges();
+
+#ifdef __SWITCH__
+  const auto ms = [](auto d) {
+    return std::chrono::duration_cast<std::chrono::microseconds>(d).count() / 1000.0;
+  };
+  NOTICE_LOG_FMT(DYNA_REC,
+                 "JIT cache cleared: {} blocks, {:.1f} ms destroying blocks, {:.1f} ms poisoning "
+                 "code, {:.1f} ms regenerating routines",
+                 block_count, ms(blocks_cleared - start), ms(code_cleared - blocks_cleared),
+                 ms(Clock::now() - code_cleared));
+#endif
 }
 
 void JitArm64::GenerateAsmAndResetFreeMemoryRanges()
