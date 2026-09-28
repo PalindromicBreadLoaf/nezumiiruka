@@ -186,8 +186,26 @@ void FlushCode(const u8* rx_start, std::size_t size)
   if (size == 0)
     return;
 
-  armDCacheFlush(WritableAlias(rx_start), size);
-  armICacheInvalidate(const_cast<u8*>(rx_start), size);
+  u64 ctr_el0;
+  __asm__ volatile("mrs %0, ctr_el0" : "=r"(ctr_el0));
+  const u64 isize = 4 << (ctr_el0 & 0xf);
+  const u64 dsize = 4 << ((ctr_el0 >> 16) & 0xf);
+
+  volatile u8* const cache_maintenance_flag = static_cast<u8*>(armGetTls()) + 0x104;
+  *cache_maintenance_flag = 1;
+
+  const u64 rw_start = reinterpret_cast<u64>(WritableAlias(rx_start));
+  for (u64 addr = rw_start & ~(dsize - 1); addr < rw_start + size; addr += dsize)
+    __asm__ volatile("dc cvau, %0" : : "r"(addr) : "memory");
+  __asm__ volatile("dsb ish" : : : "memory");
+
+  const u64 rx = reinterpret_cast<u64>(rx_start);
+  for (u64 addr = rx & ~(isize - 1); addr < rx + size; addr += isize)
+    __asm__ volatile("ic ivau, %0" : : "r"(addr) : "memory");
+  __asm__ volatile("dsb ish" : : : "memory");
+  __asm__ volatile("isb" : : : "memory");
+
+  *cache_maintenance_flag = 0;
 }
 
 }  // namespace Common::HostCodeMemory
