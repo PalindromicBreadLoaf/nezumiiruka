@@ -4,6 +4,7 @@
 #include "Core/ConfigManager.h"
 
 #include <algorithm>
+#include <fmt/format.h>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -12,8 +13,6 @@
 #include <variant>
 
 #include <Core/Core.h>
-
-#include <fmt/format.h>
 
 #include "AudioCommon/AudioCommon.h"
 
@@ -130,6 +129,27 @@ const std::string SConfig::GetGameTDBID() const
   return m_gametdb_id;
 }
 
+const std::string SConfig::GetGameIDElfDol() const
+{
+  std::lock_guard<std::recursive_mutex> lock(m_metadata_lock);
+  return m_game_id_elf_dol;
+}
+
+const std::string SConfig::GetGameIDForTextures() const
+{
+  return GetGameIDsForTextures().front();
+}
+
+const std::vector<std::string> SConfig::GetGameIDsForTextures() const
+{
+  std::lock_guard<std::recursive_mutex> lock(m_metadata_lock);
+
+  if (m_game_id_elf_dol.empty())
+    return {m_game_id};
+
+  return {fmt::format("{}-{}", m_game_id_elf_dol, m_game_id), m_game_id};
+}
+
 const std::string SConfig::GetTitleName() const
 {
   std::lock_guard<std::recursive_mutex> lock(m_metadata_lock);
@@ -164,6 +184,7 @@ void SConfig::ResetRunningGameMetadata()
 {
   std::lock_guard<std::recursive_mutex> lock(m_metadata_lock);
   SetRunningGameMetadata("00000000", "", 0, 0, DiscIO::Region::Unknown, 0);
+  SetElfDolID("");
 }
 
 void SConfig::SetRunningGameMetadata(const DiscIO::Volume& volume,
@@ -269,6 +290,12 @@ void SConfig::SetRunningGameMetadata(const std::string& game_id, const std::stri
     DolphinAnalytics::Instance().ReportGameStart();
 }
 
+void SConfig::SetElfDolID(const std::string& game_id)
+{
+  std::lock_guard<std::recursive_mutex> lock(m_metadata_lock);
+  m_game_id_elf_dol = game_id;
+}
+
 void SConfig::OnESTitleChanged()
 {
   auto& system = Core::System::GetInstance();
@@ -368,7 +395,9 @@ struct SetGameMetadata
     constexpr char BACKSLASH = '\\';
     constexpr char FORWARDSLASH = '/';
     std::ranges::replace(executable_path, BACKSLASH, FORWARDSLASH);
-    config->SetRunningGameMetadata(SConfig::MakeGameID(PathToFileName(executable_path)));
+    const std::string made_game_id = SConfig::MakeGameID(PathToFileName(executable_path));
+    config->SetRunningGameMetadata(made_game_id);
+    config->SetElfDolID(made_game_id);
 
     Host_TitleChanged();
 
