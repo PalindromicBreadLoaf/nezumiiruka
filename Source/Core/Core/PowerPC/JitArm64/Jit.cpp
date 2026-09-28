@@ -17,6 +17,9 @@
 #include "Common/Arm64Emitter.h"
 #include "Common/CommonTypes.h"
 #include "Common/GekkoDisassembler.h"
+#ifdef __SWITCH__
+#include "Common/HorizonClocks.h"
+#endif
 #include "Common/HostDisassembler.h"
 #include "Common/Logging/Log.h"
 #include "Common/MathUtil.h"
@@ -220,6 +223,8 @@ bool JitArm64::HandleFault(uintptr_t access_address, SContext* ctx)
 void JitArm64::ClearCache()
 {
 #ifdef __SWITCH__
+  const Common::HorizonClocks::ScopedCpuBoost boost;
+
   // TODO: remove this timing once the multi-second flush is gone.
   using Clock = std::chrono::steady_clock;
   const auto start = Clock::now();

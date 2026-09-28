@@ -13,6 +13,7 @@
 #include "Core/System.h"
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
 #include "VideoCommon/Present.h"
+#include "VideoCommon/Statistics.h"
 
 namespace
 {
@@ -30,6 +31,7 @@ bool PlatformSwitch::Init()
 {
   m_window = nwindowGetDefault();
   m_operation_mode = appletGetOperationMode();
+  m_boot_boost.emplace();
   return m_window != nullptr;
 }
 
@@ -51,7 +53,26 @@ void PlatformSwitch::MainLoop()
     UpdateRunningFlag();
     Core::HostDispatchJobs(system);
 
+    UpdateBootBoost(system);
+
     svcSleepThread(HOST_POLL_INTERVAL_NS);
+  }
+}
+
+void PlatformSwitch::UpdateBootBoost(Core::System& system)
+{
+  if (!m_boot_boost)
+    return;
+
+  const u64 presents = g_stats.presents_total.load(std::memory_order_relaxed);
+  if (!m_presents_when_running)
+  {
+    if (Core::GetState(system) == Core::State::Running)
+      m_presents_when_running = presents;
+  }
+  else if (presents != *m_presents_when_running)
+  {
+    m_boot_boost.reset();
   }
 }
 

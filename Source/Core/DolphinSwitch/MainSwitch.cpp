@@ -15,6 +15,7 @@
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
 #include "Common/HorizonBuildId.h"
+#include "Common/HorizonClocks.h"
 #include "Common/HorizonFastmem.h"
 #include "Common/HorizonJitStack.h"
 #include "Common/HostCodeMemory.h"
@@ -230,6 +231,9 @@ int main(int argc, char* argv[])
   Common::ScopeGuard ui_common_guard([] { UICommon::Shutdown(); });
 
   LogHostEnvironment();
+
+  Common::HorizonClocks::ApplyPerformanceConfiguration();
+  Common::ScopeGuard clocks_guard([] { Common::HorizonClocks::RestorePerformanceConfiguration(); });
 
   Common::SetCurrentThreadName("Host thread");
 

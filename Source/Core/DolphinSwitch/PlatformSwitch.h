@@ -7,11 +7,14 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include <switch.h>
 
+#include "Common/CommonTypes.h"
 #include "Common/Flag.h"
+#include "Common/HorizonClocks.h"
 #include "Common/WindowSystemInfo.h"
 
 namespace Core
@@ -42,6 +45,7 @@ private:
   void UpdateRunningFlag();
   void PollHostInput(Core::System& system);
   void PollOperationMode();
+  void UpdateBootBoost(Core::System& system);
 
   PadState& m_pad;
   NWindow* m_window = nullptr;
@@ -58,6 +62,9 @@ private:
 
   // Read by Host_RendererHasFocus from the CPU and GPU threads.
   std::atomic<bool> m_focused{true};
+
+  std::optional<Common::HorizonClocks::ScopedCpuBoost> m_boot_boost;
+  std::optional<u64> m_presents_when_running;
 
   static constexpr auto HEARTBEAT_INTERVAL = std::chrono::seconds(5);
   std::chrono::steady_clock::time_point m_last_heartbeat{};
