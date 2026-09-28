@@ -5,6 +5,7 @@
 #include "Common/HorizonClocks.h"
 
 #include <mutex>
+#include <optional>
 
 #include <switch.h>
 
@@ -15,10 +16,8 @@ namespace Common::HorizonClocks
 {
 namespace
 {
-constexpr u32 HANDHELD_CONFIGURATION = 0x00020001;
-
 std::mutex s_mutex;
-u32 s_original_configuration = 0;
+std::optional<u32> s_original_configuration;
 int s_boost_count = 0;
 
 bool IsApplication()
@@ -27,25 +26,29 @@ bool IsApplication()
 }
 }  // namespace
 
-void ApplyPerformanceConfiguration()
+void ApplyPerformanceConfiguration(u32 configuration)
 {
   if (!IsApplication())
     return;
 
   std::lock_guard lock(s_mutex);
-  if (R_FAILED(
-          apmGetPerformanceConfiguration(ApmPerformanceMode_Normal, &s_original_configuration)))
-    s_original_configuration = 0;
+  if (!s_original_configuration)
+  {
+    u32 original = 0;
+    if (R_SUCCEEDED(apmGetPerformanceConfiguration(ApmPerformanceMode_Normal, &original)))
+      s_original_configuration = original;
+    else
+      s_original_configuration = 0;
+  }
 
-  const Result rc =
-      apmSetPerformanceConfiguration(ApmPerformanceMode_Normal, HANDHELD_CONFIGURATION);
+  const Result rc = apmSetPerformanceConfiguration(ApmPerformanceMode_Normal, configuration);
   if (R_FAILED(rc))
   {
-    WARN_LOG_FMT(COMMON, "apmSetPerformanceConfiguration({:#010x}) failed: {:#010x}",
-                 HANDHELD_CONFIGURATION, rc);
+    WARN_LOG_FMT(COMMON, "apmSetPerformanceConfiguration({:#010x}) failed: {:#010x}", configuration,
+                 rc);
     return;
   }
-  NOTICE_LOG_FMT(COMMON, "Requested performance configuration {:#010x}", HANDHELD_CONFIGURATION);
+  NOTICE_LOG_FMT(COMMON, "Requested performance configuration {:#010x}", configuration);
 }
 
 void RestorePerformanceConfiguration()
@@ -54,8 +57,9 @@ void RestorePerformanceConfiguration()
     return;
 
   std::lock_guard lock(s_mutex);
-  if (s_original_configuration != 0)
-    apmSetPerformanceConfiguration(ApmPerformanceMode_Normal, s_original_configuration);
+  if (s_original_configuration.value_or(0) != 0)
+    apmSetPerformanceConfiguration(ApmPerformanceMode_Normal, *s_original_configuration);
+  s_original_configuration.reset();
 }
 
 void AcquireCpuBoost()

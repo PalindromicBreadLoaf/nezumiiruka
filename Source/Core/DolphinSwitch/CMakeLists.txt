@@ -7,6 +7,16 @@ add_executable(porpoise
   MainSwitch.cpp
   PerformanceOverlaySwitch.cpp
   PlatformSwitch.cpp
+  SettingsSwitch.cpp
+  SettingsSwitch.h
+  ShellFormatSwitch.cpp
+  ShellFormatSwitch.h
+  ShellGameListSwitch.cpp
+  ShellGameListSwitch.h
+  ShellLibrarySwitch.cpp
+  ShellLibrarySwitch.h
+  ShellSettingsSwitch.cpp
+  ShellSettingsSwitch.h
   ShellSwitch.cpp
   ShellSwitch.h
 )
@@ -18,7 +28,8 @@ PRIVATE
   borealis
 )
 
-set_source_files_properties(ShellSwitch.cpp PROPERTIES COMPILE_OPTIONS "${BOREALIS_EXCEPTIONS}")
+set_source_files_properties(ShellGameListSwitch.cpp ShellSettingsSwitch.cpp ShellSwitch.cpp
+  PROPERTIES COMPILE_OPTIONS "${BOREALIS_EXCEPTIONS}")
 
 if(ENABLE_VULKAN)
   # NXVK driver archives are self-contained and resolve backwards into Dolphin's own.

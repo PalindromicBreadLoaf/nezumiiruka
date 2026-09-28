@@ -6,9 +6,11 @@
 
 #ifdef __SWITCH__
 
+#include "Common/CommonTypes.h"
+
 namespace Common::HorizonClocks
 {
-void ApplyPerformanceConfiguration();
+void ApplyPerformanceConfiguration(u32 configuration);
 void RestorePerformanceConfiguration();
 
 void AcquireCpuBoost();

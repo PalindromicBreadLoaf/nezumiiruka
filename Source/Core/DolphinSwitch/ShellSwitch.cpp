@@ -4,27 +4,22 @@
 
 #include "DolphinSwitch/ShellSwitch.h"
 
-#include <algorithm>
-#include <string_view>
-#include <vector>
-
 #include <switch.h>
 
 #include <borealis.hpp>
-#include <borealis/views/cells/cell_detail.hpp>
 #include <yoga/event/event.h>
 
-#include "Common/CommonPaths.h"
-#include "Common/FileUtil.h"
+#include "Common/Config/Config.h"
 #include "Common/Logging/Log.h"
-#include "Common/StringUtil.h"
-#include "Common/Version.h"
-#include "UICommon/GameFileCache.h"
+#include "DolphinSwitch/ShellGameListSwitch.h"
+#include "DolphinSwitch/ShellLibrarySwitch.h"
 
 namespace Shell
 {
 namespace
 {
+std::string s_last_chosen;
+
 class Services
 {
 public:
@@ -58,78 +53,21 @@ private:
   bool m_romfs = false;
 };
 
-std::vector<std::string> ScanGames()
+brls::View* CreateGameList(Library& library, std::string& chosen, const std::string& notice,
+                           const std::string& focus_path)
 {
-  const std::string directory = GetRomDirectory();
-  const std::string_view directory_view = directory;
-  std::vector<std::string> paths = UICommon::FindAllGamePaths({&directory_view, 1}, true);
-  std::ranges::sort(paths);
-  return paths;
-}
-
-void AddMessage(brls::Box* list, const std::string& text)
-{
-  auto* label = new brls::Label();
-  label->setText(text);
-  label->setMargins(12, 40, 12, 40);
-  list->addView(label);
-}
-
-void Populate(brls::Box* list, std::string& chosen, const std::string& notice)
-{
-  list->clearViews();
+  auto* frame = new brls::AppletFrame(new GameListView(library, chosen, focus_path));
+  frame->setTitle("porpoise");
 
   if (!notice.empty())
-    AddMessage(list, notice);
-
-  const std::vector<std::string> games = ScanGames();
-  if (games.empty())
   {
-    AddMessage(list, "Nothing here. Copy GameCube or Wii images into " + GetRomDirectory());
-    return;
-  }
-
-  // TODO: Move to a RecyclerFrame once the list carries cover art.
-  brls::View* first = nullptr;
-  for (const std::string& path : games)
-  {
-    std::string name, extension;
-    SplitPath(path, nullptr, &name, &extension);
-    if (!extension.empty())
-      extension.erase(0, 1);
-    Common::ToUpper(&extension);
-
-    auto* cell = new brls::DetailCell();
-    cell->setText(name);
-    cell->setDetailText(extension);
-    cell->registerClickAction([&chosen, path](brls::View*) {
-      chosen = path;
-      brls::Application::quit();
-      return true;
+    brls::sync([notice] {
+      auto* dialog = new brls::Dialog(notice);
+      dialog->addButton("OK", [] {});
+      dialog->open();
     });
-    list->addView(cell);
-
-    if (!first)
-      first = cell;
   }
 
-  brls::Application::giveFocus(first);
-}
-
-brls::View* CreateGameList(std::string& chosen, const std::string& notice)
-{
-  auto* list = new brls::Box(brls::Axis::COLUMN);
-  auto* scroll = new brls::ScrollingFrame();
-  scroll->setContentView(list);
-
-  auto* frame = new brls::AppletFrame(scroll);
-  frame->setTitle("porpoise " + Common::GetScmDescStr());
-  frame->registerAction("Rescan", brls::BUTTON_X, [list, &chosen, notice](brls::View*) {
-    Populate(list, chosen, notice);
-    return true;
-  });
-
-  Populate(list, chosen, notice);
   return frame;
 }
 
@@ -142,11 +80,6 @@ void RestoreAppletState()
   appletSetWirelessPriorityMode(AppletWirelessPriorityMode_Default);
 }
 }  // namespace
-
-std::string GetRomDirectory()
-{
-  return File::GetUserPath(D_USER_IDX) + "roms" DIR_SEP;
-}
 
 std::string Run(const std::string& notice)
 {
@@ -162,15 +95,27 @@ std::string Run(const std::string& notice)
   brls::Application::setGlobalQuit(true);
 
   std::string chosen;
-  brls::Application::pushActivity(new brls::Activity(CreateGameList(chosen, notice)));
-
-  while (brls::Application::mainLoop())
   {
+    Library library;
+    brls::Application::pushActivity(
+        new brls::Activity(CreateGameList(library, chosen, notice, s_last_chosen)));
+
+    while (brls::Application::mainLoop())
+    {
+    }
+
+    library.Stop();
   }
+
+  brls::Threading::getSyncFunctions()->clear();
 
   facebook::yoga::Event::reset();
   RestoreAppletState();
 
+  Config::Save();
+
+  if (!chosen.empty())
+    s_last_chosen = chosen;
   return chosen;
 }
 }  // namespace Shell

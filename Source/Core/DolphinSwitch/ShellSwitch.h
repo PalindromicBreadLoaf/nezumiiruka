@@ -8,7 +8,5 @@
 
 namespace Shell
 {
-std::string GetRomDirectory();
-
 std::string Run(const std::string& notice);
 }  // namespace Shell

@@ -4,10 +4,12 @@
 
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
 
+#include <algorithm>
 #include <array>
 
 #include "Common/Config/Config.h"
 #include "Core/Config/GraphicsSettings.h"
+#include "DolphinSwitch/SettingsSwitch.h"
 #include "VideoCommon/OnScreenDisplay.h"
 
 namespace PerfOverlay
@@ -21,9 +23,6 @@ enum Level : int
   StatsAndGraphs = 2,
   Count = 3,
 };
-
-// The overlay is on by default.
-int s_level = Level::Stats;
 
 constexpr std::array<const char*, Level::Count> LEVEL_NAMES = {
     "Performance overlay: off",
@@ -49,13 +48,16 @@ void Apply(int level)
 
 void ApplyCurrentLevel()
 {
-  Apply(s_level);
+  Apply(Config::Get(Config::SWITCH_PERFORMANCE_OVERLAY));
 }
 
 void CycleLevel()
 {
-  s_level = (s_level + 1) % Level::Count;
-  Apply(s_level);
-  OSD::AddMessage(LEVEL_NAMES[s_level]);
+  const int current =
+      std::clamp(Config::Get(Config::SWITCH_PERFORMANCE_OVERLAY), 0, Level::Count - 1);
+  const int level = (current + 1) % Level::Count;
+  Config::SetBase(Config::SWITCH_PERFORMANCE_OVERLAY, level);
+  Apply(level);
+  OSD::AddMessage(LEVEL_NAMES[level]);
 }
 }  // namespace PerfOverlay

@@ -21,8 +21,7 @@ set(BROTLI_FOUND FALSE) # TODO: Same as above
 set(USE_LIBIDN2 OFF)
 set(USE_NGHTTP2 OFF)
 
-if(UNIX)
-  # We use mbedtls on Unix(-like) systems and Android.
+if(UNIX OR NINTENDO_SWITCH)
   set(CURL_USE_OPENSSL OFF)
 
   # This is set if the dolphin_find_optional_system_library call from the main CMakeLists.txt
@@ -48,9 +47,21 @@ if(ANDROID)
   set(CURL_CA_PATH "/system/etc/security/cacerts" CACHE STRING "")
 endif()
 
+if(NINTENDO_SWITCH)
+  set(CURL_CA_BUNDLE "none" CACHE STRING "")
+  set(CURL_CA_PATH "none" CACHE STRING "")
+
+  set(HAVE_SOCKETPAIR 0)
+  set(CURL_DISABLE_SOCKETPAIR ON)
+  set(ENABLE_THREADED_RESOLVER OFF)
+
+  # Declared by newlib's libgen.h but not implemented; curl has its own.
+  set(HAVE_BASENAME 0)
+endif()
+
 add_subdirectory(curl)
 
-if(UNIX AND NOT MBEDTLS_FOUND)
+if((UNIX OR NINTENDO_SWITCH) AND NOT MBEDTLS_FOUND)
   # HACK: Manually link with the mbedtls libraries.
   target_link_libraries(libcurl_static PRIVATE
     MbedTLS::mbedtls

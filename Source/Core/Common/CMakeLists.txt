@@ -190,8 +190,9 @@ PRIVATE
   ${VTUNE_LIBRARIES}
 )
 
+target_link_libraries(common PRIVATE CURL::libcurl)
 if(NOT PORPOISE)
-  target_link_libraries(common PRIVATE CURL::libcurl watcher)
+  target_link_libraries(common PRIVATE watcher)
 endif()
 
 if ((DEFINED CMAKE_ANDROID_ARCH_ABI AND CMAKE_ANDROID_ARCH_ABI MATCHES "x86|x86_64") OR
@@ -226,17 +227,12 @@ elseif(HAIKU)
   target_link_libraries(common PRIVATE be GL)
 endif()
 
-# Horizon has neither a inotify nor curl.
+target_sources(common PRIVATE HttpRequest.cpp)
+
 if(PORPOISE)
-  target_sources(common PRIVATE
-    FilesystemWatcherHorizon.cpp
-    HttpRequestHorizon.cpp
-  )
+  target_sources(common PRIVATE FilesystemWatcherHorizon.cpp)
 else()
-  target_sources(common PRIVATE
-    FilesystemWatcher.cpp
-    HttpRequest.cpp
-  )
+  target_sources(common PRIVATE FilesystemWatcher.cpp)
 endif()
 
 if(PORPOISE)

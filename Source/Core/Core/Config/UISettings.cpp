@@ -8,7 +8,7 @@ namespace Config
 // UI.General
 
 const Info<bool> MAIN_USE_DISCORD_PRESENCE{{System::Main, "General", "UseDiscordPresence"}, true};
-#ifdef ANDROID
+#if defined(ANDROID) || defined(__SWITCH__)
 const Info<bool> MAIN_USE_GAME_COVERS{{System::Main, "General", "UseGameCovers"}, true};
 #else
 const Info<bool> MAIN_USE_GAME_COVERS{{System::Main, "General", "UseGameCovers"}, false};

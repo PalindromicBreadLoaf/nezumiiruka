@@ -806,10 +806,7 @@ endif()
 
 dolphin_find_optional_system_library(MBEDTLS Externals/mbedtls 2.28)
 
-if(NOT PORPOISE)
-  # Common/HttpRequest.cpp has a Horizon stub.
-  dolphin_find_optional_system_library(CURL Externals/curl)
-endif()
+dolphin_find_optional_system_library(CURL Externals/curl)
 
 if(NOT ANDROID AND NOT PORPOISE)
   dolphin_find_optional_system_library(HIDAPI Externals/hidapi)

@@ -32,6 +32,7 @@
 #include "Core/System.h"
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
 #include "DolphinSwitch/PlatformSwitch.h"
+#include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellSwitch.h"
 #include "UICommon/UICommon.h"
 #include "VideoCommon/VideoBackendBase.h"
@@ -130,15 +131,6 @@ void ApplyPlatformConfigOverrides()
 
   Common::HorizonJitStack::GetGuardSource();
 
-  // TegraX1 lacks the shader throughput for ubershaders.
-  // TODO: expose the skip-until-compiled tradeoff as a user-visible setting once a settings UI
-  // exists.
-  Config::SetCurrent(Config::GFX_SHADER_COMPILATION_MODE,
-                     ShaderCompilationMode::AsynchronousSkipRendering);
-  Config::SetCurrent(Config::GFX_ENHANCE_MAX_ANISOTROPY, AnisotropicFilteringMode::Force1x);
-
-  Config::SetCurrent(Config::GFX_ENABLE_GPU_TEXTURE_DECODING, true);
-
   // The overlay toggles live in the CurrentRun layer too, so the user's chosen level has to be
   // put back after every teardown.
   PerfOverlay::ApplyCurrentLevel();
@@ -153,6 +145,8 @@ void ConfigureInput(PadState& pad)
 std::string RunGame(PadState& pad, const std::string& path)
 {
   ApplyPlatformConfigOverrides();
+  Common::HorizonClocks::ApplyPerformanceConfiguration(
+      SwitchSettings::GetPerformanceConfiguration());
 
   auto boot = BootParameters::GenerateFromFile(path, BootSessionData{});
   if (!boot)
@@ -218,13 +212,14 @@ int main(int argc, char* argv[])
 
   UICommon::SetUserDirectory("");
   UICommon::CreateDirectories();
-  File::CreateFullPath(Shell::GetRomDirectory());
   UICommon::Init();
   Common::ScopeGuard ui_common_guard([] { UICommon::Shutdown(); });
 
+  SwitchSettings::ApplyDefaults();
+  File::CreateFullPath(SwitchSettings::GetGameDirectory());
+
   LogHostEnvironment();
 
-  Common::HorizonClocks::ApplyPerformanceConfiguration();
   Common::ScopeGuard clocks_guard([] { Common::HorizonClocks::RestorePerformanceConfiguration(); });
 
   Common::SetCurrentThreadName("Host thread");
