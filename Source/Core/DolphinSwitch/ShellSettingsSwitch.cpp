@@ -503,6 +503,8 @@ void BuildHacks(PageBuilder& page)
   page.Toggle("Ignore format changes", Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES, true);
   page.Toggle("Store EFB copies to texture only", Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM);
   page.Toggle("Defer EFB copies to RAM", Config::GFX_HACK_DEFER_EFB_COPIES);
+  page.Toggle("Defer EFB cache invalidation", Config::GFX_HACK_EFB_DEFER_INVALIDATION);
+  page.Note("May result in a significant performance boost in some cases, but also may result in crashes.");
 
   page.Header("Texture cache");
   page.Choice("Accuracy", Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES,
