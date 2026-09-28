@@ -49,6 +49,7 @@ set_target_properties(porpoise_romfs PROPERTIES DKP_ASSET_FILES "${BOREALIS_ROMF
 # Defines the `porpoise_nro` target that the Switch build is driven through.
 nx_create_nro(porpoise
   OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/porpoise.nro"
+  ICON "${CMAKE_CURRENT_SOURCE_DIR}/icon.jpg"
   NACP "${CMAKE_CURRENT_BINARY_DIR}/porpoise.nacp"
   ROMFS porpoise_romfs
 )
