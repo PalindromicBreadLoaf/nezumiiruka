@@ -134,3 +134,7 @@
 	path = Externals/wil
 	url = https://github.com/microsoft/wil.git
 	shallow = true
+[submodule "Externals/borealis/borealis"]
+	path = Externals/borealis/borealis
+	url = https://github.com/xfangfang/borealis.git
+	shallow = true

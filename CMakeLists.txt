@@ -730,6 +730,10 @@ if(ENABLE_DEKO3D)
   include(Uam)
 endif()
 
+if(PORPOISE)
+  add_subdirectory(Externals/borealis)
+endif()
+
 if(NOT (WIN32 AND _M_ARM_64) AND NOT PORPOISE)
   # OpenGL is available on all platforms except windows-arm64 and Switch (for now).
   add_definitions(-DHAS_OPENGL)

@@ -30,9 +30,9 @@
 #include "Core/Core.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
-#include "DolphinSwitch/GamePickerSwitch.h"
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
 #include "DolphinSwitch/PlatformSwitch.h"
+#include "DolphinSwitch/ShellSwitch.h"
 #include "UICommon/UICommon.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
@@ -144,6 +144,12 @@ void ApplyPlatformConfigOverrides()
   PerfOverlay::ApplyCurrentLevel();
 }
 
+void ConfigureInput(PadState& pad)
+{
+  padConfigureInput(8, HidNpadStyleSet_NpadStandard | HidNpadStyleTag_NpadGc);
+  padInitializeDefault(&pad);
+}
+
 std::string RunGame(PadState& pad, const std::string& path)
 {
   ApplyPlatformConfigOverrides();
@@ -155,14 +161,7 @@ std::string RunGame(PadState& pad, const std::string& path)
     return "Not a readable disc image.";
   }
 
-  // The libnx console and the Vulkan swapchain cannot both own the default window.
-  // This is in place to keep the NxLink connection alive throughout ownership changes.
-  consoleExit(nullptr);
-  RedirectStdioToNxlink();
-  Common::ScopeGuard console_guard([] {
-    consoleInit(nullptr);
-    RedirectStdioToNxlink();
-  });
+  ConfigureInput(pad);
 
   g_platform = std::make_unique<PlatformSwitch>(pad);
   Common::ScopeGuard platform_guard([] { g_platform.reset(); });
@@ -203,9 +202,6 @@ std::string RunGame(PadState& pad, const std::string& path)
 
 int main(int argc, char* argv[])
 {
-  consoleInit(nullptr);
-  Common::ScopeGuard console_guard([] { consoleExit(nullptr); });
-
   const bool have_socket = R_SUCCEEDED(socketInitializeDefault());
   if (have_socket)
     RedirectStdioToNxlink();
@@ -214,11 +210,7 @@ int main(int argc, char* argv[])
       socketExit();
   });
 
-  // Eight players for GameCube multiplayer.
-  // GC style so a controller on the official adapter reports its analog triggers.
-  padConfigureInput(8, HidNpadStyleSet_NpadStandard | HidNpadStyleTag_NpadGc);
   PadState pad;
-  padInitializeDefault(&pad);
 
   // Nothing is logged until UICommon::Init brings up LogManager, so this is the only marker if
   // something below goes wrong early.
@@ -226,7 +218,7 @@ int main(int argc, char* argv[])
 
   UICommon::SetUserDirectory("");
   UICommon::CreateDirectories();
-  File::CreateFullPath(GamePicker::GetRomDirectory());
+  File::CreateFullPath(Shell::GetRomDirectory());
   UICommon::Init();
   Common::ScopeGuard ui_common_guard([] { UICommon::Shutdown(); });
 
@@ -249,8 +241,7 @@ int main(int argc, char* argv[])
 
   if (!RunningAsApplication())
   {
-    ERROR_LOG_FMT(COMMON, "Not running as an application. Horizon grants JIT capability and the "
-                          "full heap only in application mode.");
+    ERROR_LOG_FMT(COMMON, "Not running as an application.");
     notice = "WARNING: applet mode. Relaunch by holding R while starting a game.";
   }
 
@@ -260,7 +251,7 @@ int main(int argc, char* argv[])
     pending.clear();
 
     if (path.empty())
-      path = GamePicker::Run(pad, notice);
+      path = Shell::Run(notice);
     if (path.empty())
       break;
 

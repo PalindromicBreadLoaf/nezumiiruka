@@ -323,3 +323,25 @@ add_custom_target(uam_isolate DEPENDS "${_uam_isolated}")
 add_library(uam INTERFACE)
 add_dependencies(uam uam_isolate)
 target_link_libraries(uam INTERFACE "${_uam_isolated}")
+
+find_program(UAM_MESON NAMES meson)
+find_program(UAM_NINJA NAMES ninja)
+foreach(_tool UAM_MESON UAM_NINJA)
+  if(NOT ${_tool})
+    message(FATAL_ERROR "${_tool} not found. meson and ninja are needed to build the host uam.")
+  endif()
+endforeach()
+
+include(ExternalProject)
+set(_uam_host_dir "${CMAKE_BINARY_DIR}/uam-host")
+set(UAM_HOST_EXECUTABLE "${_uam_host_dir}/uam")
+ExternalProject_Add(uam_host
+  SOURCE_DIR "${UAM_ROOT}"
+  BINARY_DIR "${_uam_host_dir}"
+  CONFIGURE_COMMAND "${CMAKE_COMMAND}" -E env --unset=CC --unset=CXX
+                    "${UAM_MESON}" setup --buildtype=release "${_uam_host_dir}" "${UAM_ROOT}"
+  BUILD_COMMAND "${CMAKE_COMMAND}" -E env --unset=CC --unset=CXX "${UAM_NINJA}" -C "${_uam_host_dir}"
+  INSTALL_COMMAND ""
+  BUILD_ALWAYS ON
+  BUILD_BYPRODUCTS "${UAM_HOST_EXECUTABLE}"
+)
