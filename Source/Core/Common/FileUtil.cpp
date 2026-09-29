@@ -461,9 +461,22 @@ FSTEntry ScanDirectoryTree(const std::string& directory, bool recursive)
   };
 
   auto dirent_to_fstent = [&](const fs::directory_entry& entry) {
+    std::error_code entry_error;
+    const bool is_directory = entry.is_directory(entry_error);
+    u64 size = 0;
+    if (!is_directory && !entry.is_fifo(entry_error))
+    {
+      size = entry.file_size(entry_error);
+      if (entry_error)
+      {
+        WARN_LOG_FMT(COMMON, "{}: cannot get size of {}: {}", __func__, PathToString(entry.path()),
+                     entry_error.message());
+        size = 0;
+      }
+    }
     return FSTEntry{
-        .isDirectory = entry.is_directory(),
-        .size = entry.is_directory() || entry.is_fifo() ? 0 : entry.file_size(),
+        .isDirectory = is_directory,
+        .size = size,
         .physicalName = path_to_physical_name(entry.path()),
         .virtualName = PathToString(entry.path().filename()),
     };
