@@ -11,6 +11,7 @@
 
 #include "VideoBackends/Deko3D/DKCommandBufferManager.h"
 #include "VideoBackends/Deko3D/DKContext.h"
+#include "VideoBackends/Deko3D/DKFrameGenerator.h"
 #include "VideoBackends/Deko3D/DKObjectCache.h"
 #include "VideoBackends/Deko3D/DKPipeline.h"
 #include "VideoBackends/Deko3D/DKShader.h"
@@ -20,6 +21,7 @@
 #include "VideoBackends/Deko3D/DKTexture.h"
 #include "VideoBackends/Deko3D/DKVertexFormat.h"
 
+#include "VideoCommon/FrameGeneration.h"
 #include "VideoCommon/NativeVertexFormat.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -295,6 +297,14 @@ void DKGfx::OnConfigChanged(u32 bits)
     ResetSamplerStates();
   }
 }
+
+#ifdef HAS_FRAME_GENERATION
+std::unique_ptr<VideoCommon::FrameGenerator>
+DKGfx::CreateFrameGenerator(const FrameGenerationConfig& config)
+{
+  return Deko3D::CreateFrameGenerator(config);
+}
+#endif
 
 bool DKGfx::BindBackbuffer(const ClearColor& clear_color)
 {

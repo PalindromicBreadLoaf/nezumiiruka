@@ -107,6 +107,15 @@ enum class VertexLoaderType : int
   Compare
 };
 
+struct FrameGenerationConfig
+{
+  u32 multiplier = 2;
+  u32 flow_scale = 2;
+  bool performance = false;
+
+  bool operator==(const FrameGenerationConfig&) const = default;
+};
+
 // Bitmask containing information about which configuration has changed for the backend.
 enum ConfigChangeBits : u32
 {
@@ -227,6 +236,9 @@ struct VideoConfig final
   bool bArbitraryMipmapDetection = false;
   float fArbitraryMipmapDetectionThreshold = 0;
   bool bHDR = false;
+  bool bFrameGeneration = false;
+  bool bFrameGenerationHighRefreshRate = false;
+  FrameGenerationConfig frame_generation;
 
   // Color Correction
   struct

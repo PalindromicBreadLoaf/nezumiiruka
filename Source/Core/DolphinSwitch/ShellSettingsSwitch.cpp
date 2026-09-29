@@ -7,6 +7,7 @@
 #include <cmath>
 #include <optional>
 #include <string>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -42,6 +43,9 @@
 #include "DolphinSwitch/WiimoteProfilesSwitch.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
+#ifdef HAS_FRAME_GENERATION
+#include "VideoBackends/Deko3D/DKFrameGenerationShaders.h"
+#endif
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -311,7 +315,8 @@ public:
     m_box->addView(cell);
   }
 
-  void Action(const std::string& title, const std::string& detail, std::function<void()> action)
+  brls::DetailCell* Action(const std::string& title, const std::string& detail,
+                           std::function<void()> action)
   {
     auto* cell = new brls::DetailCell();
     cell->setText(title);
@@ -321,6 +326,7 @@ public:
       return true;
     });
     m_box->addView(cell);
+    return cell;
   }
 
   void Info(const std::string& title, const std::string& value)
@@ -525,6 +531,99 @@ void BuildHacks(PageBuilder& page)
   page.Toggle("Vertex rounding", Config::GFX_HACK_VERTEX_ROUNDING);
   page.Toggle("VBI skip", Config::GFX_HACK_VI_SKIP);
 }
+
+#ifdef HAS_FRAME_GENERATION
+std::jthread s_frame_generation_thread;
+
+std::string FrameGenerationShaderStatus()
+{
+  switch (Deko3D::FrameGeneration::GetShaderStatus())
+  {
+  case Deko3D::FrameGeneration::ShaderStatus::Prepared:
+    return "Prepared";
+  case Deko3D::FrameGeneration::ShaderStatus::NotPrepared:
+    return "Not prepared";
+  case Deko3D::FrameGeneration::ShaderStatus::MissingDll:
+  default:
+    return "No Lossless.dll";
+  }
+}
+
+void PrepareFrameGenerationShaders(brls::DetailCell* cell)
+{
+  if (!File::Exists(Deko3D::FrameGeneration::GetDllPath()))
+  {
+    auto* dialog = new brls::Dialog(fmt::format(
+        "Copy Lossless.dll from your own copy of Lossless Scaling to {}, then prepare the shaders "
+        "again.",
+        Deko3D::FrameGeneration::GetDllPath()));
+    dialog->addButton("OK", [] {});
+    dialog->open();
+    return;
+  }
+
+  auto* label = new brls::Label();
+  label->setText("Reading Lossless.dll...");
+  label->setHorizontalAlign(brls::HorizontalAlign::CENTER);
+  label->setMargins(32, 32, 32, 32);
+
+  auto* content = new brls::Box(brls::Axis::COLUMN);
+  content->addView(label);
+
+
+  auto* dialog = new brls::Dialog(content);
+  dialog->open();
+
+  s_frame_generation_thread = std::jthread([dialog, label, cell] {
+    const std::string error =
+        Deko3D::FrameGeneration::PrepareShaders([label](u32 compiled, u32 total) {
+          brls::sync([label, compiled, total] {
+            label->setText(fmt::format("Compiling shader {} of {}...", compiled, total));
+          });
+        });
+
+    brls::sync([dialog, cell, error] {
+      dialog->close();
+      cell->setDetailText(FrameGenerationShaderStatus());
+      brls::Application::notify(error.empty() ? "Frame generation shaders prepared." : error);
+    });
+  });
+}
+
+void BuildFrameGeneration(PageBuilder& page)
+{
+  page.Header("Frame generation");
+  page.Toggle("Enable frame generation", Config::GFX_FRAME_GENERATION);
+  page.Choice("Multiplier", Config::GFX_FRAME_GENERATION_MULTIPLIER,
+              {{"2×", 2u}, {"3×", 3u}, {"4×", 4u}});
+  page.Choice("Flow scale", Config::GFX_FRAME_GENERATION_FLOW_SCALE,
+              {{"100%", 1u}, {"50%", 2u}, {"33%", 3u}, {"25%", 4u}});
+  page.Toggle("Performance mode", Config::GFX_FRAME_GENERATION_PERFORMANCE);
+  page.Note("Frame generation raises both CPU and GPU requirements when enabled. You will need "
+            "to overclock the system to get good results. Porpoise's stastics counters also do "
+            "not account for latency or cost from lsfg running.");
+  page.Note("A lower flow scale and performance mode are both faster, at some cost to quality. "
+            "Increasing the render resolution bumps the GPU workload for both it and framegen. "
+            "Currently, only the Deko3D renderer supports framegen.");
+  page.Toggle("Allow above 60 Hz", Config::GFX_FRAME_GENERATION_HIGH_REFRESH_RATE);
+  page.Note("Most people should leave this off. It generates frames however fast the game "
+            "already runs, so a 60 FPS game at 2× presents 120 frames a second, or a 30 FPS "
+            "game at 4× presents 120 FPS. Only enable it if your display has been overclocked "
+            "to refresh faster than 60 Hz.");
+
+  if (page.IsPerGame())
+    return;
+
+  page.Header("Shaders");
+  auto cell = std::make_shared<brls::DetailCell*>(nullptr);
+  *cell = page.Action("Prepare shaders", FrameGenerationShaderStatus(),
+                      [cell] { PrepareFrameGenerationShaders(*cell); });
+  page.Note(fmt::format("The shaders come from Lossless.dll, which you must supply from your own "
+                        "copy of Lossless Scaling. Place Lossless.dll at {}. Preparing them takes "
+                        "a few minutes and only has to be done again if the DLL changes.",
+                        Deko3D::FrameGeneration::GetDllPath()));
+}
+#endif
 
 void BuildEmulation(PageBuilder& page)
 {
@@ -829,6 +928,9 @@ brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
   AddPage(tabs, context, "Graphics", BuildGraphics);
   AddPage(tabs, context, "Enhancements", BuildEnhancements);
   AddPage(tabs, context, "Graphics hacks", BuildHacks);
+#ifdef HAS_FRAME_GENERATION
+  AddPage(tabs, context, "Frame generation", BuildFrameGeneration);
+#endif
   tabs->addSeparator();
   AddPage(tabs, context, "Emulation", BuildEmulation);
   AddPage(tabs, context, "Audio", BuildAudio);
@@ -864,6 +966,9 @@ brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::Gam
   AddPage(tabs, context, "Graphics", BuildGraphics);
   AddPage(tabs, context, "Enhancements", BuildEnhancements);
   AddPage(tabs, context, "Graphics hacks", BuildHacks);
+#ifdef HAS_FRAME_GENERATION
+  AddPage(tabs, context, "Frame generation", BuildFrameGeneration);
+#endif
   AddPage(tabs, context, "Emulation", BuildEmulation);
   AddPage(tabs, context, "Audio", BuildAudio);
   if (DiscIO::IsWii(game->GetPlatform()))

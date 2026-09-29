@@ -128,6 +128,14 @@ extern const Info<bool> GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION;
 extern const Info<float> GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION_THRESHOLD;
 extern const Info<bool> GFX_ENHANCE_HDR_OUTPUT;
 
+// Graphics.FrameGeneration
+
+extern const Info<bool> GFX_FRAME_GENERATION;
+extern const Info<u32> GFX_FRAME_GENERATION_MULTIPLIER;
+extern const Info<u32> GFX_FRAME_GENERATION_FLOW_SCALE;
+extern const Info<bool> GFX_FRAME_GENERATION_PERFORMANCE;
+extern const Info<bool> GFX_FRAME_GENERATION_HIGH_REFRESH_RATE;
+
 // Color.Correction
 
 static constexpr float GFX_CC_GAME_GAMMA_MIN = 2.2f;

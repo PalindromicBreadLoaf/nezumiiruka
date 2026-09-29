@@ -37,8 +37,11 @@ struct SurfaceInfo
 namespace VideoCommon
 {
 class AsyncShaderCompiler;
+class FrameGenerator;
 class ShaderIncluder;
 }  // namespace VideoCommon
+
+struct FrameGenerationConfig;
 
 using ClearColor = std::array<float, 4>;
 
@@ -174,6 +177,9 @@ public:
   }
 
   virtual std::unique_ptr<VideoCommon::AsyncShaderCompiler> CreateAsyncShaderCompiler();
+
+  virtual std::unique_ptr<VideoCommon::FrameGenerator>
+  CreateFrameGenerator(const FrameGenerationConfig& config);
 
   // Called when the configuration changes, and backend structures need to be updated.
   virtual void OnConfigChanged(u32 changed_bits);

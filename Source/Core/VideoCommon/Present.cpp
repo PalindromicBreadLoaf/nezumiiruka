@@ -16,6 +16,7 @@
 #include "Present.h"
 #include "VideoCommon/AbstractGfx.h"
 #include "VideoCommon/FrameDumper.h"
+#include "VideoCommon/FrameGeneration.h"
 #include "VideoCommon/FramebufferManager.h"
 #include "VideoCommon/OnScreenUI.h"
 #include "VideoCommon/PostProcessing.h"
@@ -212,7 +213,7 @@ void Presenter::ViSwap(u32 xfb_addr, u32 fb_width, u32 fb_stride, u32 fb_height,
 
   video_events.before_present_event.Trigger(present_info);
 
-  if (!is_duplicate || !g_ActiveConfig.bSkipPresentingDuplicateXFBs)
+  if (!is_duplicate || !(g_ActiveConfig.bSkipPresentingDuplicateXFBs || m_frame_generator))
   {
     Present(&present_info);
     ProcessFrameDumping(ticks);
@@ -934,17 +935,51 @@ void Presenter::Present(PresentInfo* present_info)
   UpdateDrawRectangle();
 
   g_gfx->BeginUtilityDrawing();
+
+  std::optional<TimePoint> present_time;
+  if (present_info != nullptr)
+    present_time = GetUpdatedPresentationTime(present_info->intended_present_time);
+
+  if (const u32 generated_frames = GenerateFrames(present_info); generated_frames != 0)
+  {
+    const MathUtil::Rectangle<int> source_rc = AdjustForCustomCrop(
+        MathUtil::Rectangle<int>(0, 0, m_xfb_rect.GetWidth(), m_xfb_rect.GetHeight()));
+    const DT step = m_real_frame_interval / (generated_frames + 1);
+
+    for (u32 i = 0; i < generated_frames; ++i)
+    {
+      PresentFrame(m_frame_generator->GetGeneratedFrame(i), source_rc, *present_time, nullptr);
+      *present_time += step;
+    }
+  }
+
+  PresentFrame(m_xfb_entry ? m_xfb_entry->texture.get() : nullptr, AdjustForCustomCrop(m_xfb_rect),
+               present_time, present_info);
+
+  if (m_xfb_entry)
+  {
+    const MathUtil::Rectangle<int> rect = AdjustForCustomCrop(m_xfb_rect);
+    SetSuggestedWindowSize(rect.GetWidth(), rect.GetHeight());
+  }
+
+  g_gfx->EndUtilityDrawing();
+}
+
+void Presenter::PresentFrame(const AbstractTexture* texture,
+                             const MathUtil::Rectangle<int>& source_rc,
+                             std::optional<TimePoint> present_time, PresentInfo* present_info)
+{
   const bool backbuffer_bound = g_gfx->BindBackbuffer({{0.0f, 0.0f, 0.0f, 1.0f}});
 
   // Render the XFB to the screen.
-  if (backbuffer_bound && m_xfb_entry)
+  if (backbuffer_bound && texture)
   {
     // Adjust the source rectangle instead of using an oversized viewport to render the XFB.
     MathUtil::Rectangle<int> render_target_rc = GetTargetRectangle();
-    MathUtil::Rectangle<int> render_source_rc = AdjustForCustomCrop(m_xfb_rect);
+    MathUtil::Rectangle<int> render_source_rc = source_rc;
     AdjustRectanglesToFitBounds(&render_target_rc, &render_source_rc, m_backbuffer_width,
                                 m_backbuffer_height);
-    RenderXFBToScreen(render_target_rc, m_xfb_entry->texture.get(), render_source_rc);
+    RenderXFBToScreen(render_target_rc, texture, render_source_rc);
   }
 
   if (m_onscreen_ui)
@@ -958,32 +993,83 @@ void Presenter::Present(PresentInfo* present_info)
   {
     std::lock_guard<std::mutex> guard(m_swap_mutex);
 
-    if (present_info != nullptr)
+    if (present_time)
     {
-      const auto present_time = GetUpdatedPresentationTime(present_info->intended_present_time);
+      Core::System::GetInstance().GetCoreTiming().SleepUntil(*present_time);
 
-      Core::System::GetInstance().GetCoreTiming().SleepUntil(present_time);
-
-      // Perhaps in the future a more accurate time can be acquired from the various backends.
-      present_info->actual_present_time = Clock::now();
-      present_info->present_time_accuracy = PresentInfo::PresentTimeAccuracy::PresentInProgress;
+      if (present_info != nullptr)
+      {
+        present_info->actual_present_time = Clock::now();
+        present_info->present_time_accuracy = PresentInfo::PresentTimeAccuracy::PresentInProgress;
+      }
     }
 
     g_gfx->PresentBackbuffer();
   }
 
-  if (m_xfb_entry)
-  {
-    // Update the window size based on the frame that was just rendered.
-    // Due to depending on guest state, we need to call this every frame.
-    const MathUtil::Rectangle<int> rect = AdjustForCustomCrop(m_xfb_rect);
-    SetSuggestedWindowSize(rect.GetWidth(), rect.GetHeight());
-  }
-
   if (m_onscreen_ui)
     m_onscreen_ui->BeginImGuiFrame(m_backbuffer_width, m_backbuffer_height);
+}
 
-  g_gfx->EndUtilityDrawing();
+void Presenter::UpdateFrameGenerator()
+{
+  std::optional<FrameGenerationConfig> config;
+  if (g_ActiveConfig.bFrameGeneration)
+    config = g_ActiveConfig.frame_generation;
+
+  if (config == m_frame_generation_config)
+    return;
+
+  m_frame_generation_config = config;
+  m_frame_generator.reset();
+  m_last_real_frame_time = {};
+  m_real_frame_interval = {};
+
+  if (config)
+    m_frame_generator = g_gfx->CreateFrameGenerator(*config);
+}
+
+u32 Presenter::GenerateFrames(const PresentInfo* present_info)
+{
+  UpdateFrameGenerator();
+
+  if (!m_frame_generator || !m_xfb_entry || present_info == nullptr ||
+      present_info->reason == PresentInfo::PresentReason::VideoInterfaceDuplicate ||
+      g_ActiveConfig.stereo_mode != StereoMode::Off)
+  {
+    return 0;
+  }
+
+  constexpr DT MAX_REAL_FRAME_INTERVAL = std::chrono::milliseconds(250);
+
+  const TimePoint frame_time = present_info->intended_present_time;
+  const DT since_last = frame_time - m_last_real_frame_time;
+  m_last_real_frame_time = frame_time;
+
+  if (since_last <= DT{} || since_last > MAX_REAL_FRAME_INTERVAL)
+  {
+    m_frame_generator->Reset();
+    m_real_frame_interval = {};
+    return 0;
+  }
+
+  if (m_real_frame_interval == DT{})
+    m_real_frame_interval = since_last;
+  else
+    m_real_frame_interval += (since_last - m_real_frame_interval) / 8;
+
+  const u32 generated_frames = m_frame_generator->GetGeneratedFrameCount();
+  const DT needed = m_frame_generator->GetDisplayInterval() * (generated_frames + 1);
+  if (!g_ActiveConfig.bFrameGenerationHighRefreshRate && m_real_frame_interval * 10 < needed * 9)
+  {
+    m_frame_generator->Reset();
+    return 0;
+  }
+
+  if (!m_frame_generator->Generate(m_xfb_entry->texture.get(), m_xfb_rect))
+    return 0;
+
+  return generated_frames;
 }
 
 TimePoint Presenter::GetUpdatedPresentationTime(TimePoint intended_presentation_time)

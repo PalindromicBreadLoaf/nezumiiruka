@@ -8,6 +8,7 @@
 #include "VideoCommon/AbstractFramebuffer.h"
 #include "VideoCommon/AbstractTexture.h"
 #include "VideoCommon/BPFunctions.h"
+#include "VideoCommon/FrameGeneration.h"
 #include "VideoCommon/FramebufferManager.h"
 #include "VideoCommon/ShaderCache.h"
 #include "VideoCommon/VertexManagerBase.h"
@@ -170,6 +171,12 @@ AbstractGfx::ConvertFramebufferRectangle(const MathUtil::Rectangle<int>& rect, u
 std::unique_ptr<VideoCommon::AsyncShaderCompiler> AbstractGfx::CreateAsyncShaderCompiler()
 {
   return std::make_unique<VideoCommon::AsyncShaderCompiler>();
+}
+
+std::unique_ptr<VideoCommon::FrameGenerator>
+AbstractGfx::CreateFrameGenerator(const FrameGenerationConfig& /*config*/)
+{
+  return nullptr;
 }
 
 void AbstractGfx::OnConfigChanged(u32 changed_bits)

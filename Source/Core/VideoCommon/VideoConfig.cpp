@@ -157,6 +157,13 @@ void VideoConfig::Refresh()
   fArbitraryMipmapDetectionThreshold =
       Config::Get(Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION_THRESHOLD);
   bHDR = Config::Get(Config::GFX_ENHANCE_HDR_OUTPUT);
+  bFrameGeneration = Config::Get(Config::GFX_FRAME_GENERATION);
+  frame_generation.multiplier =
+      std::clamp(Config::Get(Config::GFX_FRAME_GENERATION_MULTIPLIER), 2u, 4u);
+  frame_generation.flow_scale =
+      std::clamp(Config::Get(Config::GFX_FRAME_GENERATION_FLOW_SCALE), 1u, 4u);
+  frame_generation.performance = Config::Get(Config::GFX_FRAME_GENERATION_PERFORMANCE);
+  bFrameGenerationHighRefreshRate = Config::Get(Config::GFX_FRAME_GENERATION_HIGH_REFRESH_RATE);
 
   color_correction.bCorrectColorSpace = Config::Get(Config::GFX_CC_CORRECT_COLOR_SPACE);
   color_correction.game_color_space = Config::Get(Config::GFX_CC_GAME_COLOR_SPACE);

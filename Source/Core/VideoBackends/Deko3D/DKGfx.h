@@ -83,6 +83,11 @@ public:
   // Submits what has been recorded so far and rotates to the next command buffer.
   void ExecuteCommandBuffer(bool wait_for_completion);
 
+#ifdef HAS_FRAME_GENERATION
+  std::unique_ptr<VideoCommon::FrameGenerator>
+  CreateFrameGenerator(const FrameGenerationConfig& config) override;
+#endif
+
   bool BindBackbuffer(const ClearColor& clear_color = {}) override;
   void PresentBackbuffer() override;
 

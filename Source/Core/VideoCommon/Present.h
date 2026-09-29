@@ -10,10 +10,12 @@
 #include "VideoCommon/TextureCacheBase.h"
 #include "VideoCommon/TextureConfig.h"
 #include "VideoCommon/VideoCommon.h"
+#include "VideoCommon/VideoConfig.h"
 
 #include <array>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <tuple>
 
 class AbstractTexture;
@@ -22,6 +24,7 @@ enum class DolphinKey;
 
 namespace VideoCommon
 {
+class FrameGenerator;
 class OnScreenUI;
 class PostProcessing;
 
@@ -118,6 +121,13 @@ private:
 
   void OnBackBufferSizeChanged();
 
+  void PresentFrame(const AbstractTexture* texture, const MathUtil::Rectangle<int>& source_rc,
+                    std::optional<TimePoint> present_time, PresentInfo* present_info);
+
+  void UpdateFrameGenerator();
+
+  u32 GenerateFrames(const PresentInfo* present_info);
+
   // Scales a raw XFB resolution to the target (display) aspect ratio,
   // also accounting for crop and other minor adjustments
   std::tuple<int, int> CalculateOutputDimensions(int width, int height,
@@ -193,6 +203,11 @@ private:
   TimePoint m_next_swap_estimated_time{Clock::now()};
 
   std::atomic_bool m_immediate_swap_happened_this_field{};
+
+  std::unique_ptr<VideoCommon::FrameGenerator> m_frame_generator;
+  std::optional<FrameGenerationConfig> m_frame_generation_config;
+  TimePoint m_last_real_frame_time{};
+  DT m_real_frame_interval{};
 };
 
 }  // namespace VideoCommon

@@ -157,6 +157,16 @@ const Info<float> GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION_THRESHOLD{
     {System::GFX, "Enhancements", "ArbitraryMipmapDetectionThreshold"}, 14.0f};
 const Info<bool> GFX_ENHANCE_HDR_OUTPUT{{System::GFX, "Enhancements", "HDROutput"}, false};
 
+// Graphics.FrameGeneration
+
+const Info<bool> GFX_FRAME_GENERATION{{System::GFX, "FrameGeneration", "Enabled"}, false};
+const Info<u32> GFX_FRAME_GENERATION_MULTIPLIER{{System::GFX, "FrameGeneration", "Multiplier"}, 2};
+const Info<u32> GFX_FRAME_GENERATION_FLOW_SCALE{{System::GFX, "FrameGeneration", "FlowScale"}, 2};
+const Info<bool> GFX_FRAME_GENERATION_PERFORMANCE{{System::GFX, "FrameGeneration", "Performance"},
+                                                  false};
+const Info<bool> GFX_FRAME_GENERATION_HIGH_REFRESH_RATE{
+    {System::GFX, "FrameGeneration", "HighRefreshRate"}, false};
+
 // Color.Correction
 
 const Info<bool> GFX_CC_CORRECT_COLOR_SPACE{{System::GFX, "ColorCorrection", "CorrectColorSpace"},
