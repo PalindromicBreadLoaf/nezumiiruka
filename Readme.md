@@ -1,15 +1,19 @@
-# Porpoise - A GameCube and Wii Emulator for Nintendo Switch Based on Dolphin
+# Porpoise - A Gamecube and Wii Emulator for the Nintendo Switch
 
-Porpoise is an emulator for running GameCube and Wii games on the Nintendo Switch.
-It features a hand-written Deko3D backend to give the Switch as much of a fighting chance as possible.
-It's licensed under the terms of the GNU General Public License version 2 or later (GPLv2+).
+Porpoise is a port of the [Dolphin](https://github.com/dolphin-emu/dolphin) emulator to the Nintendo Switch.
+
+It features a hand-written Deko3D backend to give the Switch as much of a fighting chance as possible
+of reaching the goal of mostly fullspeed Gamecube at stock handheld clockspeeds.
+
+Porpoise itself licensed under the same terms as Dolphin (GNU General Public License version 2 or later (GPLv2+)).
+LSFG-NX (of which some code was borrowed) is licensed under the GNU General Public License 3 or later (GPLv3+).
+Borealis is licensed under the Apache-2.0 license.
 
 ## System Requirements
 
 ### Gamecube
 
 * Many 2D and some 3D games can run at fullspeed at stock clocks
-    * Overclocking can help with shader compilation stutter
     * Many 3D titles tend to hover around 80% at the moment and are fully CPU-bound.
 
 ### Wii
@@ -20,15 +24,16 @@ It's licensed under the terms of the GNU General Public License version 2 or lat
 ## Building
 
 Requires [devkitPro](https://devkitpro.org/wiki/Getting_Started) with the `switch-dev` package
-group installed, and `$DEVKITPRO` set (`/opt/devkitpro` by default).
-`bison`, `flex` and `python3` must be available on the build host.
+group installed.
+
+`bison`, `flex`, and `python3` also must be available for building.
 
 Make sure to pull submodules before building:
 ```shell
 git submodule update --init --recursive
 ```
 
-Two checkouts are expected alongside this one. NXVK (optional), which supplies the Vulkan driver, and my uam's fork.
+Two checkouts are expected alongside this one. NXVK (optional), which supplies the Vulkan driver, and my uam fork (not optional).
 ```shell
 git clone https://github.com/PalindromicBreadLoaf/uam ../uam
 git clone https://github.com/PalindromicBreadLoaf/nxvk.git ../nxvk
@@ -45,8 +50,26 @@ cmake -S . -B build/switch \
 cmake --build build/switch --target porpoise_nro -j$(nproc)
 ```
 
+Only the deko3d renderer is built by default. This should be the renderer you use as it is more 
+performant than Vulkan in every case that I saw. 
+
+If you want, pass `-DPORPOISE_VULKAN=ON` to also build the Vulkan renderer (requires NXVK).
+
 This produces `build/switch/Binaries/porpoise.nro`. Copy it to `/switch/porpoise/` on the SD
 card.
+
+## Frame generation
+
+Porpoise can use Lossless Scaling's frame generation to generate extra frames between the ones a game
+renders. You must supply your own copy of `Lossless.dll`, which can be bought on [Steam](https://store.steampowered.com/app/993090/Lossless_Scaling/).
+
+1. Copy `Lossless.dll` to `/switch/porpoise/FrameGeneration/Lossless.dll`.
+2. In Porpoise, open Settings -> Frame generation and choose Prepare shaders. This will
+   take a few minutes.
+3. Turn on frame generation and pick a multiplier, flow scale, and performance mode.
+
+Do note that frame generation is very resource intensive and will necessitate an overclock to get good
+results out of. Also, currently only the Deko3D backend has a frame generation implementation.
 
 ## Credits
 * Massive thanks to the Dolphin Emulator team for creating this amazing emulator. None of this
