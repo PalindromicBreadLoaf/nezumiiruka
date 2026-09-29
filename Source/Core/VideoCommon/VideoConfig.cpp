@@ -4,11 +4,13 @@
 #include "VideoCommon/VideoConfig.h"
 
 #include <algorithm>
+#include <bit>
 #include <optional>
 
 #include "Common/CPUDetect.h"
 #include "Common/CommonTypes.h"
 #include "Common/Contains.h"
+#include "Common/Thread.h"
 
 #include "Core/CPUThreadConfigCallback.h"
 #include "Core/Config/GraphicsSettings.h"
@@ -257,16 +259,24 @@ bool VideoConfig::UsingUberShaders() const
 
 static u32 GetNumAutoShaderCompilerThreads()
 {
+#ifdef __SWITCH__
+  return static_cast<u32>(std::max(std::popcount(Common::GetShaderCompilerCoreMask()), 1));
+#else
   // Automatic number.
   return static_cast<u32>(std::clamp(cpu_info.num_cores - 3, 1, 4));
+#endif
 }
 
 static u32 GetNumAutoShaderPreCompilerThreads()
 {
+#ifdef __SWITCH__
+  return GetNumAutoShaderCompilerThreads();
+#else
   // Automatic number. We use clamp(cpus - 2, 1, infty) here.
   // We chose this because we don't want to limit our speed-up
   // and at the same time leave two logical cores for the dolphin UI and the rest of the OS.
   return static_cast<u32>(std::max(cpu_info.num_cores - 2, 1));
+#endif
 }
 
 u32 VideoConfig::GetShaderCompilerThreads() const

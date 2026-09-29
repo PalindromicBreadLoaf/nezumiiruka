@@ -3,8 +3,13 @@
 
 #include "VideoCommon/AsyncShaderCompiler.h"
 
+#include <algorithm>
 #include <memory>
 #include <thread>
+
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
 
 #include "Common/Assert.h"
 #include "Common/Logging/Log.h"
@@ -250,7 +255,11 @@ void AsyncShaderCompiler::WorkerThreadEntryPoint(void* param)
   Common::SetCurrentThreadName("AsyncShaderCompiler Worker");
 
 #ifdef __SWITCH__
-  Common::PinCurrentThreadToRole(Common::ThreadCoreRole::Worker);
+  Common::PinCurrentThreadToRole(Common::ThreadCoreRole::ShaderCompiler);
+
+  s32 priority = 0;
+  if (R_SUCCEEDED(svcGetThreadPriority(&priority, CUR_THREAD_HANDLE)))
+    svcSetThreadPriority(CUR_THREAD_HANDLE, std::min(priority + 1, 0x3F));
 #endif
 
   // Initialize worker thread with backend-specific method.

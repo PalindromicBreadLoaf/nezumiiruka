@@ -4,6 +4,7 @@
 #include "Common/Thread.h"
 
 #include <bit>
+#include <optional>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -137,7 +138,17 @@ u32 GetAvailableCoreMask()
   return static_cast<u32>(core_mask);
 }
 
-void PinCurrentThreadToRole(ThreadCoreRole role)
+namespace
+{
+struct CoreLayout
+{
+  u32 available = 0;
+  s32 cpu_core = 0;
+  s32 gpu_core = 0;
+  s32 shared_core = 0;
+};
+
+std::optional<CoreLayout> GetCoreLayout()
 {
   const u32 available = GetAvailableCoreMask();
 
@@ -151,7 +162,7 @@ void PinCurrentThreadToRole(ThreadCoreRole role)
   }
 
   if (count == 0)
-    return;
+    return std::nullopt;
 
   // The CPU and GPU threads each claim a core with everything else shares the first one.
   s32 cpu_core = cores[0];
@@ -167,16 +178,44 @@ void PinCurrentThreadToRole(ThreadCoreRole role)
     cpu_core = cores[1];
   }
 
-  s32 target = shared_core;
+  return CoreLayout{available, cpu_core, gpu_core, shared_core};
+}
+}  // namespace
+
+u32 GetShaderCompilerCoreMask()
+{
+  const std::optional<CoreLayout> layout = GetCoreLayout();
+  if (!layout)
+    return 0;
+
+  const u32 mask = layout->available & ~(1u << layout->cpu_core);
+  return mask != 0 ? mask : layout->available;
+}
+
+void PinCurrentThreadToRole(ThreadCoreRole role)
+{
+  const std::optional<CoreLayout> layout = GetCoreLayout();
+  if (!layout)
+    return;
+
+  if (role == ThreadCoreRole::ShaderCompiler)
+  {
+    const u32 mask = GetShaderCompilerCoreMask();
+    SetCurrentThreadAffinity(mask);
+    INFO_LOG_FMT(COMMON, "Allowed shader compiler thread on core mask {:#x}", mask);
+    return;
+  }
+
+  s32 target = layout->shared_core;
   const char* role_name = "shared";
   switch (role)
   {
   case ThreadCoreRole::Cpu:
-    target = cpu_core;
+    target = layout->cpu_core;
     role_name = "cpu";
     break;
   case ThreadCoreRole::Gpu:
-    target = gpu_core;
+    target = layout->gpu_core;
     role_name = "gpu";
     break;
   default:

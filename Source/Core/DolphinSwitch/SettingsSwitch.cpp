@@ -44,6 +44,8 @@ void ApplyDefaults()
 {
   SetBaseIfUnset(Config::GFX_SHADER_COMPILATION_MODE,
                  ShaderCompilationMode::AsynchronousSkipRendering);
+  SetBaseIfUnset(Config::GFX_SHADER_COMPILER_THREADS, -1);
+  SetBaseIfUnset(Config::GFX_SHADER_PRECOMPILER_THREADS, -1);
   SetBaseIfUnset(Config::GFX_ENHANCE_MAX_ANISOTROPY, AnisotropicFilteringMode::Force1x);
   SetBaseIfUnset(Config::GFX_ENABLE_GPU_TEXTURE_DECODING, true);
 }

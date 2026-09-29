@@ -59,6 +59,7 @@ void VideoBackend::InitBackendInfo(const WindowSystemInfo& wsi)
   // DKSH is what DKShader::GetBinary hands back, so the disk shader cache works and pays for the
   // in-process compilation only once per shader.
   g_backend_info.bSupportsShaderBinaries = true;
+  g_backend_info.bSupportsBackgroundCompiling = true;
 
   g_backend_info.bSupportsBBox = true;
 
@@ -68,7 +69,6 @@ void VideoBackend::InitBackendInfo(const WindowSystemInfo& wsi)
   g_backend_info.bSupportsST3CTextures = false;
   g_backend_info.bSupportsBPTCTextures = false;
   g_backend_info.bSupportsPipelineCacheData = false;
-  g_backend_info.bSupportsBackgroundCompiling = false;
   g_backend_info.bSupportsDepthReadback = false;
 
   g_backend_info.Adapters.clear();

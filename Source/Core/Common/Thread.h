@@ -38,8 +38,11 @@ enum class ThreadCoreRole
   Audio,
   Host,
   Worker,
+  ShaderCompiler,
 };
 void PinCurrentThreadToRole(ThreadCoreRole role);
+
+u32 GetShaderCompilerCoreMask();
 #endif
 
 void SleepCurrentThread(int ms);
