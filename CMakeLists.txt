@@ -499,8 +499,9 @@ if(PORPOISE)
   # Input goes through Horizon HID.
   set(ENABLE_SDL 0)
 
-  # Vulkan via NXVK.
-  set(ENABLE_VULKAN 1)
+  # Vulkan via NXVK. Off by default.
+  option(PORPOISE_VULKAN "Build the NXVK-backed Vulkan video backend alongside deko3d" OFF)
+  set(ENABLE_VULKAN ${PORPOISE_VULKAN})
 
   # Deko3d
   set(ENABLE_DEKO3D 1)

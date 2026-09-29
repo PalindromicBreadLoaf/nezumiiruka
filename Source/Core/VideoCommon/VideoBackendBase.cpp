@@ -224,7 +224,6 @@ const std::vector<std::unique_ptr<VideoBackendBase>>& VideoBackendBase::GetAvail
 #endif
 #endif
 #ifdef HAS_DEKO3D
-    // Vulkan is the default, Deko3D is just a secondary option.
     backends.push_back(std::make_unique<Deko3D::VideoBackend>());
 #endif
 #ifdef __APPLE__
