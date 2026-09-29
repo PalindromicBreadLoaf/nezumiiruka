@@ -19,6 +19,8 @@ add_executable(porpoise
   ShellSettingsSwitch.h
   ShellSwitch.cpp
   ShellSwitch.h
+  WiimoteProfilesSwitch.cpp
+  WiimoteProfilesSwitch.h
 )
 
 target_link_libraries(porpoise

@@ -6,6 +6,7 @@
 
 #include <array>
 #include <atomic>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <utility>
@@ -65,6 +66,11 @@ constexpr std::array BUTTONS{
     ButtonDef{"Pad Right", HidNpadButton_Right},
     ButtonDef{"SL", HidNpadButton_AnySL},
     ButtonDef{"SR", HidNpadButton_AnySR},
+};
+
+constexpr std::array SIDEWAYS_BUTTONS{
+    "Sideways Right", "Sideways Down", "Sideways Left",
+    "Sideways Up",    "Sideways Menu", "Sideways Stick Click",
 };
 
 // A given Npad reports exactly one style at a time.
@@ -171,12 +177,14 @@ public:
 
     AddStick("Left", m_stick[0], m_stick[1]);
     AddStick("Right", m_stick[2], m_stick[3]);
+    AddSidewaysInputs();
 
     // Only ::HidNpadStyleTag_NpadGc fills these in.
     AddInput(new Trigger("Trigger L", m_trigger[0]));
     AddInput(new Trigger("Trigger R", m_trigger[1]));
 
-    AddMotionInputs();
+    AddMotionInputs("", m_accel, m_gyro);
+    AddMotionInputs("Sideways ", m_sideways_accel, m_sideways_gyro);
 
     AddOutput(new Motor("Motor", &m_rumble_low, &m_rumble_high));
     AddOutput(new Motor("Motor L", &m_rumble_low, nullptr));
@@ -208,6 +216,7 @@ public:
     m_trigger[1] = ControlState(padGetGcTriggerPos(&m_pad, 1)) / 0x7fff;
 
     RefreshHandles();
+    UpdateSideways();
     UpdateMotion();
     UpdateRumble();
 
@@ -223,30 +232,86 @@ private:
                                new Axis(fmt::format("{} Y+", name), y, 1));
   }
 
-  // HID's sensor frame is +x out the front, +y left, +z up. Dolphin wants
-  // +x left, +y backward, +z up.
-  //
-  // The accelerometer is additionally negated as a whole.
-  // Without this the emulated Wii Remote is upside down, which is very noticeable in gameplay.
-  void AddMotionInputs()
+  void AddSidewaysInputs()
   {
-    const auto add = [this](std::string name, const ControlState& value, ControlState scale) {
-      AddInput(new Axis(std::move(name), value, scale, false));
+    for (size_t i = 0; i < SIDEWAYS_BUTTONS.size(); ++i)
+      AddInput(new Button(SIDEWAYS_BUTTONS[i], m_sideways_buttons, 1ULL << i));
+
+    AddStick("Sideways Stick", m_sideways_stick[0], m_sideways_stick[1]);
+  }
+
+  void UpdateSideways()
+  {
+    const auto pick = [this](std::initializer_list<u64> masks) {
+      u64 buttons = 0;
+      u64 bit = 1;
+      for (const u64 mask : masks)
+      {
+        if (m_buttons & mask)
+          buttons |= bit;
+        bit <<= 1;
+      }
+      return buttons;
     };
 
-    add("Accel Up", m_accel[2], -GRAVITY);
-    add("Accel Down", m_accel[2], GRAVITY);
-    add("Accel Left", m_accel[1], -GRAVITY);
-    add("Accel Right", m_accel[1], GRAVITY);
-    add("Accel Forward", m_accel[0], -GRAVITY);
-    add("Accel Backward", m_accel[0], GRAVITY);
+    switch (m_handle_style)
+    {
+    case HidNpadStyleTag_NpadJoyLeft:
+      m_sideways_buttons = pick({HidNpadButton_Down, HidNpadButton_Left, HidNpadButton_Up,
+                                 HidNpadButton_Right, HidNpadButton_Minus, HidNpadButton_StickL});
+      m_sideways_stick[0] = -m_stick[1];
+      m_sideways_stick[1] = m_stick[0];
+      break;
+    case HidNpadStyleTag_NpadJoyRight:
+      m_sideways_buttons = pick({HidNpadButton_X, HidNpadButton_A, HidNpadButton_B, HidNpadButton_Y,
+                                 HidNpadButton_Plus, HidNpadButton_StickR});
+      m_sideways_stick[0] = m_stick[3];
+      m_sideways_stick[1] = -m_stick[2];
+      break;
+    default:
+      m_sideways_buttons = pick({HidNpadButton_A, HidNpadButton_B, HidNpadButton_Y, HidNpadButton_X,
+                                 HidNpadButton_Plus, HidNpadButton_StickL});
+      m_sideways_stick[0] = m_stick[0];
+      m_sideways_stick[1] = m_stick[1];
+      break;
+    }
+  }
 
-    add("Gyro Pitch Up", m_gyro[1], -MathUtil::TAU);
-    add("Gyro Pitch Down", m_gyro[1], MathUtil::TAU);
-    add("Gyro Roll Left", m_gyro[0], -MathUtil::TAU);
-    add("Gyro Roll Right", m_gyro[0], MathUtil::TAU);
-    add("Gyro Yaw Left", m_gyro[2], MathUtil::TAU);
-    add("Gyro Yaw Right", m_gyro[2], -MathUtil::TAU);
+  // Without this the emulated Wii Remote is upside down, which is very noticeable in gameplay.
+  void AddMotionInputs(const std::string& prefix, const std::array<ControlState, 3>& accel,
+                       const std::array<ControlState, 3>& gyro)
+  {
+    const auto add = [&](const char* name, const ControlState& value, ControlState scale) {
+      AddInput(new Axis(prefix + name, value, scale, false));
+    };
+
+    add("Accel Up", accel[2], -GRAVITY);
+    add("Accel Down", accel[2], GRAVITY);
+    add("Accel Left", accel[1], -GRAVITY);
+    add("Accel Right", accel[1], GRAVITY);
+    add("Accel Forward", accel[0], -GRAVITY);
+    add("Accel Backward", accel[0], GRAVITY);
+
+    add("Gyro Pitch Up", gyro[1], -MathUtil::TAU);
+    add("Gyro Pitch Down", gyro[1], MathUtil::TAU);
+    add("Gyro Roll Left", gyro[0], -MathUtil::TAU);
+    add("Gyro Roll Right", gyro[0], MathUtil::TAU);
+    add("Gyro Yaw Left", gyro[2], MathUtil::TAU);
+    add("Gyro Yaw Right", gyro[2], -MathUtil::TAU);
+  }
+
+  static std::array<ControlState, 3> ToSideways(HidNpadStyleTag style,
+                                                const std::array<ControlState, 3>& v)
+  {
+    switch (style)
+    {
+    case HidNpadStyleTag_NpadJoyLeft:
+      return v;
+    case HidNpadStyleTag_NpadJoyRight:
+      return {-v[0], -v[1], v[2]};
+    default:
+      return {v[1], -v[0], v[2]};
+    }
   }
 
   HidNpadIdType ActiveId() const
@@ -334,12 +399,11 @@ private:
     if (hidGetSixAxisSensorStates(m_sixaxis[m_sixaxis_count - 1], &state, 1) != 1)
       return;
 
-    m_accel[0] = state.acceleration.x;
-    m_accel[1] = state.acceleration.y;
-    m_accel[2] = state.acceleration.z;
-    m_gyro[0] = state.angular_velocity.x;
-    m_gyro[1] = state.angular_velocity.y;
-    m_gyro[2] = state.angular_velocity.z;
+    m_accel = {state.acceleration.y, -state.acceleration.x, state.acceleration.z};
+    m_gyro = {state.angular_velocity.y, -state.angular_velocity.x, state.angular_velocity.z};
+
+    m_sideways_accel = ToSideways(m_handle_style, m_accel);
+    m_sideways_gyro = ToSideways(m_handle_style, m_gyro);
 
     if (std::exchange(m_log_sensor_sample, false))
     {
@@ -401,6 +465,11 @@ private:
   std::array<ControlState, 2> m_trigger{};
   std::array<ControlState, 3> m_accel{};
   std::array<ControlState, 3> m_gyro{};
+
+  u64 m_sideways_buttons = 0;
+  std::array<ControlState, 2> m_sideways_stick{};
+  std::array<ControlState, 3> m_sideways_accel{};
+  std::array<ControlState, 3> m_sideways_gyro{};
 
   std::atomic<ControlState> m_rumble_low = 0;
   std::atomic<ControlState> m_rumble_high = 0;

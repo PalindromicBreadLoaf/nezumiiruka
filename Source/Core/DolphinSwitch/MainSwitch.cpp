@@ -34,6 +34,7 @@
 #include "DolphinSwitch/PlatformSwitch.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellSwitch.h"
+#include "DolphinSwitch/WiimoteProfilesSwitch.h"
 #include "UICommon/UICommon.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
@@ -140,6 +141,8 @@ void ConfigureInput(PadState& pad)
 {
   padConfigureInput(8, HidNpadStyleSet_NpadStandard | HidNpadStyleTag_NpadGc);
   padInitializeDefault(&pad);
+
+  hidSetNpadJoyHoldType(HidNpadJoyHoldType_Vertical);
 }
 
 std::string RunGame(PadState& pad, const std::string& path)
@@ -156,6 +159,7 @@ std::string RunGame(PadState& pad, const std::string& path)
   }
 
   ConfigureInput(pad);
+  WiimoteProfiles::ApplyLayouts();
 
   g_platform = std::make_unique<PlatformSwitch>(pad);
   Common::ScopeGuard platform_guard([] { g_platform.reset(); });
@@ -216,6 +220,7 @@ int main(int argc, char* argv[])
   Common::ScopeGuard ui_common_guard([] { UICommon::Shutdown(); });
 
   SwitchSettings::ApplyDefaults();
+  WiimoteProfiles::WriteProfiles();
   File::CreateFullPath(SwitchSettings::GetGameDirectory());
 
   LogHostEnvironment();

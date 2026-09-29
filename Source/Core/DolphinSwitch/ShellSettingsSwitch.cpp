@@ -5,6 +5,7 @@
 #include "DolphinSwitch/ShellSettingsSwitch.h"
 
 #include <cmath>
+#include <optional>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -38,6 +39,7 @@
 #include "DiscIO/Enums.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellFormatSwitch.h"
+#include "DolphinSwitch/WiimoteProfilesSwitch.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
 #include "VideoCommon/VideoBackendBase.h"
@@ -630,14 +632,82 @@ void BuildWii(PageBuilder& page)
   page.Toggle("Connect USB keyboard", Config::MAIN_WII_KEYBOARD);
 }
 
+int LayoutIndex(std::optional<Config::WiimoteLayout> layout)
+{
+  for (size_t i = 0; layout && i < WiimoteProfiles::LAYOUTS.size(); ++i)
+  {
+    if (WiimoteProfiles::LAYOUTS[i] == *layout)
+      return static_cast<int>(i);
+  }
+  return -1;
+}
+
+Binding GameWiimoteLayoutBinding(const ContextPtr& context, int index)
+{
+  const Config::Info<std::string>& profile = WiimoteProfiles::GetGameProfileInfo(index);
+  const Config::Info<Config::WiimoteLayout>& global = Config::SWITCH_WIIMOTE_LAYOUTS[index];
+
+  Binding binding;
+  binding.current = [context, &profile] {
+    return LayoutIndex(WiimoteProfiles::FindLayout(context->Read(profile)));
+  };
+  binding.inherited = [context, &profile, &global] {
+    const std::string name = context->ReadInherited(profile);
+    if (!name.empty())
+      return LayoutIndex(WiimoteProfiles::FindLayout(name));
+    return LayoutIndex(context->ReadInherited(global));
+  };
+  binding.write = [context, &profile](int layout) {
+    context->Write(profile, WiimoteProfiles::GetProfileName(WiimoteProfiles::LAYOUTS[layout]));
+  };
+  binding.overridden = [context, &profile] { return context->IsOverridden(profile.GetLocation()); };
+  binding.clear = [context, &profile] { context->Clear(profile.GetLocation()); };
+  return binding;
+}
+
+void ShowControllerApplet()
+{
+  hidSetNpadJoyHoldType(HidNpadJoyHoldType_Horizontal);
+
+  HidLaControllerSupportArg arg;
+  hidLaCreateControllerSupportArg(&arg);
+
+  HidLaControllerSupportResultInfo info{};
+  if (R_FAILED(hidLaShowControllerSupport(&info, &arg)))
+  {
+    brls::Application::notify("Controllers can only be paired when not in applet mode.");
+    return;
+  }
+
+  brls::Application::notify(info.player_count == 1 ?
+                                std::string("1 player connected.") :
+                                fmt::format("{} players connected.", info.player_count));
+}
+
 void BuildControls(PageBuilder& page)
 {
-  page.Header("GameCube controller ports");
-  for (int port = 0; port < 4; ++port)
+  if (!page.IsPerGame())
   {
-    page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port),
-                {{"Nothing", SerialInterface::SIDEVICE_NONE},
-                 {"Standard controller", SerialInterface::SIDEVICE_GC_CONTROLLER}});
+    page.Header("Controllers");
+    page.Action("Change grip and order", "", ShowControllerApplet);
+    page.Note("Hold a single Joy-Con sideways and press SL and SR to give it a player of its "
+              "own.");
+
+    page.Header("GameCube controller ports");
+    for (int port = 0; port < 4; ++port)
+    {
+      page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port),
+                  {{"Nothing", SerialInterface::SIDEVICE_NONE},
+                   {"Standard controller", SerialInterface::SIDEVICE_GC_CONTROLLER}});
+    }
+  }
+
+  std::vector<Option<Config::WiimoteLayout>> layouts;
+  std::vector<std::string> layout_labels;
+  for (const Config::WiimoteLayout layout : WiimoteProfiles::LAYOUTS)
+  {
+    layouts.push_back({WiimoteProfiles::GetLayoutLabel(layout), layout});
+    layout_labels.push_back(WiimoteProfiles::GetLayoutLabel(layout));
   }
 
   page.Header("Wii Remotes");
@@ -645,10 +715,17 @@ void BuildControls(PageBuilder& page)
   {
     page.Choice(fmt::format("Wii Remote {}", index + 1), Config::GetInfoForWiimoteSource(index),
                 {{"Nothing", WiimoteSource::None}, {"Emulated", WiimoteSource::Emulated}});
-  }
 
-  // TODO: Button remapping, controller profiles, and choosing the Wii Remote extension.
-  page.Note("Button mapping follows the Switch layout for now. TODO: Remapping");
+    const std::string title = fmt::format("Wii Remote {} layout", index + 1);
+    if (page.IsPerGame())
+      page.Custom(title, layout_labels, GameWiimoteLayoutBinding(page.GetContext(), index));
+    else
+      page.Choice(title, Config::SWITCH_WIIMOTE_LAYOUTS[index], layouts);
+  }
+  page.Note("Wii Remote 1 is player 1's controller, and so on. HOME is on the right stick "
+            "button, and the left stick button recentres the pointer.");
+
+  // TODO: Button remapping.
 }
 
 void BuildAbout(PageBuilder& page)
@@ -790,7 +867,10 @@ brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::Gam
   AddPage(tabs, context, "Emulation", BuildEmulation);
   AddPage(tabs, context, "Audio", BuildAudio);
   if (DiscIO::IsWii(game->GetPlatform()))
+  {
     AddPage(tabs, context, "Wii", BuildWii);
+    AddPage(tabs, context, "Controls", BuildControls);
+  }
   else
     AddPage(tabs, context, "GameCube", BuildGameCube);
 

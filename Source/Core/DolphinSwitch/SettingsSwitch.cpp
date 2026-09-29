@@ -20,6 +20,12 @@ const Info<GameListSort> SWITCH_GAME_LIST_SORT{{System::Main, "Switch", "GameLis
                                                GameListSort::Title};
 const Info<GameListFilter> SWITCH_GAME_LIST_FILTER{{System::Main, "Switch", "GameListFilter"},
                                                    GameListFilter::All};
+const std::array<Info<WiimoteLayout>, 4> SWITCH_WIIMOTE_LAYOUTS{
+    Info<WiimoteLayout>{{System::Main, "Switch", "WiimoteLayout1"}, WiimoteLayout::Vertical},
+    Info<WiimoteLayout>{{System::Main, "Switch", "WiimoteLayout2"}, WiimoteLayout::Vertical},
+    Info<WiimoteLayout>{{System::Main, "Switch", "WiimoteLayout3"}, WiimoteLayout::Vertical},
+    Info<WiimoteLayout>{{System::Main, "Switch", "WiimoteLayout4"}, WiimoteLayout::Vertical},
+};
 }  // namespace Config
 
 namespace SwitchSettings
