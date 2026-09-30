@@ -6,6 +6,7 @@
 
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -36,6 +37,8 @@ constexpr ControlState TOUCH_HEIGHT = 720;
 // HID reports acceleration in g and angular velocity in rotations per second.
 // Dolphin's wants m/s^2 and rad/s.
 constexpr ControlState GRAVITY = 9.80665;
+
+constexpr ControlState DETECT_THRESHOLD = 0.6;
 
 // Frequencies the Joy-Con LRA is happiest at apparently?
 constexpr float VIBRATION_FREQ_LOW = 160.0f;
@@ -184,6 +187,7 @@ public:
     AddInput(new Trigger("Trigger R", m_trigger[1]));
 
     AddMotionInputs("", m_accel, m_gyro);
+    AddMotionInputs("Left ", m_left_accel, m_left_gyro);
     AddMotionInputs("Sideways ", m_sideways_accel, m_sideways_gyro);
 
     AddOutput(new Motor("Motor", &m_rumble_low, &m_rumble_high));
@@ -345,9 +349,6 @@ private:
     if (style == HidNpadStyleTag{})
       return;
 
-    // Two sixaxis handles exist only for a split pair, where the right Joy-Con is the one being
-    // pointed and waved.
-    // TODO: Make the left be primary as an option?
     const s32 sixaxis_count = style == HidNpadStyleTag_NpadJoyDual ? 2 : 1;
     if (R_SUCCEEDED(hidGetSixAxisSensorHandles(m_sixaxis.data(), sixaxis_count, id, style)))
     {
@@ -390,17 +391,31 @@ private:
     m_vibration_is_gc_erm = false;
   }
 
+  static bool ReadMotion(HidSixAxisSensorHandle handle, std::array<ControlState, 3>& accel,
+                         std::array<ControlState, 3>& gyro)
+  {
+    HidSixAxisSensorState state{};
+    if (hidGetSixAxisSensorStates(handle, &state, 1) != 1)
+      return false;
+
+    accel = {state.acceleration.y, -state.acceleration.x, state.acceleration.z};
+    gyro = {state.angular_velocity.y, -state.angular_velocity.x, state.angular_velocity.z};
+    return true;
+  }
+
   void UpdateMotion()
   {
     if (m_sixaxis_count == 0)
       return;
 
-    HidSixAxisSensorState state{};
-    if (hidGetSixAxisSensorStates(m_sixaxis[m_sixaxis_count - 1], &state, 1) != 1)
+    if (!ReadMotion(m_sixaxis[m_sixaxis_count - 1], m_accel, m_gyro))
       return;
 
-    m_accel = {state.acceleration.y, -state.acceleration.x, state.acceleration.z};
-    m_gyro = {state.angular_velocity.y, -state.angular_velocity.x, state.angular_velocity.z};
+    if (m_sixaxis_count < 2 || !ReadMotion(m_sixaxis[0], m_left_accel, m_left_gyro))
+    {
+      m_left_accel = m_accel;
+      m_left_gyro = m_gyro;
+    }
 
     m_sideways_accel = ToSideways(m_handle_style, m_accel);
     m_sideways_gyro = ToSideways(m_handle_style, m_gyro);
@@ -465,6 +480,8 @@ private:
   std::array<ControlState, 2> m_trigger{};
   std::array<ControlState, 3> m_accel{};
   std::array<ControlState, 3> m_gyro{};
+  std::array<ControlState, 3> m_left_accel{};
+  std::array<ControlState, 3> m_left_gyro{};
 
   u64 m_sideways_buttons = 0;
   std::array<ControlState, 2> m_sideways_stick{};
@@ -550,5 +567,30 @@ public:
 std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface)
 {
   return std::make_unique<InputBackend>(controller_interface);
+}
+
+std::optional<std::string> GetPressedInput(const PadState& pad)
+{
+  const u64 buttons = padGetButtons(&pad);
+  for (const ButtonDef& button : BUTTONS)
+  {
+    if (buttons & button.mask)
+      return button.name;
+  }
+
+  for (const auto& [name, index] : {std::pair{"Left", 0}, std::pair{"Right", 1}})
+  {
+    const HidAnalogStickState stick = padGetStickPos(&pad, index);
+    const ControlState x = ControlState(stick.x) / JOYSTICK_MAX;
+    const ControlState y = ControlState(stick.y) / JOYSTICK_MAX;
+    if (std::abs(x) < DETECT_THRESHOLD && std::abs(y) < DETECT_THRESHOLD)
+      continue;
+
+    if (std::abs(x) > std::abs(y))
+      return fmt::format("{} X{}", name, x < 0 ? '-' : '+');
+    return fmt::format("{} Y{}", name, y < 0 ? '-' : '+');
+  }
+
+  return std::nullopt;
 }
 }  // namespace ciface::Horizon

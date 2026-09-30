@@ -5,10 +5,16 @@
 #pragma once
 
 #include <memory>
+#include <optional>
+#include <string>
+
+#include <switch.h>
 
 #include "InputCommon/ControllerInterface/InputBackend.h"
 
 namespace ciface::Horizon
 {
 std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface);
+
+std::optional<std::string> GetPressedInput(const PadState& pad);
 }  // namespace ciface::Horizon

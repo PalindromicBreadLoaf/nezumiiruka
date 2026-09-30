@@ -48,6 +48,8 @@ extern const Info<std::string> SWITCH_GAME_DIRECTORY;
 extern const Info<GameListSort> SWITCH_GAME_LIST_SORT;
 extern const Info<GameListFilter> SWITCH_GAME_LIST_FILTER;
 extern const std::array<Info<WiimoteLayout>, 4> SWITCH_WIIMOTE_LAYOUTS;
+extern const std::array<Info<std::string>, 4> SWITCH_PAD_PROFILES;
+extern const std::array<Info<std::string>, 4> SWITCH_WIIMOTE_PROFILES;
 }  // namespace Config
 
 namespace SwitchSettings

@@ -31,11 +31,11 @@
 #include "Core/Core.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
+#include "DolphinSwitch/ControllerProfilesSwitch.h"
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
 #include "DolphinSwitch/PlatformSwitch.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellSwitch.h"
-#include "DolphinSwitch/WiimoteProfilesSwitch.h"
 #include "UICommon/UICommon.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
@@ -160,7 +160,7 @@ std::string RunGame(PadState& pad, const std::string& path)
   }
 
   ConfigureInput(pad);
-  WiimoteProfiles::ApplyLayouts();
+  ControllerProfiles::ApplyProfiles();
 
   g_platform = std::make_unique<PlatformSwitch>(pad);
   Common::ScopeGuard platform_guard([] { g_platform.reset(); });
@@ -221,7 +221,7 @@ int main(int argc, char* argv[])
   Common::ScopeGuard ui_common_guard([] { UICommon::Shutdown(); });
 
   SwitchSettings::ApplyDefaults();
-  WiimoteProfiles::WriteProfiles();
+  ControllerProfiles::WritePresets();
   File::CreateFullPath(SwitchSettings::GetGameDirectory());
 
   LogHostEnvironment();

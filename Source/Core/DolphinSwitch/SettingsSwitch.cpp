@@ -26,6 +26,18 @@ const std::array<Info<WiimoteLayout>, 4> SWITCH_WIIMOTE_LAYOUTS{
     Info<WiimoteLayout>{{System::Main, "Switch", "WiimoteLayout3"}, WiimoteLayout::Vertical},
     Info<WiimoteLayout>{{System::Main, "Switch", "WiimoteLayout4"}, WiimoteLayout::Vertical},
 };
+const std::array<Info<std::string>, 4> SWITCH_PAD_PROFILES{
+    Info<std::string>{{System::Main, "Switch", "PadProfile1"}, ""},
+    Info<std::string>{{System::Main, "Switch", "PadProfile2"}, ""},
+    Info<std::string>{{System::Main, "Switch", "PadProfile3"}, ""},
+    Info<std::string>{{System::Main, "Switch", "PadProfile4"}, ""},
+};
+const std::array<Info<std::string>, 4> SWITCH_WIIMOTE_PROFILES{
+    Info<std::string>{{System::Main, "Switch", "WiimoteProfile1"}, ""},
+    Info<std::string>{{System::Main, "Switch", "WiimoteProfile2"}, ""},
+    Info<std::string>{{System::Main, "Switch", "WiimoteProfile3"}, ""},
+    Info<std::string>{{System::Main, "Switch", "WiimoteProfile4"}, ""},
+};
 }  // namespace Config
 
 namespace SwitchSettings

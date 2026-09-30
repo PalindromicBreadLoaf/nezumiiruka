@@ -1,4 +1,6 @@
 add_executable(porpoise
+  ControllerProfilesSwitch.cpp
+  ControllerProfilesSwitch.h
   CrashHandlerSwitch.cpp
   HorizonCompatSwitch.cpp
   HorizonExceptionEntry.h
@@ -9,6 +11,8 @@ add_executable(porpoise
   PlatformSwitch.cpp
   SettingsSwitch.cpp
   SettingsSwitch.h
+  ShellControlsSwitch.cpp
+  ShellControlsSwitch.h
   ShellFormatSwitch.cpp
   ShellFormatSwitch.h
   ShellGameListSwitch.cpp
@@ -19,8 +23,6 @@ add_executable(porpoise
   ShellSettingsSwitch.h
   ShellSwitch.cpp
   ShellSwitch.h
-  WiimoteProfilesSwitch.cpp
-  WiimoteProfilesSwitch.h
 )
 
 if(USE_RETRO_ACHIEVEMENTS)
@@ -37,8 +39,8 @@ PRIVATE
   borealis
 )
 
-set_source_files_properties(ShellAchievementsSwitch.cpp ShellGameListSwitch.cpp
-  ShellSettingsSwitch.cpp ShellSwitch.cpp
+set_source_files_properties(ShellAchievementsSwitch.cpp ShellControlsSwitch.cpp
+  ShellGameListSwitch.cpp ShellSettingsSwitch.cpp ShellSwitch.cpp
   PROPERTIES COMPILE_OPTIONS "${BOREALIS_EXCEPTIONS}")
 
 if(ENABLE_VULKAN)

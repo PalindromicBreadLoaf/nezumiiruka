@@ -41,12 +41,13 @@
 #include "Core/HW/Wiimote.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "DiscIO/Enums.h"
+#include "DolphinSwitch/ControllerProfilesSwitch.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinSwitch/ShellAchievementsSwitch.h"
 #endif
+#include "DolphinSwitch/ShellControlsSwitch.h"
 #include "DolphinSwitch/ShellFormatSwitch.h"
-#include "DolphinSwitch/WiimoteProfilesSwitch.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
 #ifdef HAS_FRAME_GENERATION
@@ -739,37 +740,39 @@ void BuildWii(PageBuilder& page)
   page.Toggle("Connect USB keyboard", Config::MAIN_WII_KEYBOARD);
 }
 
-int LayoutIndex(std::optional<Config::WiimoteLayout> layout)
+ProfileBinding GlobalProfileBinding(ControllerProfiles::Kind kind, int slot)
 {
-  for (size_t i = 0; layout && i < WiimoteProfiles::LAYOUTS.size(); ++i)
-  {
-    if (WiimoteProfiles::LAYOUTS[i] == *layout)
-      return static_cast<int>(i);
-  }
-  return -1;
+  ProfileBinding binding;
+  binding.current = [kind, slot] { return ControllerProfiles::GetGlobalProfile(kind, slot); };
+  binding.write = [kind, slot](const std::string& name) {
+    ControllerProfiles::SetGlobalProfile(kind, slot, name);
+  };
+  return binding;
 }
 
-Binding GameWiimoteLayoutBinding(const ContextPtr& context, int index)
+ProfileBinding GameProfileBinding(const ContextPtr& context, ControllerProfiles::Kind kind,
+                                  int slot)
 {
-  const Config::Info<std::string>& profile = WiimoteProfiles::GetGameProfileInfo(index);
-  const Config::Info<Config::WiimoteLayout>& global = Config::SWITCH_WIIMOTE_LAYOUTS[index];
+  const Config::Info<std::string>& info = ControllerProfiles::GetGameProfileInfo(kind, slot);
 
-  Binding binding;
-  binding.current = [context, &profile] {
-    return LayoutIndex(WiimoteProfiles::FindLayout(context->Read(profile)));
+  ProfileBinding binding;
+  binding.current = [context, &info] { return context->Read(info); };
+  binding.write = [context, &info](const std::string& name) { context->Write(info, name); };
+  binding.inherited = [context, &info, kind, slot] {
+    const std::string name = context->ReadInherited(info);
+    return name.empty() ? ControllerProfiles::GetGlobalProfile(kind, slot) : name;
   };
-  binding.inherited = [context, &profile, &global] {
-    const std::string name = context->ReadInherited(profile);
-    if (!name.empty())
-      return LayoutIndex(WiimoteProfiles::FindLayout(name));
-    return LayoutIndex(context->ReadInherited(global));
-  };
-  binding.write = [context, &profile](int layout) {
-    context->Write(profile, WiimoteProfiles::GetProfileName(WiimoteProfiles::LAYOUTS[layout]));
-  };
-  binding.overridden = [context, &profile] { return context->IsOverridden(profile.GetLocation()); };
-  binding.clear = [context, &profile] { context->Clear(profile.GetLocation()); };
+  binding.overridden = [context, &info] { return context->IsOverridden(info.GetLocation()); };
+  binding.clear = [context, &info] { context->Clear(info.GetLocation()); };
   return binding;
+}
+
+void AddProfileCell(PageBuilder& page, const std::string& title, ControllerProfiles::Kind kind,
+                    int slot)
+{
+  page.Add(CreateProfileCell(title, kind,
+                             page.IsPerGame() ? GameProfileBinding(page.GetContext(), kind, slot) :
+                                                GlobalProfileBinding(kind, slot)));
 }
 
 void ShowControllerApplet()
@@ -791,48 +794,50 @@ void ShowControllerApplet()
                                 fmt::format("{} players connected.", info.player_count));
 }
 
-void BuildControls(PageBuilder& page)
+void BuildControls(PageBuilder& page, bool wii)
 {
+  using ControllerProfiles::Kind;
+
   if (!page.IsPerGame())
   {
     page.Header("Controllers");
     page.Action("Change grip and order", "", ShowControllerApplet);
-    page.Note("Hold a single Joy-Con sideways and press SL and SR to give it a player of its "
-              "own.");
+  }
 
-    page.Header("GameCube controller ports");
-    for (int port = 0; port < 4; ++port)
+  page.Header("GameCube controller ports");
+  for (int port = 0; port < ControllerProfiles::SLOT_COUNT; ++port)
+  {
+    if (!page.IsPerGame())
     {
       page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port),
                   {{"Nothing", SerialInterface::SIDEVICE_NONE},
                    {"Standard controller", SerialInterface::SIDEVICE_GC_CONTROLLER}});
     }
+    AddProfileCell(page, fmt::format("Port {} profile", port + 1), Kind::GCPad, port);
   }
 
-  std::vector<Option<Config::WiimoteLayout>> layouts;
-  std::vector<std::string> layout_labels;
-  for (const Config::WiimoteLayout layout : WiimoteProfiles::LAYOUTS)
+  if (wii)
   {
-    layouts.push_back({WiimoteProfiles::GetLayoutLabel(layout), layout});
-    layout_labels.push_back(WiimoteProfiles::GetLayoutLabel(layout));
+    page.Header("Wii Remotes");
+    for (int index = 0; index < ControllerProfiles::SLOT_COUNT; ++index)
+    {
+      page.Choice(fmt::format("Wii Remote {}", index + 1), Config::GetInfoForWiimoteSource(index),
+                  {{"Nothing", WiimoteSource::None}, {"Emulated", WiimoteSource::Emulated}});
+      AddProfileCell(page, fmt::format("Wii Remote {} profile", index + 1), Kind::Wiimote, index);
+    }
+    page.Note("Wii Remote 1 is player 1's controller, and so on. By default, HOME is right stick "
+              "click and recentre pointer is on left stick click.");
   }
 
-  page.Header("Wii Remotes");
-  for (int index = 0; index < 4; ++index)
+  if (page.IsPerGame())
+    return;
+
+  page.Header("Profiles");
+  for (const Kind kind : {Kind::GCPad, Kind::Wiimote})
   {
-    page.Choice(fmt::format("Wii Remote {}", index + 1), Config::GetInfoForWiimoteSource(index),
-                {{"Nothing", WiimoteSource::None}, {"Emulated", WiimoteSource::Emulated}});
-
-    const std::string title = fmt::format("Wii Remote {} layout", index + 1);
-    if (page.IsPerGame())
-      page.Custom(title, layout_labels, GameWiimoteLayoutBinding(page.GetContext(), index));
-    else
-      page.Choice(title, Config::SWITCH_WIIMOTE_LAYOUTS[index], layouts);
+    page.Action(fmt::format("{} profiles", ControllerProfiles::GetKindLabel(kind)), "",
+                [kind] { brls::Application::pushActivity(CreateProfileManagerActivity(kind)); });
   }
-  page.Note("Wii Remote 1 is player 1's controller, and so on. HOME is on the right stick "
-            "button, and the left stick button recentres the pointer.");
-
-  // TODO: Button remapping.
 }
 
 #ifdef USE_RETRO_ACHIEVEMENTS
@@ -983,7 +988,7 @@ brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
   AddPage(tabs, context, "Audio", BuildAudio);
   AddPage(tabs, context, "GameCube", BuildGameCube);
   AddPage(tabs, context, "Wii", BuildWii);
-  AddPage(tabs, context, "Controls", BuildControls);
+  AddPage(tabs, context, "Controls", [](PageBuilder& page) { BuildControls(page, true); });
 #ifdef USE_RETRO_ACHIEVEMENTS
   AddPage(tabs, context, "Achievements", BuildAchievements);
 #endif
@@ -1030,10 +1035,13 @@ brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::Gam
   if (DiscIO::IsWii(game->GetPlatform()))
   {
     AddPage(tabs, context, "Wii", BuildWii);
-    AddPage(tabs, context, "Controls", BuildControls);
+    AddPage(tabs, context, "Controls", [](PageBuilder& page) { BuildControls(page, true); });
   }
   else
+  {
     AddPage(tabs, context, "GameCube", BuildGameCube);
+    AddPage(tabs, context, "Controls", [](PageBuilder& page) { BuildControls(page, false); });
+  }
 
   auto* frame = new brls::AppletFrame(tabs);
   frame->setTitle(GetTitle(*game));
