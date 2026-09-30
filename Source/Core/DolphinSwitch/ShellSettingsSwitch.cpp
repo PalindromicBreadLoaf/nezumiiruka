@@ -48,6 +48,7 @@
 #endif
 #include "DolphinSwitch/ShellControlsSwitch.h"
 #include "DolphinSwitch/ShellFormatSwitch.h"
+#include "DolphinSwitch/ShellSystemSwitch.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
 #ifdef HAS_FRAME_GENERATION
@@ -879,6 +880,68 @@ void BuildGameAchievements(PageBuilder& page, const UICommon::GameFile& game)
 }
 #endif
 
+std::string DescribeSystemMenu()
+{
+  const std::string description = GetSystemMenuDescription();
+  return description.empty() ? std::string("Not installed") : description;
+}
+
+void BuildWiiSystem(PageBuilder& page, const std::function<void()>& launch_system_menu)
+{
+  page.Header("Wii Menu");
+  brls::DetailCell* menu = page.Action("Start the Wii Menu", DescribeSystemMenu(),
+                                       [launch_system_menu] { launch_system_menu(); });
+  const NANDChangedFn refresh = [menu] { menu->setDetailText(DescribeSystemMenu()); };
+  page.Action("Update online", "", [refresh] { PerformOnlineUpdate(refresh); });
+  page.Note("Downloads and installs the latest Wii system software.");
+
+  page.Header("Titles");
+  page.Action("Install a WAD", "", [refresh] { ChooseAndInstallWAD(refresh); });
+  page.Note("WADs in the game folder can also be installed or uninstalled via their options.");
+
+  page.Header("System memory");
+  page.Action("Import a BootMii NAND backup", "", [refresh] { ImportNANDBackup(refresh); });
+  page.Action("Check for problems", "", [refresh] { CheckNAND(refresh); });
+  page.Action("Extract certificates", "", ExtractCertificates);
+  page.Info("Location", File::GetUserPath(D_WIIROOT_IDX));
+
+  page.Header("Saves");
+  page.Action("Import a save", "", ImportWiiSave);
+  page.Action("Export every save", "", ExportWiiSaves);
+  page.Note(fmt::format("Saves are exported to {}WiiSaves.",
+                        File::GetUserPath(D_USER_IDX)));
+}
+
+void AddSystemMemoryActions(PageBuilder& page, const UICommon::GameFile& game)
+{
+  if (game.GetPlatform() == DiscIO::Platform::WiiDisc)
+  {
+    page.Action("Perform a system update", "",
+                [path = game.GetFilePath()] { PerformDiscUpdate(path); });
+    return;
+  }
+
+  if (game.GetPlatform() != DiscIO::Platform::WiiWAD)
+    return;
+
+  const u64 title_id = game.GetTitleID();
+  const auto describe = [title_id] {
+    return IsTitleInstalled(title_id) ? std::string("Installed") : std::string("Not installed");
+  };
+
+  auto install = std::make_shared<brls::DetailCell*>(nullptr);
+  const NANDChangedFn refresh = [install, describe] { (*install)->setDetailText(describe()); };
+  *install = page.Action("Install to the Wii system memory", describe(),
+                         [path = game.GetFilePath(), refresh] { InstallWAD(path, refresh); });
+
+  page.Action("Uninstall from the Wii system memory", "", [title_id, refresh] {
+    if (IsTitleInstalled(title_id))
+      UninstallTitle(title_id, refresh);
+    else
+      brls::Application::notify("This title is not installed.");
+  });
+}
+
 void BuildAbout(PageBuilder& page)
 {
   page.Header("Porpoise");
@@ -948,6 +1011,7 @@ void BuildGameInfo(PageBuilder& page, const UICommon::GameFile& game,
     page.Note(description);
 
   page.Action("Play", "", launch);
+  AddSystemMemoryActions(page, game);
 
   page.Header("Game");
   page.Info("Platform", GetPlatformName(game));
@@ -971,7 +1035,8 @@ void BuildGameInfo(PageBuilder& page, const UICommon::GameFile& game,
 }  // namespace
 
 brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
-                                       std::function<void()> clear_cache)
+                                       std::function<void()> clear_cache,
+                                       std::function<void()> launch_system_menu)
 {
   auto context = std::make_shared<SettingsContext>(std::move(on_closed));
 
@@ -993,6 +1058,11 @@ brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
   AddPage(tabs, context, "Achievements", BuildAchievements);
 #endif
   tabs->addSeparator();
+  tabs->addTab("Wii system", [context, launch_system_menu = std::move(launch_system_menu)] {
+    return CreatePage(context, [&launch_system_menu](PageBuilder& page) {
+      BuildWiiSystem(page, launch_system_menu);
+    });
+  });
   tabs->addTab("Game list", [context, clear_cache = std::move(clear_cache)] {
     return CreatePage(context,
                       [&clear_cache](PageBuilder& page) { BuildLibrary(page, clear_cache); });

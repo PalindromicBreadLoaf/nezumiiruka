@@ -13,6 +13,8 @@ add_executable(porpoise
   SettingsSwitch.h
   ShellControlsSwitch.cpp
   ShellControlsSwitch.h
+  ShellFilePickerSwitch.cpp
+  ShellFilePickerSwitch.h
   ShellFormatSwitch.cpp
   ShellFormatSwitch.h
   ShellGameListSwitch.cpp
@@ -23,6 +25,8 @@ add_executable(porpoise
   ShellSettingsSwitch.h
   ShellSwitch.cpp
   ShellSwitch.h
+  ShellSystemSwitch.cpp
+  ShellSystemSwitch.h
 )
 
 if(USE_RETRO_ACHIEVEMENTS)
@@ -40,7 +44,8 @@ PRIVATE
 )
 
 set_source_files_properties(ShellAchievementsSwitch.cpp ShellControlsSwitch.cpp
-  ShellGameListSwitch.cpp ShellSettingsSwitch.cpp ShellSwitch.cpp
+  ShellFilePickerSwitch.cpp ShellGameListSwitch.cpp ShellSettingsSwitch.cpp ShellSwitch.cpp
+  ShellSystemSwitch.cpp
   PROPERTIES COMPILE_OPTIONS "${BOREALIS_EXCEPTIONS}")
 
 if(ENABLE_VULKAN)

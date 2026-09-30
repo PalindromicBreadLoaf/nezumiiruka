@@ -5,11 +5,14 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <utility>
 
 // struct in_addr for __nxlink_host.
 #include <netinet/in.h>
 
 #include <switch.h>
+
+#include <fmt/format.h>
 
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
@@ -146,13 +149,24 @@ void ConfigureInput(PadState& pad)
   hidSetNpadJoyHoldType(HidNpadJoyHoldType_Vertical);
 }
 
-std::string RunGame(PadState& pad, const std::string& path)
+std::unique_ptr<BootParameters> CreateBootParameters(const Shell::BootRequest& request)
+{
+  if (request.nand_title_id != 0)
+    return std::make_unique<BootParameters>(BootParameters::NANDTitle{request.nand_title_id});
+  return BootParameters::GenerateFromFile(request.path, BootSessionData{});
+}
+
+std::string RunGame(PadState& pad, const Shell::BootRequest& request)
 {
   ApplyPlatformConfigOverrides();
   Common::HorizonClocks::ApplyPerformanceConfiguration(
       SwitchSettings::GetPerformanceConfiguration());
 
-  auto boot = BootParameters::GenerateFromFile(path, BootSessionData{});
+  const std::string path = request.nand_title_id != 0 ?
+                               fmt::format("NAND title {:016x}", request.nand_title_id) :
+                               request.path;
+
+  auto boot = CreateBootParameters(request);
   if (!boot)
   {
     ERROR_LOG_FMT(BOOT, "Could not read {}", path);
@@ -242,7 +256,9 @@ int main(int argc, char* argv[])
   Common::HostCodeMemory::Init();
   Common::ScopeGuard host_code_guard([] { Common::HostCodeMemory::Shutdown(); });
 
-  std::string pending = argc > 1 && argv[1] != nullptr ? argv[1] : std::string{};
+  Shell::BootRequest pending;
+  if (argc > 1 && argv[1] != nullptr)
+    pending.path = argv[1];
   std::string notice;
 
   if (!RunningAsApplication())
@@ -253,15 +269,14 @@ int main(int argc, char* argv[])
 
   while (appletMainLoop())
   {
-    std::string path = std::move(pending);
-    pending.clear();
+    Shell::BootRequest request = std::exchange(pending, {});
 
-    if (path.empty())
-      path = Shell::Run(notice);
-    if (path.empty())
+    if (request.IsEmpty())
+      request = Shell::Run(notice);
+    if (request.IsEmpty())
       break;
 
-    notice = RunGame(pad, path);
+    notice = RunGame(pad, request);
   }
 
   return 0;

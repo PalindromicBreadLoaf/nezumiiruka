@@ -12,6 +12,7 @@
 #include "Core/TimePlayed.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellLibrarySwitch.h"
+#include "DolphinSwitch/ShellSwitch.h"
 
 namespace Shell
 {
@@ -20,7 +21,7 @@ class GameCell;
 class GameListView : public brls::Box
 {
 public:
-  GameListView(Library& library, std::string& chosen, const std::string& focus_path);
+  GameListView(Library& library, BootRequest& chosen, const std::string& focus_path);
   ~GameListView() override;
 
   GameListView(const GameListView&) = delete;
@@ -47,6 +48,7 @@ private:
   std::chrono::milliseconds GetTimePlayed(const UICommon::GameFile& game) const;
 
   void Launch(const GamePtr& game);
+  void LaunchSystemMenu();
   void OpenProperties();
   void OpenSettings();
   void OnSettingsClosed();
@@ -59,7 +61,7 @@ private:
   brls::Box* AddDetailRow(brls::Box* container, const std::string& key, brls::Label** value);
 
   Library& m_library;
-  std::string& m_chosen;
+  BootRequest& m_chosen;
   std::string m_focused_path;
   std::string m_game_directory;
 

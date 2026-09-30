@@ -16,6 +16,7 @@
 #endif
 #include "DolphinSwitch/ShellGameListSwitch.h"
 #include "DolphinSwitch/ShellLibrarySwitch.h"
+#include "DolphinSwitch/ShellSystemSwitch.h"
 
 namespace Shell
 {
@@ -56,7 +57,7 @@ private:
   bool m_romfs = false;
 };
 
-brls::View* CreateGameList(Library& library, std::string& chosen, const std::string& notice,
+brls::View* CreateGameList(Library& library, BootRequest& chosen, const std::string& notice,
                            const std::string& focus_path)
 {
   auto* frame = new brls::AppletFrame(new GameListView(library, chosen, focus_path));
@@ -84,7 +85,7 @@ void RestoreAppletState()
 }
 }  // namespace
 
-std::string Run(const std::string& notice)
+BootRequest Run(const std::string& notice)
 {
   Services services;
 
@@ -97,7 +98,7 @@ std::string Run(const std::string& notice)
   brls::Application::createWindow("porpoise");
   brls::Application::setGlobalQuit(true);
 
-  std::string chosen;
+  BootRequest chosen;
   {
     Library library;
     brls::Application::pushActivity(
@@ -110,6 +111,7 @@ std::string Run(const std::string& notice)
     library.Stop();
   }
 
+  StopSystemTasks();
 #ifdef USE_RETRO_ACHIEVEMENTS
   StopAchievementFetches();
 #endif
@@ -121,8 +123,8 @@ std::string Run(const std::string& notice)
 
   Config::Save();
 
-  if (!chosen.empty())
-    s_last_chosen = chosen;
+  if (!chosen.path.empty())
+    s_last_chosen = chosen.path;
   return chosen;
 }
 }  // namespace Shell

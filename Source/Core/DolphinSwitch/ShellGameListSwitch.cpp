@@ -16,10 +16,12 @@
 #include <nanovg.h>
 
 #include "Common/StringUtil.h"
+#include "Core/CommonTitles.h"
 #include "Core/Config/UISettings.h"
 #include "DiscIO/Enums.h"
 #include "DolphinSwitch/ShellFormatSwitch.h"
 #include "DolphinSwitch/ShellSettingsSwitch.h"
+#include "DolphinSwitch/ShellSystemSwitch.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
 
@@ -89,7 +91,7 @@ private:
   std::function<void(GameCell*)> m_on_focus;
 };
 
-GameListView::GameListView(Library& library, std::string& chosen, const std::string& focus_path)
+GameListView::GameListView(Library& library, BootRequest& chosen, const std::string& focus_path)
     : brls::Box(brls::Axis::ROW), m_library(library), m_chosen(chosen), m_focused_path(focus_path),
       m_game_directory(SwitchSettings::GetGameDirectory()),
       m_filter(Config::Get(Config::SWITCH_GAME_LIST_FILTER)),
@@ -174,6 +176,10 @@ GameListView::GameListView(Library& library, std::string& chosen, const std::str
   });
   registerAction("Jump to", brls::BUTTON_Y, [this](brls::View*) {
     OpenJumpMenu();
+    return true;
+  });
+  registerAction("Wii Menu", brls::BUTTON_RSB, [this](brls::View*) {
+    LaunchSystemMenu();
     return true;
   });
   registerAction(
@@ -513,7 +519,23 @@ void GameListView::ShowCover(const UICommon::GameFile& game)
 
 void GameListView::Launch(const GamePtr& game)
 {
-  m_chosen = game->GetFilePath();
+  m_chosen = {.path = game->GetFilePath()};
+  brls::Application::quit();
+}
+
+void GameListView::LaunchSystemMenu()
+{
+  if (!IsSystemMenuInstalled())
+  {
+    auto* dialog = new brls::Dialog(
+        "The Wii Menu is not installed. Install it with an online system update or by "
+        "importing a NAND backup under Settings > Wii system.");
+    dialog->addButton("OK", [] {});
+    dialog->open();
+    return;
+  }
+
+  m_chosen = {.nand_title_id = Titles::SYSTEM_MENU};
   brls::Application::quit();
 }
 
@@ -539,6 +561,10 @@ void GameListView::OpenSettings()
       [] {
         if (s_instance)
           s_instance->ClearCache();
+      },
+      [] {
+        if (s_instance)
+          s_instance->LaunchSystemMenu();
       }));
 }
 

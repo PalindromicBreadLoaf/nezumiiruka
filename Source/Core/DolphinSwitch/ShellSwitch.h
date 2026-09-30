@@ -6,7 +6,17 @@
 
 #include <string>
 
+#include "Common/CommonTypes.h"
+
 namespace Shell
 {
-std::string Run(const std::string& notice);
+struct BootRequest
+{
+  std::string path;
+  u64 nand_title_id = 0;
+
+  bool IsEmpty() const { return path.empty() && nand_title_id == 0; }
+};
+
+BootRequest Run(const std::string& notice);
 }  // namespace Shell
