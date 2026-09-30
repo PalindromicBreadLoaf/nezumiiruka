@@ -261,6 +261,8 @@ std::string AchievementManager::CalculateHash(const std::string& file_path)
 {
   char hash_result[33] = "0";
   GetInstance().m_loading_volume = DiscIO::CreateVolume(file_path);
+  if (!GetInstance().m_loading_volume)
+    return {};
   rc_hash_filereader volume_reader{
       .open = &AchievementManager::FilereaderOpen,
       .seek = &AchievementManager::FilereaderSeek,

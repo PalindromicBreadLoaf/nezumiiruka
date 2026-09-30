@@ -23,6 +23,7 @@
 #include "Common/ScopeGuard.h"
 #include "Common/Thread.h"
 #include "Common/Version.h"
+#include "Core/AchievementManager.h"
 #include "Core/Boot/Boot.h"
 #include "Core/BootManager.h"
 #include "Core/Config/GraphicsSettings.h"
@@ -224,6 +225,11 @@ int main(int argc, char* argv[])
   File::CreateFullPath(SwitchSettings::GetGameDirectory());
 
   LogHostEnvironment();
+
+#ifdef USE_RETRO_ACHIEVEMENTS
+  AchievementManager::GetInstance().Init(nullptr);
+  Common::ScopeGuard achievements_guard([] { AchievementManager::GetInstance().Shutdown(); });
+#endif
 
   Common::ScopeGuard clocks_guard([] { Common::HorizonClocks::RestorePerformanceConfiguration(); });
 

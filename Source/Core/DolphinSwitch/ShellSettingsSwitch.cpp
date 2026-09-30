@@ -27,6 +27,9 @@
 #include "Common/FileUtil.h"
 #include "Common/HorizonBuildId.h"
 #include "Common/Version.h"
+#ifdef USE_RETRO_ACHIEVEMENTS
+#include "Core/Config/AchievementSettings.h"
+#endif
 #include "Core/Config/GraphicsSettings.h"
 #include "Core/Config/MainSettings.h"
 #include "Core/Config/SYSCONFSettings.h"
@@ -39,6 +42,9 @@
 #include "Core/PowerPC/PowerPC.h"
 #include "DiscIO/Enums.h"
 #include "DolphinSwitch/SettingsSwitch.h"
+#ifdef USE_RETRO_ACHIEVEMENTS
+#include "DolphinSwitch/ShellAchievementsSwitch.h"
+#endif
 #include "DolphinSwitch/ShellFormatSwitch.h"
 #include "DolphinSwitch/WiimoteProfilesSwitch.h"
 #include "UICommon/GameFile.h"
@@ -329,6 +335,8 @@ public:
     return cell;
   }
 
+  void Add(brls::View* view) { m_box->addView(view); }
+
   void Info(const std::string& title, const std::string& value)
   {
     if (value.empty())
@@ -512,7 +520,8 @@ void BuildHacks(PageBuilder& page)
   page.Toggle("Store EFB copies to texture only", Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM);
   page.Toggle("Defer EFB copies to RAM", Config::GFX_HACK_DEFER_EFB_COPIES);
   page.Toggle("Defer EFB cache invalidation", Config::GFX_HACK_EFB_DEFER_INVALIDATION);
-  page.Note("May result in a significant performance boost in some cases, but also may result in crashes.");
+  page.Note("May result in a significant performance boost in some cases, but also may result in "
+            "crashes.");
 
   page.Header("Texture cache");
   page.Choice("Accuracy", Config::GFX_SAFE_TEXTURE_CACHE_COLOR_SAMPLES,
@@ -569,7 +578,6 @@ void PrepareFrameGenerationShaders(brls::DetailCell* cell)
 
   auto* content = new brls::Box(brls::Axis::COLUMN);
   content->addView(label);
-
 
   auto* dialog = new brls::Dialog(content);
   dialog->open();
@@ -827,6 +835,45 @@ void BuildControls(PageBuilder& page)
   // TODO: Button remapping.
 }
 
+#ifdef USE_RETRO_ACHIEVEMENTS
+void BuildAchievements(PageBuilder& page)
+{
+  page.Header("RetroAchievements");
+  page.Add(CreateAchievementAccountView());
+  page.Note("Create an account at retroachievements.org first.");
+
+  page.Header("Hardcore mode");
+  page.Toggle("Enable hardcore mode", Config::RA_HARDCORE_ENABLED);
+  page.Note("Cheats, save states, and speeds below 100% are unavailable while it is on.");
+
+  page.Header("Options");
+  page.Toggle("Unofficial achievements", Config::RA_UNOFFICIAL_ENABLED);
+  page.Toggle("Encore mode", Config::RA_ENCORE_ENABLED);
+  page.Note("Encore mode lets achievements you have already unlocked trigger again.");
+  page.Toggle("Spectator mode", Config::RA_SPECTATOR_ENABLED);
+  page.Note("Spectator mode tracks achievements without submitting anything to the site.");
+
+  page.Header("On-screen display");
+  page.Toggle("Leaderboard trackers", Config::RA_LEADERBOARD_TRACKER_ENABLED);
+  page.Toggle("Challenge indicators", Config::RA_CHALLENGE_INDICATORS_ENABLED);
+  page.Toggle("Progress notifications", Config::RA_PROGRESS_ENABLED);
+  page.Note("Unlock notifications need on-screen messages, toggleable under General.");
+}
+
+void BuildGameAchievements(PageBuilder& page, const UICommon::GameFile& game)
+{
+  page.Header("RetroAchievements");
+  if (!Config::Get(Config::RA_ENABLED) || Config::Get(Config::RA_API_TOKEN).empty())
+  {
+    page.Note("Enable RetroAchievements and log in under Settings to see this game's "
+              "achievements.");
+    return;
+  }
+
+  page.Add(CreateGameAchievementsView(game.GetFilePath()));
+}
+#endif
+
 void BuildAbout(PageBuilder& page)
 {
   page.Header("Porpoise");
@@ -937,6 +984,9 @@ brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
   AddPage(tabs, context, "GameCube", BuildGameCube);
   AddPage(tabs, context, "Wii", BuildWii);
   AddPage(tabs, context, "Controls", BuildControls);
+#ifdef USE_RETRO_ACHIEVEMENTS
+  AddPage(tabs, context, "Achievements", BuildAchievements);
+#endif
   tabs->addSeparator();
   tabs->addTab("Game list", [context, clear_cache = std::move(clear_cache)] {
     return CreatePage(context,
@@ -961,6 +1011,12 @@ brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::Gam
         context, [&](PageBuilder& page) { BuildGameInfo(page, *game, time_played, launch); },
         false);
   });
+#ifdef USE_RETRO_ACHIEVEMENTS
+  tabs->addTab("Achievements", [context, game] {
+    return CreatePage(
+        context, [&](PageBuilder& page) { BuildGameAchievements(page, *game); }, false);
+  });
+#endif
   tabs->addSeparator();
   AddPage(tabs, context, "General", BuildGeneral);
   AddPage(tabs, context, "Graphics", BuildGraphics);

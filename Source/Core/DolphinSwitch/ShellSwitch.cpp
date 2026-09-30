@@ -11,6 +11,9 @@
 
 #include "Common/Config/Config.h"
 #include "Common/Logging/Log.h"
+#ifdef USE_RETRO_ACHIEVEMENTS
+#include "DolphinSwitch/ShellAchievementsSwitch.h"
+#endif
 #include "DolphinSwitch/ShellGameListSwitch.h"
 #include "DolphinSwitch/ShellLibrarySwitch.h"
 
@@ -106,6 +109,10 @@ std::string Run(const std::string& notice)
 
     library.Stop();
   }
+
+#ifdef USE_RETRO_ACHIEVEMENTS
+  StopAchievementFetches();
+#endif
 
   brls::Threading::getSyncFunctions()->clear();
 

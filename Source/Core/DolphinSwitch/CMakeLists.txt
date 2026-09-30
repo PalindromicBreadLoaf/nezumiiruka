@@ -23,6 +23,13 @@ add_executable(porpoise
   WiimoteProfilesSwitch.h
 )
 
+if(USE_RETRO_ACHIEVEMENTS)
+  target_sources(porpoise PRIVATE
+    ShellAchievementsSwitch.cpp
+    ShellAchievementsSwitch.h
+  )
+endif()
+
 target_link_libraries(porpoise
 PRIVATE
   core
@@ -30,7 +37,8 @@ PRIVATE
   borealis
 )
 
-set_source_files_properties(ShellGameListSwitch.cpp ShellSettingsSwitch.cpp ShellSwitch.cpp
+set_source_files_properties(ShellAchievementsSwitch.cpp ShellGameListSwitch.cpp
+  ShellSettingsSwitch.cpp ShellSwitch.cpp
   PROPERTIES COMPILE_OPTIONS "${BOREALIS_EXCEPTIONS}")
 
 if(ENABLE_VULKAN)
