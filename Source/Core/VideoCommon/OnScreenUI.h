@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -59,6 +60,8 @@ public:
   void SetKey(u32 key, bool is_down, const char* chars);
   void SetMousePos(float x, float y);
   void SetMousePress(u32 button_mask);
+
+  static void SetHostUICallback(std::function<void()> callback);
 
 private:
   void DrawDebugText();

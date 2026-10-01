@@ -39,6 +39,12 @@
 
 namespace VideoCommon
 {
+namespace
+{
+std::mutex s_host_ui_mutex;
+std::function<void()> s_host_ui_callback;
+}  // namespace
+
 bool OnScreenUI::Initialize(u32 width, u32 height, float scale)
 {
   std::unique_lock<std::mutex> imgui_lock(m_imgui_mutex);
@@ -422,6 +428,11 @@ void OnScreenUI::Finalize()
   DrawDebugText();
   OSD::DrawMessages();
   DrawChallengesAndLeaderboards();
+  {
+    std::lock_guard host_ui_lock(s_host_ui_mutex);
+    if (s_host_ui_callback)
+      s_host_ui_callback();
+  }
   ImGui::Render();
 
   // Check for font changes
@@ -520,6 +531,12 @@ void OnScreenUI::UpdateImguiTexture(ImTextureData* tex)
 
     tex->Status = ImTextureStatus_Destroyed;
   }
+}
+
+void OnScreenUI::SetHostUICallback(std::function<void()> callback)
+{
+  std::lock_guard host_ui_lock(s_host_ui_mutex);
+  s_host_ui_callback = std::move(callback);
 }
 
 std::unique_lock<std::mutex> OnScreenUI::GetImGuiLock()

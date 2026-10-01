@@ -7,6 +7,8 @@ add_executable(porpoise
   HorizonExceptionEntry.S
   HostSwitch.cpp
   MainSwitch.cpp
+  PauseMenuSwitch.cpp
+  PauseMenuSwitch.h
   PerformanceOverlaySwitch.cpp
   PlatformSwitch.cpp
   SettingsSwitch.cpp
@@ -41,6 +43,7 @@ PRIVATE
   core
   uicommon
   borealis
+  imgui
 )
 
 set_source_files_properties(ShellAchievementsSwitch.cpp ShellControlsSwitch.cpp

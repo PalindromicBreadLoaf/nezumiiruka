@@ -17,13 +17,13 @@
 
 namespace
 {
-// This thread only pumps host messages, so anything tighter than a frame is wasted time.
 constexpr u64 HOST_POLL_INTERVAL_NS = 16'000'000;
-
-constexpr double PROFILE_CAPTURE_SECONDS = 10.0;
+constexpr u64 MENU_POLL_INTERVAL_NS = 4'000'000;
 }  // namespace
 
-PlatformSwitch::PlatformSwitch(PadState& pad) : m_pad(pad)
+PlatformSwitch::PlatformSwitch(PadState& pad, std::string disc_path)
+    : m_pad(pad), m_menu(Core::System::GetInstance(), std::move(disc_path),
+                         [this] { RequestShutdown(); })
 {
 }
 
@@ -41,8 +41,6 @@ void PlatformSwitch::MainLoop()
 
   while (m_running.IsSet())
   {
-    // Goes false once Horizon has asked us to quit, and stays false, so the second pass through
-    // UpdateRunningFlag is what actually stops the loop.
     if (!appletMainLoop())
       RequestShutdown();
 
@@ -55,7 +53,7 @@ void PlatformSwitch::MainLoop()
 
     UpdateBootBoost(system);
 
-    svcSleepThread(HOST_POLL_INTERVAL_NS);
+    svcSleepThread(m_menu.IsOpen() ? MENU_POLL_INTERVAL_NS : HOST_POLL_INTERVAL_NS);
   }
 }
 
@@ -81,23 +79,14 @@ void PlatformSwitch::PollHostInput(Core::System& system)
   padUpdate(&m_pad);
   const u64 buttons = padGetButtons(&m_pad);
 
-  // TODO: Replace this chord with the in-game overlay menu once there is one to open.
-  constexpr u64 exit_chord = HidNpadButton_Plus | HidNpadButton_Minus;
-  if ((buttons & exit_chord) == exit_chord)
-    RequestShutdown();
+  m_menu.Update(buttons);
 
   // Stick clicks are free currently.
   constexpr u64 overlay_chord = HidNpadButton_StickL | HidNpadButton_StickR;
-  const bool overlay_held = (buttons & overlay_chord) == overlay_chord;
+  const bool overlay_held = !m_menu.IsOpen() && (buttons & overlay_chord) == overlay_chord;
   if (overlay_held && !m_overlay_chord_latched)
     PerfOverlay::CycleLevel();
   m_overlay_chord_latched = overlay_held;
-
-  const bool profile_held =
-      (buttons & (HidNpadButton_Minus | HidNpadButton_Plus)) == HidNpadButton_Minus;
-  if (profile_held && !m_profile_chord_latched)
-    Core::HorizonSampler::Toggle(system, PROFILE_CAPTURE_SECONDS);
-  m_profile_chord_latched = profile_held;
 
   Core::HorizonSampler::Poll(system);
 }

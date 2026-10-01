@@ -8,9 +8,12 @@
 // reads.
 namespace PerfOverlay
 {
-// Pushes the current level into the graphics config. Call once per boot.
+// Pushes the current level into the graphics config.
 void ApplyCurrentLevel();
 
 // Advances one level (off, stats, stats + graphs, off) and applies it.
 void CycleLevel();
+
+// Stores and applies a level without announcing it.
+void SetLevel(int level);
 }  // namespace PerfOverlay

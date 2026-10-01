@@ -379,19 +379,32 @@ bool AchievementManager::CanPause()
 
 void AchievementManager::DoIdle()
 {
-  std::thread([this] {
+#ifdef __SWITCH__
+  {
+    std::lock_guard idle_lg{m_idle_thread_mutex};
+    if (m_idle_thread_running)
+      return;
+    m_idle_thread_running = true;
+  }
+  if (m_idle_thread.joinable())
+    m_idle_thread.join();
+#endif
+  auto idle = [this] {
     while (true)
     {
       Common::SleepCurrentThread(1000);
       {
         std::lock_guard lg{m_lock};
         Core::System* system = m_system.load(std::memory_order_acquire);
-        if (!system || Core::GetState(*system) != Core::State::Paused)
+        if (!system || Core::GetState(*system) != Core::State::Paused ||
+            !m_background_execution_allowed || !m_client || !IsGameLoaded())
+        {
+#ifdef __SWITCH__
+          std::lock_guard idle_lg{m_idle_thread_mutex};
+          m_idle_thread_running = false;
+#endif
           return;
-        if (!m_background_execution_allowed)
-          return;
-        if (!m_client || !IsGameLoaded())
-          return;
+        }
       }
       // rc_client_idle peeks at memory to recalculate rich presence and therefore
       // needs to be on host or CPU thread to access memory.
@@ -406,7 +419,12 @@ void AchievementManager::DoIdle()
         rc_client_idle(m_client);
       });
     }
-  }).detach();
+  };
+#ifdef __SWITCH__
+  m_idle_thread = std::thread(std::move(idle));
+#else
+  std::thread(std::move(idle)).detach();
+#endif
 }
 
 std::recursive_mutex& AchievementManager::GetLock()
@@ -809,6 +827,11 @@ void AchievementManager::Shutdown()
     m_dll_found = false;
     INFO_LOG_FMT(ACHIEVEMENTS, "Achievement Manager shut down.");
   }
+#ifdef __SWITCH__
+  // The idle thread notices the destroyed client within a second and exits.
+  if (m_idle_thread.joinable())
+    m_idle_thread.join();
+#endif
 }
 
 void* AchievementManager::FilereaderOpen(const char* path_utf8)

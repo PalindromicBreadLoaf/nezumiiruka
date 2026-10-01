@@ -56,8 +56,14 @@ void CycleLevel()
   const int current =
       std::clamp(Config::Get(Config::SWITCH_PERFORMANCE_OVERLAY), 0, Level::Count - 1);
   const int level = (current + 1) % Level::Count;
+  SetLevel(level);
+  OSD::AddMessage(LEVEL_NAMES[level]);
+}
+
+void SetLevel(int level)
+{
+  level = std::clamp(level, 0, Level::Count - 1);
   Config::SetBase(Config::SWITCH_PERFORMANCE_OVERLAY, level);
   Apply(level);
-  OSD::AddMessage(LEVEL_NAMES[level]);
 }
 }  // namespace PerfOverlay

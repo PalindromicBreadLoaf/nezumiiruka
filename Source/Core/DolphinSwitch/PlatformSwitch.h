@@ -16,6 +16,7 @@
 #include "Common/Flag.h"
 #include "Common/HorizonClocks.h"
 #include "Common/WindowSystemInfo.h"
+#include "DolphinSwitch/PauseMenuSwitch.h"
 
 namespace Core
 {
@@ -26,7 +27,7 @@ class System;
 class PlatformSwitch
 {
 public:
-  explicit PlatformSwitch(PadState& pad);
+  PlatformSwitch(PadState& pad, std::string disc_path);
 
   bool Init();
   void MainLoop();
@@ -35,6 +36,7 @@ public:
   WindowSystemInfo GetWindowSystemInfo() const;
 
   bool IsWindowFocused() const { return m_focused.load(std::memory_order_relaxed); }
+  bool IsMenuBlockingInput() const { return m_menu.IsBlockingInput(); }
 
   // Shuts down the way the console's power button would.
   void RequestShutdown();
@@ -55,10 +57,10 @@ private:
   Common::Flag m_shutdown_requested{false};
   Common::Flag m_tried_graceful_shutdown{false};
 
+  PauseMenu m_menu;
+
   // Edge-detects the overlay-cycle chord.
   bool m_overlay_chord_latched = false;
-  // Edge-detects the profile-capture chord.
-  bool m_profile_chord_latched = false;
 
   // Read by Host_RendererHasFocus from the CPU and GPU threads.
   std::atomic<bool> m_focused{true};

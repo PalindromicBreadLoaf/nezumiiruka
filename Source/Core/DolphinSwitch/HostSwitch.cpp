@@ -26,7 +26,7 @@ void Host_PPCBreakpointsChanged()
 
 bool Host_UIBlocksControllerState()
 {
-  return false;
+  return g_platform && g_platform->IsMenuBlockingInput();
 }
 
 void Host_Message(const HostMessageID id)

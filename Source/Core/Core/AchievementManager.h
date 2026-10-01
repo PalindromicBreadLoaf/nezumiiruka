@@ -14,6 +14,9 @@
 #include <set>
 #include <string>
 #include <string_view>
+#ifdef __SWITCH__
+#include <thread>
+#endif
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -290,6 +293,11 @@ private:
   Common::AsyncWorkThread m_image_queue;
   mutable std::recursive_mutex m_lock;
   std::recursive_mutex m_filereader_lock;
+#ifdef __SWITCH__
+  std::thread m_idle_thread;
+  std::mutex m_idle_thread_mutex;
+  bool m_idle_thread_running = false;
+#endif
 };  // class AchievementManager
 
 #else  // USE_RETRO_ACHIEVEMENTS

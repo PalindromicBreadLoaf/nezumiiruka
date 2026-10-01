@@ -176,7 +176,7 @@ std::string RunGame(PadState& pad, const Shell::BootRequest& request)
   ConfigureInput(pad);
   ControllerProfiles::ApplyProfiles();
 
-  g_platform = std::make_unique<PlatformSwitch>(pad);
+  g_platform = std::make_unique<PlatformSwitch>(pad, request.nand_title_id != 0 ? "" : request.path);
   Common::ScopeGuard platform_guard([] { g_platform.reset(); });
 
   if (!g_platform->Init())
