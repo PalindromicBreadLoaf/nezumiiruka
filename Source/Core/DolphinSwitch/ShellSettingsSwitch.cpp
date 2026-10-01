@@ -746,6 +746,14 @@ void BuildWii(PageBuilder& page)
   page.Toggle("Insert SD card", Config::MAIN_WII_SD_CARD);
   page.Toggle("Allow writes to the SD card", Config::MAIN_ALLOW_SD_WRITES);
   page.Toggle("Connect USB keyboard", Config::MAIN_WII_KEYBOARD);
+
+  if (!page.IsPerGame())
+  {
+    page.Header("Online");
+    page.Toggle("Enable WiiConnect24 via WiiLink", Config::MAIN_WII_WIILINK_ENABLE);
+    page.Note("See the setup guide at https://wiilink.ca/")
+    page.Note("Read the Terms of Service at https://www.wiilink24.com/tos");
+  }
 }
 
 ProfileBinding GlobalProfileBinding(ControllerProfiles::Kind kind, int slot)
