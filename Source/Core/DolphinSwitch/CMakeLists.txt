@@ -11,6 +11,8 @@ add_executable(porpoise
   PauseMenuSwitch.h
   PerformanceOverlaySwitch.cpp
   PlatformSwitch.cpp
+  RiivolutionSwitch.cpp
+  RiivolutionSwitch.h
   SettingsSwitch.cpp
   SettingsSwitch.h
   ShellControlsSwitch.cpp

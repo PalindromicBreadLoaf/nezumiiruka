@@ -37,6 +37,7 @@
 #include "DolphinSwitch/ControllerProfilesSwitch.h"
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
 #include "DolphinSwitch/PlatformSwitch.h"
+#include "DolphinSwitch/RiivolutionSwitch.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellSwitch.h"
 #include "UICommon/UICommon.h"
@@ -153,7 +154,11 @@ std::unique_ptr<BootParameters> CreateBootParameters(const Shell::BootRequest& r
 {
   if (request.nand_title_id != 0)
     return std::make_unique<BootParameters>(BootParameters::NANDTitle{request.nand_title_id});
-  return BootParameters::GenerateFromFile(request.path, BootSessionData{});
+
+  auto boot = BootParameters::GenerateFromFile(request.path, BootSessionData{});
+  if (boot && request.riivolution)
+    RiivolutionSwitch::AddPatches(*boot);
+  return boot;
 }
 
 std::string RunGame(PadState& pad, const Shell::BootRequest& request)
@@ -176,7 +181,8 @@ std::string RunGame(PadState& pad, const Shell::BootRequest& request)
   ConfigureInput(pad);
   ControllerProfiles::ApplyProfiles();
 
-  g_platform = std::make_unique<PlatformSwitch>(pad, request.nand_title_id != 0 ? "" : request.path);
+  g_platform =
+      std::make_unique<PlatformSwitch>(pad, request.nand_title_id != 0 ? "" : request.path);
   Common::ScopeGuard platform_guard([] { g_platform.reset(); });
 
   if (!g_platform->Init())
@@ -237,6 +243,7 @@ int main(int argc, char* argv[])
   SwitchSettings::ApplyDefaults();
   ControllerProfiles::WritePresets();
   File::CreateFullPath(SwitchSettings::GetGameDirectory());
+  File::CreateFullPath(RiivolutionSwitch::GetPatchDirectory());
 
   LogHostEnvironment();
 

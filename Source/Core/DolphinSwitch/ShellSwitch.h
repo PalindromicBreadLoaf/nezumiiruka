@@ -14,6 +14,7 @@ struct BootRequest
 {
   std::string path;
   u64 nand_title_id = 0;
+  bool riivolution = false;
 
   bool IsEmpty() const { return path.empty() && nand_title_id == 0; }
 };

@@ -26,5 +26,5 @@ brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
 
 brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::GameFile> game,
                                              std::chrono::milliseconds time_played,
-                                             std::function<void()> launch);
+                                             std::function<void(bool riivolution)> launch);
 }  // namespace Shell

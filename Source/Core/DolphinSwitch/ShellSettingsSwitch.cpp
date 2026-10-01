@@ -4,6 +4,7 @@
 
 #include "DolphinSwitch/ShellSettingsSwitch.h"
 
+#include <algorithm>
 #include <cmath>
 #include <optional>
 #include <string>
@@ -26,6 +27,7 @@
 #include "Common/Config/Layer.h"
 #include "Common/FileUtil.h"
 #include "Common/HorizonBuildId.h"
+#include "Common/StringUtil.h"
 #include "Common/Version.h"
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "Core/Config/AchievementSettings.h"
@@ -42,6 +44,7 @@
 #include "Core/PowerPC/PowerPC.h"
 #include "DiscIO/Enums.h"
 #include "DolphinSwitch/ControllerProfilesSwitch.h"
+#include "DolphinSwitch/RiivolutionSwitch.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinSwitch/ShellAchievementsSwitch.h"
@@ -192,10 +195,12 @@ public:
   bool IsPerGame() const { return m_context->IsPerGame(); }
   const ContextPtr& GetContext() const { return m_context; }
 
-  void Header(const std::string& title)
+  void Header(const std::string& title, const std::string& subtitle = {})
   {
     auto* header = new brls::Header();
     header->setTitle(title);
+    if (!subtitle.empty())
+      header->setSubtitle(subtitle);
     header->setMarginTop(m_box->getChildren().empty() ? 0 : 24);
     m_box->addView(header);
   }
@@ -923,8 +928,7 @@ void BuildWiiSystem(PageBuilder& page, const std::function<void()>& launch_syste
   page.Header("Saves");
   page.Action("Import a save", "", ImportWiiSave);
   page.Action("Export every save", "", ExportWiiSaves);
-  page.Note(fmt::format("Saves are exported to {}WiiSaves.",
-                        File::GetUserPath(D_USER_IDX)));
+  page.Note(fmt::format("Saves are exported to {}WiiSaves.", File::GetUserPath(D_USER_IDX)));
 }
 
 void AddSystemMemoryActions(PageBuilder& page, const UICommon::GameFile& game)
@@ -1017,8 +1021,86 @@ void BuildLibrary(PageBuilder& page, const std::function<void()>& clear_cache)
   });
 }
 
+using RiivolutionDiscs = std::shared_ptr<std::vector<DiscIO::Riivolution::Disc>>;
+
+size_t CountEnabledOptions(const std::vector<DiscIO::Riivolution::Disc>& discs)
+{
+  size_t count = 0;
+  for (const DiscIO::Riivolution::Disc& disc : discs)
+  {
+    for (const DiscIO::Riivolution::Section& section : disc.m_sections)
+    {
+      count += std::ranges::count_if(section.m_options, [](const DiscIO::Riivolution::Option& o) {
+        return o.m_selected_choice != 0;
+      });
+    }
+  }
+  return count;
+}
+
+std::string DescribeEnabledOptions(const std::vector<DiscIO::Riivolution::Disc>& discs)
+{
+  const size_t count = CountEnabledOptions(discs);
+  if (count == 0)
+    return "Nothing enabled";
+  return count == 1 ? std::string("1 option enabled") : fmt::format("{} options enabled", count);
+}
+
+std::string GetXmlFileName(const DiscIO::Riivolution::Disc& disc)
+{
+  std::string filename, extension;
+  SplitPath(disc.m_xml_path, nullptr, &filename, &extension);
+  return filename + extension;
+}
+
+void BuildGameRiivolution(PageBuilder& page, const UICommon::GameFile& game,
+                          const RiivolutionDiscs& discs, const std::function<void(bool)>& launch)
+{
+  page.Header("Riivolution");
+  if (discs->empty())
+  {
+    page.Note(fmt::format(
+        "No patches found for this game. Copy a mod's files into {} the way they would go on the "
+        "root of an SD card so that its XML ends up in {}.",
+        File::GetUserPath(D_RIIVOLUTION_IDX), RiivolutionSwitch::GetPatchDirectory()));
+    return;
+  }
+
+  page.Action("Play with Riivolution patches", DescribeEnabledOptions(*discs),
+              [launch] { launch(true); });
+
+  const bool name_discs = discs->size() > 1;
+  for (DiscIO::Riivolution::Disc& disc : *discs)
+  {
+    for (DiscIO::Riivolution::Section& section : disc.m_sections)
+    {
+      page.Header(section.m_name, name_discs ? GetXmlFileName(disc) : std::string());
+
+      for (DiscIO::Riivolution::Option& option : section.m_options)
+      {
+        std::vector<std::string> labels{"Disabled"};
+        for (const DiscIO::Riivolution::Choice& choice : option.m_choices)
+          labels.push_back(choice.m_name);
+
+        const int selected = option.m_selected_choice < labels.size() ?
+                                 static_cast<int>(option.m_selected_choice) :
+                                 0;
+
+        auto* cell = new brls::SelectorCell();
+        cell->init(option.m_name, labels, selected,
+                   [discs, &option, game_id = game.GetGameID()](int index) {
+                     option.m_selected_choice = static_cast<u32>(index);
+                     RiivolutionSwitch::SaveChoices(game_id, *discs);
+                   });
+        page.Add(cell);
+      }
+    }
+  }
+}
+
 void BuildGameInfo(PageBuilder& page, const UICommon::GameFile& game,
-                   std::chrono::milliseconds time_played, const std::function<void()>& launch)
+                   std::chrono::milliseconds time_played, const RiivolutionDiscs& riivolution,
+                   const std::function<void(bool)>& launch)
 {
   page.Header(GetTitle(game));
 
@@ -1027,7 +1109,12 @@ void BuildGameInfo(PageBuilder& page, const UICommon::GameFile& game,
   if (!description.empty())
     page.Note(description);
 
-  page.Action("Play", "", launch);
+  page.Action("Play", "", [launch] { launch(false); });
+  if (riivolution && !riivolution->empty())
+  {
+    page.Action("Play with Riivolution patches", DescribeEnabledOptions(*riivolution),
+                [launch] { launch(true); });
+  }
   AddSystemMemoryActions(page, game);
 
   page.Header("Game");
@@ -1093,16 +1180,33 @@ brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
 
 brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::GameFile> game,
                                              std::chrono::milliseconds time_played,
-                                             std::function<void()> launch)
+                                             std::function<void(bool riivolution)> launch)
 {
   auto context = std::make_shared<SettingsContext>(*game);
 
+  RiivolutionDiscs riivolution;
+  if (DiscIO::IsDisc(game->GetPlatform()) && !game->IsModDescriptor())
+  {
+    riivolution = std::make_shared<std::vector<DiscIO::Riivolution::Disc>>(
+        RiivolutionSwitch::LoadDiscs(*game));
+  }
+
   auto* tabs = new brls::TabFrame();
-  tabs->addTab("Information", [context, game, time_played, launch = std::move(launch)] {
+  tabs->addTab("Information", [context, game, time_played, riivolution, launch] {
     return CreatePage(
-        context, [&](PageBuilder& page) { BuildGameInfo(page, *game, time_played, launch); },
+        context,
+        [&](PageBuilder& page) { BuildGameInfo(page, *game, time_played, riivolution, launch); },
         false);
   });
+  if (riivolution)
+  {
+    tabs->addTab("Riivolution", [context, game, riivolution, launch] {
+      return CreatePage(
+          context,
+          [&](PageBuilder& page) { BuildGameRiivolution(page, *game, riivolution, launch); },
+          false);
+    });
+  }
 #ifdef USE_RETRO_ACHIEVEMENTS
   tabs->addTab("Achievements", [context, game] {
     return CreatePage(

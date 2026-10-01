@@ -517,9 +517,9 @@ void GameListView::ShowCover(const UICommon::GameFile& game)
   }
 }
 
-void GameListView::Launch(const GamePtr& game)
+void GameListView::Launch(const GamePtr& game, bool riivolution)
 {
-  m_chosen = {.path = game->GetFilePath()};
+  m_chosen = {.path = game->GetFilePath(), .riivolution = riivolution};
   brls::Application::quit();
 }
 
@@ -547,8 +547,8 @@ void GameListView::OpenProperties()
     return;
 
   GamePtr game = *it;
-  brls::Application::pushActivity(
-      CreateGamePropertiesActivity(game, GetTimePlayed(*game), [this, game] { Launch(game); }));
+  brls::Application::pushActivity(CreateGamePropertiesActivity(
+      game, GetTimePlayed(*game), [this, game](bool riivolution) { Launch(game, riivolution); }));
 }
 
 void GameListView::OpenSettings()
