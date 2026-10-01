@@ -138,7 +138,9 @@ std::unique_ptr<DKTexture> DKTexture::Create(const TextureConfig& config, std::s
 {
   DkDevice device = g_dk_context->GetDevice();
 
-  u32 flags = DkImageFlags_Usage2DEngine | DkImageFlags_CustomTileSize;
+  u32 flags = DkImageFlags_CustomTileSize;
+  if (!IsCompressedFormat(config.format))
+    flags |= DkImageFlags_Usage2DEngine;
   if (config.IsRenderTarget())
     flags |= DkImageFlags_UsageRender | DkImageFlags_HwCompression;
   if (config.IsComputeImage())

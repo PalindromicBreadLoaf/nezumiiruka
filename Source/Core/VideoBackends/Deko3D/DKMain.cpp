@@ -63,10 +63,11 @@ void VideoBackend::InitBackendInfo(const WindowSystemInfo& wsi)
 
   g_backend_info.bSupportsPaletteConversion = true;
 
+  g_backend_info.bSupportsST3CTextures = true;
+  g_backend_info.bSupportsBPTCTextures = true;
+
   // TODO: enable once the corresponding deko3d paths land.
   g_backend_info.bSupportsGPUTextureDecoding = false;
-  g_backend_info.bSupportsST3CTextures = false;
-  g_backend_info.bSupportsBPTCTextures = false;
   g_backend_info.bSupportsPipelineCacheData = false;
   g_backend_info.bSupportsDepthReadback = false;
 
