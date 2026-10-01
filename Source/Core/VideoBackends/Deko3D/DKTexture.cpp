@@ -5,6 +5,8 @@
 #include "VideoBackends/Deko3D/DKTexture.h"
 
 #include <algorithm>
+#include <array>
+#include <bit>
 #include <cstring>
 #include <memory>
 
@@ -54,6 +56,21 @@ DkMsMode GetDkMsMode(u32 samples)
   default:
     return DkMsMode_1x;
   }
+}
+
+DkTileSize PickTileSize(const TextureConfig& config)
+{
+  static constexpr std::array<u32, 5> samples_y = {1, 1, 2, 2, 4};
+  const u32 block_size = AbstractTexture::GetBlockSizeForFormat(config.format);
+  const u32 rows = Common::AlignUp(config.height, block_size) / block_size *
+                   samples_y[std::countr_zero(std::max(config.samples, 1u))];
+
+  const u32 gobs = (rows + rows / 2 + 7) / 8;
+  u32 tile = gobs >= 16 ? 4 : gobs >= 8 ? 3 : gobs >= 4 ? 2 : gobs >= 2 ? 1 : 0;
+  while (tile != 0 && rows <= (8u << (tile - 1)))
+    --tile;
+
+  return static_cast<DkTileSize>(tile);
 }
 }  // namespace
 
@@ -121,7 +138,7 @@ std::unique_ptr<DKTexture> DKTexture::Create(const TextureConfig& config, std::s
 {
   DkDevice device = g_dk_context->GetDevice();
 
-  u32 flags = DkImageFlags_Usage2DEngine;
+  u32 flags = DkImageFlags_Usage2DEngine | DkImageFlags_CustomTileSize;
   if (config.IsRenderTarget())
     flags |= DkImageFlags_UsageRender | DkImageFlags_HwCompression;
   if (config.IsComputeImage())
@@ -134,7 +151,8 @@ std::unique_ptr<DKTexture> DKTexture::Create(const TextureConfig& config, std::s
       .setFlags(flags)
       .setFormat(GetDkFormatForHostTextureFormat(config.format))
       .setMsMode(GetDkMsMode(config.samples))
-      .setMipLevels(config.levels);
+      .setMipLevels(config.levels)
+      .setTileSize(PickTileSize(config));
   if (type == DkImageType_2D || type == DkImageType_2DMS)
     layout_maker.setDimensions(config.width, config.height);
   else
