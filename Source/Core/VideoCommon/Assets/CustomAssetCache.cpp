@@ -14,6 +14,10 @@ namespace VideoCommon
 {
 void CustomAssetCache::Initialize()
 {
+#ifdef __SWITCH__
+  m_max_ram_available = Common::MemUnallocated() / 4;
+  INFO_LOG_FMT(VIDEO, "Custom asset memory budget: {} MiB", m_max_ram_available / 0x100000);
+#else
   // Use half of available system memory but leave at least 2GiB unused for system stability.
   constexpr size_t must_keep_unused = 2 * size_t(1024 * 1024 * 1024);
 
@@ -21,6 +25,7 @@ void CustomAssetCache::Initialize()
   const size_t keep_unused_mem = std::max(sys_mem / 2, std::min(sys_mem, must_keep_unused));
 
   m_max_ram_available = sys_mem - keep_unused_mem;
+#endif
 
   if (m_max_ram_available == 0)
     ERROR_LOG_FMT(VIDEO, "Not enough system memory for custom resources.");

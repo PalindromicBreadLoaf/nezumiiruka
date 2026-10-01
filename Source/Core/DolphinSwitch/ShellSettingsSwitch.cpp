@@ -505,6 +505,13 @@ void BuildEnhancements(PageBuilder& page)
                {"Force linear", TextureFilteringMode::Linear}});
   page.Toggle("Arbitrary mipmap detection", Config::GFX_ENHANCE_ARBITRARY_MIPMAP_DETECTION);
 
+  page.Header("Custom textures");
+  page.Toggle("Load custom textures", Config::GFX_HIRES_TEXTURES);
+  page.Toggle("Prefetch custom textures", Config::GFX_CACHE_HIRES_TEXTURES);
+  page.Note(fmt::format("Put each texture pack in {}<game ID>. Prefetching reads the whole pack "
+                        "while the game starts, which avoids stutter but takes memory.",
+                        File::GetUserPath(D_HIRESTEXTURES_IDX)));
+
   page.Header("Image quality");
   page.Choice("Anti-aliasing", Config::GFX_MSAA, {{"Off", 1u}, {"2× MSAA", 2u}, {"4× MSAA", 4u}});
   page.Toggle("Scaled EFB copy", Config::GFX_HACK_COPY_EFB_SCALED);
@@ -965,6 +972,8 @@ void BuildAbout(PageBuilder& page)
   page.Info("User folder", File::GetUserPath(D_USER_IDX));
   page.Info("Game folder", SwitchSettings::GetGameDirectory());
   page.Info("Custom covers", File::GetUserPath(D_COVERCACHE_IDX));
+  page.Info("Custom textures", File::GetUserPath(D_HIRESTEXTURES_IDX));
+  page.Info("Riivolution", File::GetUserPath(D_RIIVOLUTION_IDX));
 
   page.Header("Licence");
   page.Note("Porpoise is a port of the Dolphin emulator, licensed under the GNU GPL version 2 or "
