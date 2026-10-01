@@ -33,6 +33,7 @@ std::unique_ptr<DKStateTracker> s_state_tracker;
 
 static_assert(sizeof(DkImageDescriptor) == DK_IMAGE_DESCRIPTOR_ALIGNMENT,
               "Image descriptor indices are derived from ring offsets");
+static_assert(NUM_FRAGMENT_TEXTURE_BINDINGS <= DK_NUM_TEXTURE_BINDINGS);
 
 // Every graphics stage gets the same uniform buffers bound at the same indices, which is how the
 // Vulkan backend's cross-stage descriptor set visibility is reproduced.
@@ -124,8 +125,12 @@ bool DKStateTracker::Initialize()
     return false;
   }
 
+  m_dummy_texel_buffer =
+      DKTexture::MakeBufferDescriptor(m_dummy_buffer, DkImageFormat_R8_Uint, sizeof(u8));
+
   m_textures.fill(m_dummy_texture.get());
   m_image_textures.fill(m_dummy_compute_texture.get());
+  m_texel_buffers.fill(m_dummy_texel_buffer);
   m_samplers.fill(g_dk_object_cache->GetPointSamplerIndex());
 
   InvalidateCachedState();
@@ -164,7 +169,7 @@ void DKStateTracker::CommitImageDescriptors(u32 count)
 bool DKStateTracker::PrepareTextureHandles()
 {
   u32 first_index;
-  if (!ReserveImageDescriptors(NUM_PIXEL_SHADER_SAMPLERS, &first_index))
+  if (!ReserveImageDescriptors(NUM_FRAGMENT_TEXTURE_BINDINGS, &first_index))
     return false;
 
   DkImageDescriptor* descriptors = GetImageDescriptors();
@@ -175,7 +180,15 @@ bool DKStateTracker::PrepareTextureHandles()
     m_texture_handles[i] = dkMakeTextureHandle(first_index + i, m_samplers[i]);
   }
 
-  CommitImageDescriptors(NUM_PIXEL_SHADER_SAMPLERS);
+  const u32 point_sampler = g_dk_object_cache->GetPointSamplerIndex();
+  for (u32 i = 0; i < NUM_TEXEL_BUFFERS; i++)
+  {
+    const u32 binding = TEXEL_BUFFER_BINDING_BASE + i;
+    descriptors[first_index + binding] = m_texel_buffers[i];
+    m_texture_handles[binding] = dkMakeTextureHandle(first_index + binding, point_sampler);
+  }
+
+  CommitImageDescriptors(NUM_FRAGMENT_TEXTURE_BINDINGS);
   return true;
 }
 
@@ -294,6 +307,15 @@ void DKStateTracker::SetSampler(u32 index, u32 sampler_index)
     return;
 
   m_samplers[index] = sampler_index;
+  m_dirty_flags |= DIRTY_FLAG_TEXTURES;
+}
+
+void DKStateTracker::SetTexelBuffer(u32 index, const DkImageDescriptor& descriptor)
+{
+  if (std::memcmp(&m_texel_buffers[index], &descriptor, sizeof(descriptor)) == 0)
+    return;
+
+  m_texel_buffers[index] = descriptor;
   m_dirty_flags |= DIRTY_FLAG_TEXTURES;
 }
 

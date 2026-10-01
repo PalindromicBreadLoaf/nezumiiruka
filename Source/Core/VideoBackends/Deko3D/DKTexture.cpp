@@ -181,6 +181,25 @@ std::unique_ptr<DKTexture> DKTexture::CreateAdopted(const TextureConfig& config,
   return std::make_unique<DKTexture>(config, dk::UniqueMemBlock{}, layout, image, descriptor);
 }
 
+DkImageDescriptor DKTexture::MakeBufferDescriptor(DkMemBlock memblock, DkImageFormat format,
+                                                  u32 element_size)
+{
+  dk::ImageLayout layout;
+  dk::ImageLayoutMaker{g_dk_context->GetDevice()}
+      .setType(DkImageType_Buffer)
+      .setFormat(format)
+      .setDimensions(dkMemBlockGetSize(memblock) / element_size)
+      .initialize(layout);
+
+  dk::Image image;
+  image.initialize(layout, memblock, 0);
+
+  dk::ImageView view{image};
+  DkImageDescriptor descriptor{};
+  dkImageDescriptorInitialize(&descriptor, &view, false, false);
+  return descriptor;
+}
+
 DkImageView DKTexture::MakeView(u32 level, u32 layer, u32 layer_count) const
 {
   dk::ImageView view{m_image};

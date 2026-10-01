@@ -58,6 +58,10 @@ constexpr u32 SSBO_BINDING_VERTEX = 1;
 constexpr u32 NUM_PIXEL_SHADER_SAMPLERS = VideoCommon::MAX_PIXEL_SHADER_SAMPLERS;
 constexpr u32 NUM_COMPUTE_SHADER_SAMPLERS = VideoCommon::MAX_COMPUTE_SHADER_SAMPLERS;
 
+constexpr u32 TEXEL_BUFFER_BINDING_BASE = NUM_PIXEL_SHADER_SAMPLERS;
+constexpr u32 NUM_TEXEL_BUFFERS = 2;
+constexpr u32 NUM_FRAGMENT_TEXTURE_BINDINGS = TEXEL_BUFFER_BINDING_BASE + NUM_TEXEL_BUFFERS;
+
 // Image descriptors churn per draw, so they are allocated from a fence-tracked ring rather than
 // rewritten in place.
 constexpr u32 NUM_IMAGE_DESCRIPTORS = 64 * 1024;

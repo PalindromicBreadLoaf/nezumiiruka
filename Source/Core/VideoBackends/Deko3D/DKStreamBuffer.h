@@ -26,6 +26,7 @@ public:
 
   DkGpuAddr GetGpuAddr() const { return m_gpu_addr; }
   DkGpuAddr GetCurrentGpuAddr() const { return m_gpu_addr + m_current_offset; }
+  DkMemBlock GetMemBlock() const { return m_memblock; }
   u8* GetHostPointer() const { return m_host_pointer; }
   u8* GetCurrentHostPointer() const { return m_host_pointer + m_current_offset; }
   u32 GetCurrentSize() const { return m_size; }

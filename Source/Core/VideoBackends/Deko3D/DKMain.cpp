@@ -56,15 +56,14 @@ void VideoBackend::InitBackendInfo(const WindowSystemInfo& wsi)
   g_backend_info.bSupportsPartialMultisampleResolve = true;
   g_backend_info.bSupportsDynamicVertexLoader = false;
 
-  // DKSH is what DKShader::GetBinary hands back, so the disk shader cache works and pays for the
-  // in-process compilation only once per shader.
   g_backend_info.bSupportsShaderBinaries = true;
   g_backend_info.bSupportsBackgroundCompiling = true;
 
   g_backend_info.bSupportsBBox = true;
 
+  g_backend_info.bSupportsPaletteConversion = true;
+
   // TODO: enable once the corresponding deko3d paths land.
-  g_backend_info.bSupportsPaletteConversion = false;
   g_backend_info.bSupportsGPUTextureDecoding = false;
   g_backend_info.bSupportsST3CTextures = false;
   g_backend_info.bSupportsBPTCTextures = false;

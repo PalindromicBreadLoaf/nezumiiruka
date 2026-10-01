@@ -15,6 +15,7 @@
 #include "VideoBackends/Deko3D/DKGfx.h"
 #include "VideoBackends/Deko3D/DKStateTracker.h"
 #include "VideoBackends/Deko3D/DKStreamBuffer.h"
+#include "VideoBackends/Deko3D/DKTexture.h"
 
 #include "VideoCommon/GeometryShaderManager.h"
 #include "VideoCommon/IndexGenerator.h"
@@ -45,10 +46,23 @@ bool DKVertexManager::Initialize()
   m_vertex_stream_buffer = DKStreamBuffer::Create(VERTEX_STREAM_BUFFER_SIZE, "vertex");
   m_index_stream_buffer = DKStreamBuffer::Create(INDEX_STREAM_BUFFER_SIZE, "index");
   m_uniform_stream_buffer = DKStreamBuffer::Create(UNIFORM_STREAM_BUFFER_SIZE, "uniform");
-  if (!m_vertex_stream_buffer || !m_index_stream_buffer || !m_uniform_stream_buffer)
+  m_texel_stream_buffer = DKStreamBuffer::Create(TEXEL_STREAM_BUFFER_SIZE, "texel");
+  if (!m_vertex_stream_buffer || !m_index_stream_buffer || !m_uniform_stream_buffer ||
+      !m_texel_stream_buffer)
   {
     PanicAlertFmt("Failed to allocate deko3d streaming buffers");
     return false;
+  }
+
+  static constexpr std::array<DkImageFormat, NUM_TEXEL_BUFFER_FORMATS> texel_buffer_formats = {
+      DkImageFormat_R8_Uint, DkImageFormat_R16_Uint, DkImageFormat_RGBA8_Uint,
+      DkImageFormat_RG32_Uint};
+  for (u32 i = 0; i < NUM_TEXEL_BUFFER_FORMATS; i++)
+  {
+    const auto format = static_cast<TexelBufferFormat>(i);
+    m_texel_buffer_descriptors[i] =
+        DKTexture::MakeBufferDescriptor(m_texel_stream_buffer->GetMemBlock(),
+                                        texel_buffer_formats[i], GetTexelBufferElementSize(format));
   }
 
   m_uniform_buffer_reserve_size = AlignUniformSize(sizeof(PixelShaderConstants)) +
@@ -297,5 +311,31 @@ void DKVertexManager::UploadUtilityUniforms(const void* data, u32 data_size)
   std::memcpy(m_uniform_stream_buffer->GetCurrentHostPointer(), data, data_size);
   m_uniform_stream_buffer->CommitMemory(size);
   ADDSTAT(g_stats.this_frame.bytes_uniform_streamed, size);
+}
+
+bool DKVertexManager::UploadTexelBuffer(const void* data, u32 data_size, TexelBufferFormat format,
+                                        u32* out_offset)
+{
+  if (data_size > m_texel_stream_buffer->GetCurrentSize())
+    return false;
+
+  const u32 elem_size = GetTexelBufferElementSize(format);
+  if (!m_texel_stream_buffer->ReserveMemory(data_size, elem_size))
+  {
+    WARN_LOG_FMT(VIDEO, "Executing command buffer while waiting for space in texel buffer");
+    DKGfx::GetInstance()->ExecuteCommandBuffer(false);
+    if (!m_texel_stream_buffer->ReserveMemory(data_size, elem_size))
+    {
+      PanicAlertFmt("Failed to allocate {} bytes from texel buffer", data_size);
+      return false;
+    }
+  }
+
+  std::memcpy(m_texel_stream_buffer->GetCurrentHostPointer(), data, data_size);
+  *out_offset = m_texel_stream_buffer->GetCurrentOffset() / elem_size;
+  m_texel_stream_buffer->CommitMemory(data_size);
+  ADDSTAT(g_stats.this_frame.bytes_uniform_streamed, data_size);
+  DKStateTracker::GetInstance()->SetTexelBuffer(0, m_texel_buffer_descriptors[format]);
+  return true;
 }
 }  // namespace Deko3D

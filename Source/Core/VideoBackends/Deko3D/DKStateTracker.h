@@ -63,6 +63,7 @@ public:
   void SetSampler(u32 index, u32 sampler_index);
   void SetSSBO(DkGpuAddr addr, u32 size);
   void SetImageTexture(u32 index, const DKTexture* texture);
+  void SetTexelBuffer(u32 index, const DkImageDescriptor& descriptor);
 
   // Points every binding of this texture at the dummy, so a texture about to be destroyed or reused
   // as a render target is not left bound for sampling.
@@ -155,8 +156,9 @@ private:
   std::array<u32, NUM_PIXEL_SHADER_SAMPLERS> m_samplers = {};
   std::array<const DKTexture*, NUM_COMPUTE_SHADER_SAMPLERS> m_image_textures = {};
 
-  // Rebuilt from the above whenever a binding changes.
-  std::array<DkResHandle, NUM_PIXEL_SHADER_SAMPLERS> m_texture_handles = {};
+  std::array<DkImageDescriptor, NUM_TEXEL_BUFFERS> m_texel_buffers = {};
+
+  std::array<DkResHandle, NUM_FRAGMENT_TEXTURE_BINDINGS> m_texture_handles = {};
   std::array<DkResHandle, NUM_COMPUTE_SHADER_SAMPLERS> m_image_handles = {};
 
   DkViewport m_viewport = {0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f};
@@ -171,5 +173,6 @@ private:
   dk::UniqueMemBlock m_dummy_buffer;
   std::unique_ptr<DKTexture> m_dummy_texture;
   std::unique_ptr<DKTexture> m_dummy_compute_texture;
+  DkImageDescriptor m_dummy_texel_buffer = {};
 };
 }  // namespace Deko3D

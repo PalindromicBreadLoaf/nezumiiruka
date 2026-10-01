@@ -11,6 +11,7 @@
 #include "Common/Logging/Log.h"
 #include "Common/Timer.h"
 
+#include "VideoBackends/Deko3D/Constants.h"
 #include "VideoBackends/Deko3D/UamBridge.h"
 
 namespace Deko3D::ShaderCompiler
@@ -19,11 +20,10 @@ namespace
 {
 // The Vulkan backend's header with the descriptor sets removed.
 //
-// TEXEL_BUFFER_BINDING and INPUT_ATTACHMENT_BINDING are deliberately left undefined: deko3d has no
-// texel buffer object and no input attachments, and the features that use them are reported
-// unsupported.
+// INPUT_ATTACHMENT_BINDING is deliberately left undefined.
 //
 // gl_VertexID/gl_InstanceID keep their GL names
+static_assert(TEXEL_BUFFER_BINDING_BASE == 16, "TEXEL_BUFFER_BINDING below is out of date");
 constexpr char SHADER_HEADER[] = R"(
   #version 450 core
 
@@ -32,6 +32,7 @@ constexpr char SHADER_HEADER[] = R"(
   #define FRAGMENT_OUTPUT_LOCATION_INDEXED(x, y) layout(location = x, index = y)
   #define UBO_BINDING(packing, x) layout(packing, binding = (x - 1))
   #define SAMPLER_BINDING(x) layout(binding = x)
+  #define TEXEL_BUFFER_BINDING(x) layout(binding = (x + 16))
   #define SSBO_BINDING(x) layout(std430, binding = x)
   #define VARYING_LOCATION(x) layout(location = x)
   #define FORCE_EARLY_Z layout(early_fragment_tests) in

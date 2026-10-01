@@ -4,7 +4,10 @@
 
 #pragma once
 
+#include <array>
 #include <memory>
+
+#include <deko3d.hpp>
 
 #include "Common/CommonTypes.h"
 
@@ -23,6 +26,8 @@ public:
   bool Initialize() override;
 
   void UploadUtilityUniforms(const void* uniforms, u32 uniforms_size) override;
+  bool UploadTexelBuffer(const void* data, u32 data_size, TexelBufferFormat format,
+                         u32* out_offset) override;
 
 protected:
   void ResetBuffer(u32 vertex_stride) override;
@@ -42,6 +47,8 @@ private:
   std::unique_ptr<DKStreamBuffer> m_vertex_stream_buffer;
   std::unique_ptr<DKStreamBuffer> m_index_stream_buffer;
   std::unique_ptr<DKStreamBuffer> m_uniform_stream_buffer;
+  std::unique_ptr<DKStreamBuffer> m_texel_stream_buffer;
+  std::array<DkImageDescriptor, NUM_TEXEL_BUFFER_FORMATS> m_texel_buffer_descriptors = {};
   u32 m_uniform_buffer_reserve_size = 0;
 };
 }  // namespace Deko3D
