@@ -51,6 +51,7 @@
 #endif
 #include "DolphinSwitch/ShellControlsSwitch.h"
 #include "DolphinSwitch/ShellFormatSwitch.h"
+#include "DolphinSwitch/ShellMemoryCardsSwitch.h"
 #include "DolphinSwitch/ShellSystemSwitch.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
@@ -697,7 +698,7 @@ void BuildAudio(PageBuilder& page)
   page.Toggle("Mute when the speed limit is off", Config::MAIN_AUDIO_MUTE_ON_DISABLED_SPEED_LIMIT);
 }
 
-void BuildGameCube(PageBuilder& page)
+void BuildGameCube(PageBuilder& page, const std::shared_ptr<const UICommon::GameFile>& game)
 {
   page.Header("System");
   page.Choice(
@@ -715,6 +716,16 @@ void BuildGameCube(PageBuilder& page)
   page.Header("Memory cards");
   page.Choice("Slot A", Config::MAIN_SLOT_A, slot_devices);
   page.Choice("Slot B", Config::MAIN_SLOT_B, slot_devices);
+  if (game)
+  {
+    page.Action("Manage this game's saves", "",
+                [game] { brls::Application::pushActivity(CreateMemoryCardsActivity(*game)); });
+  }
+  else
+  {
+    page.Action("Manage memory cards", "",
+                [] { brls::Application::pushActivity(CreateMemoryCardsActivity()); });
+  }
 }
 
 void BuildWii(PageBuilder& page)
@@ -756,7 +767,7 @@ void BuildWii(PageBuilder& page)
   {
     page.Header("Online");
     page.Toggle("Enable WiiConnect24 via WiiLink", Config::MAIN_WII_WIILINK_ENABLE);
-    page.Note("See the setup guide at https://wiilink.ca/")
+    page.Note("See the setup guide at https://wiilink.ca/");
     page.Note("Read the Terms of Service at https://www.wiilink24.com/tos");
   }
 }
@@ -1155,7 +1166,7 @@ brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
   tabs->addSeparator();
   AddPage(tabs, context, "Emulation", BuildEmulation);
   AddPage(tabs, context, "Audio", BuildAudio);
-  AddPage(tabs, context, "GameCube", BuildGameCube);
+  AddPage(tabs, context, "GameCube", [](PageBuilder& page) { BuildGameCube(page, nullptr); });
   AddPage(tabs, context, "Wii", BuildWii);
   AddPage(tabs, context, "Controls", [](PageBuilder& page) { BuildControls(page, true); });
 #ifdef USE_RETRO_ACHIEVEMENTS
@@ -1230,7 +1241,7 @@ brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::Gam
   }
   else
   {
-    AddPage(tabs, context, "GameCube", BuildGameCube);
+    AddPage(tabs, context, "GameCube", [game](PageBuilder& page) { BuildGameCube(page, game); });
     AddPage(tabs, context, "Controls", [](PageBuilder& page) { BuildControls(page, false); });
   }
 

@@ -7,6 +7,8 @@ add_executable(porpoise
   HorizonExceptionEntry.S
   HostSwitch.cpp
   MainSwitch.cpp
+  MemoryCardsSwitch.cpp
+  MemoryCardsSwitch.h
   PauseMenuSwitch.cpp
   PauseMenuSwitch.h
   PerformanceOverlaySwitch.cpp
@@ -25,6 +27,8 @@ add_executable(porpoise
   ShellGameListSwitch.h
   ShellLibrarySwitch.cpp
   ShellLibrarySwitch.h
+  ShellMemoryCardsSwitch.cpp
+  ShellMemoryCardsSwitch.h
   ShellSettingsSwitch.cpp
   ShellSettingsSwitch.h
   ShellSwitch.cpp
@@ -49,7 +53,8 @@ PRIVATE
 )
 
 set_source_files_properties(ShellAchievementsSwitch.cpp ShellControlsSwitch.cpp
-  ShellFilePickerSwitch.cpp ShellGameListSwitch.cpp ShellSettingsSwitch.cpp ShellSwitch.cpp
+  ShellFilePickerSwitch.cpp ShellGameListSwitch.cpp ShellMemoryCardsSwitch.cpp ShellSettingsSwitch.cpp
+  ShellSwitch.cpp
   ShellSystemSwitch.cpp
   PROPERTIES COMPILE_OPTIONS "${BOREALIS_EXCEPTIONS}")
 
