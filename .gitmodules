@@ -139,3 +139,7 @@
   url = https://github.com/PalindromicBreadLoaf/borealis.git
   branch = porpoise
 	shallow = true
+[submodule "Externals/libusbhsfs/libusbhsfs"]
+	path = Externals/libusbhsfs/libusbhsfs
+	url = https://github.com/DarkMatterCore/libusbhsfs.git
+	shallow = true

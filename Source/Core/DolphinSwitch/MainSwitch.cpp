@@ -40,6 +40,7 @@
 #include "DolphinSwitch/RiivolutionSwitch.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellSwitch.h"
+#include "DolphinSwitch/UsbStorageSwitch.h"
 #include "UICommon/UICommon.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
@@ -246,6 +247,9 @@ int main(int argc, char* argv[])
   File::CreateFullPath(RiivolutionSwitch::GetPatchDirectory());
 
   LogHostEnvironment();
+
+  UsbStorage::Init();
+  Common::ScopeGuard usb_storage_guard([] { UsbStorage::Shutdown(); });
 
 #ifdef USE_RETRO_ACHIEVEMENTS
   AchievementManager::GetInstance().Init(nullptr);

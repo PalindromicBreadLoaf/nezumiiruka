@@ -13,6 +13,7 @@
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellLibrarySwitch.h"
 #include "DolphinSwitch/ShellSwitch.h"
+#include "DolphinSwitch/UsbStorageSwitch.h"
 
 namespace Shell
 {
@@ -35,6 +36,7 @@ private:
   };
 
   void StartRefresh();
+  void OnUsbStorageChanged();
   void SetGames(Games games);
   void UpdateGame(const GamePtr& game);
 
@@ -64,6 +66,8 @@ private:
   BootRequest& m_chosen;
   std::string m_focused_path;
   std::string m_game_directory;
+  std::string m_usb_game_directory;
+  std::vector<UsbStorage::Volume> m_usb_volumes;
 
   TimePlayed m_time_played;
   Config::GameListFilter m_filter;

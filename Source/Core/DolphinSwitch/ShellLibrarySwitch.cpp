@@ -11,6 +11,7 @@
 #include "Common/Logging/Log.h"
 #include "Common/Thread.h"
 #include "DolphinSwitch/SettingsSwitch.h"
+#include "DolphinSwitch/UsbStorageSwitch.h"
 #include "UICommon/GameFile.h"
 
 namespace Shell
@@ -42,13 +43,16 @@ void Library::Refresh(ListChangedFn list_changed, GameUpdatedFn game_updated)
 {
   Stop();
 
-  m_thread = std::thread([this, directory = SwitchSettings::GetGameDirectory(),
+  std::vector<std::string> directories = UsbStorage::GetGameDirectories();
+  directories.insert(directories.begin(), SwitchSettings::GetGameDirectory());
+
+  m_thread = std::thread([this, directories = std::move(directories),
                           list_changed = std::move(list_changed),
                           game_updated = std::move(game_updated)] {
     Common::SetCurrentThreadName("Game list scan");
 
-    const std::string_view directory_view = directory;
-    const std::vector<std::string> paths = UICommon::FindAllGamePaths({&directory_view, 1}, true);
+    const std::vector<std::string_view> directory_views(directories.begin(), directories.end());
+    const std::vector<std::string> paths = UICommon::FindAllGamePaths(directory_views, true);
 
     if (m_cache.Update(paths, {}, {}, m_halt))
     {

@@ -94,6 +94,8 @@ private:
 GameListView::GameListView(Library& library, BootRequest& chosen, const std::string& focus_path)
     : brls::Box(brls::Axis::ROW), m_library(library), m_chosen(chosen), m_focused_path(focus_path),
       m_game_directory(SwitchSettings::GetGameDirectory()),
+      m_usb_game_directory(Config::Get(Config::SWITCH_USB_GAME_DIRECTORY)),
+      m_usb_volumes(UsbStorage::GetVolumes()),
       m_filter(Config::Get(Config::SWITCH_GAME_LIST_FILTER)),
       m_sort(Config::Get(Config::SWITCH_GAME_LIST_SORT)),
       m_use_covers(Config::Get(Config::MAIN_USE_GAME_COVERS)), m_games(library.GetGames())
@@ -212,6 +214,9 @@ GameListView::GameListView(Library& library, BootRequest& chosen, const std::str
       true);
 
   m_run_loop_subscription = brls::Application::getRunLoopEvent()->subscribe([this] {
+    if (UsbStorage::ConsumeChange())
+      OnUsbStorageChanged();
+
     if (!m_rebuild_pending)
       return;
 
@@ -263,6 +268,25 @@ void GameListView::StartRefresh()
         brls::sync([this, games = std::move(games)]() mutable { SetGames(std::move(games)); });
       },
       [this](GamePtr game) { brls::sync([this, game = std::move(game)] { UpdateGame(game); }); });
+}
+
+void GameListView::OnUsbStorageChanged()
+{
+  std::vector<UsbStorage::Volume> volumes = UsbStorage::GetVolumes();
+  const auto is_new = [this](const UsbStorage::Volume& volume) {
+    return std::ranges::none_of(m_usb_volumes, [&volume](const UsbStorage::Volume& old) {
+      return old.root == volume.root;
+    });
+  };
+
+  const auto added = std::ranges::find_if(volumes, is_new);
+  if (added != volumes.end())
+    brls::Application::notify(fmt::format("{} mounted as {}", added->label, added->root));
+  else if (volumes.size() < m_usb_volumes.size())
+    brls::Application::notify("USB drive removed");
+  m_usb_volumes = std::move(volumes);
+
+  StartRefresh();
 }
 
 void GameListView::SetGames(Games games)
@@ -576,10 +600,13 @@ void GameListView::OnSettingsClosed()
   m_rebuild_pending = true;
 
   const std::string directory = SwitchSettings::GetGameDirectory();
+  const std::string usb_directory = Config::Get(Config::SWITCH_USB_GAME_DIRECTORY);
   const bool use_covers = Config::Get(Config::MAIN_USE_GAME_COVERS);
-  if (directory != m_game_directory || use_covers != m_use_covers)
+  if (directory != m_game_directory || usb_directory != m_usb_game_directory ||
+      use_covers != m_use_covers)
   {
     m_game_directory = directory;
+    m_usb_game_directory = usb_directory;
     m_use_covers = use_covers;
     StartRefresh();
   }

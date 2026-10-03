@@ -16,6 +16,7 @@ const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE{
     {System::Main, "Switch", "PerformanceProfile"}, PerformanceProfile::FasterMemory};
 const Info<int> SWITCH_PERFORMANCE_OVERLAY{{System::Main, "Switch", "PerformanceOverlay"}, 1};
 const Info<std::string> SWITCH_GAME_DIRECTORY{{System::Main, "Switch", "GameDirectory"}, ""};
+const Info<std::string> SWITCH_USB_GAME_DIRECTORY{{System::Main, "Switch", "UsbGameDirectory"}, ""};
 const Info<GameListSort> SWITCH_GAME_LIST_SORT{{System::Main, "Switch", "GameListSort"},
                                                GameListSort::Title};
 const Info<GameListFilter> SWITCH_GAME_LIST_FILTER{{System::Main, "Switch", "GameListFilter"},

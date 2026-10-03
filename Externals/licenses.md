@@ -42,6 +42,8 @@ Dolphin includes or links code of the following third-party software projects:
    [BSD 2-Clause](https://github.com/randy408/libspng/blob/master/LICENSE)
 - [libusb](http://libusb.info/):
    [LGPLv2.1+](https://github.com/libusb/libusb/blob/master/COPYING)
+- [libusbhsfs](https://github.com/DarkMatterCore/libusbhsfs):
+   [GPLv2+](https://github.com/DarkMatterCore/libusbhsfs/blob/main/LICENSE_GPLv2%2B.md) when built with NTFS and EXT support, [ISC](https://github.com/DarkMatterCore/libusbhsfs/blob/main/LICENSE_ISC.md) otherwise
 - [LLVM](http://llvm.org/):
    [University of Illinois/NCSA Open Source license](http://llvm.org/docs/DeveloperPolicy.html#license)
 - [LZO](http://www.oberhumer.com/opensource/lzo/):

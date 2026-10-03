@@ -45,6 +45,7 @@ enum class WiimoteLayout : int
 extern const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE;
 extern const Info<int> SWITCH_PERFORMANCE_OVERLAY;
 extern const Info<std::string> SWITCH_GAME_DIRECTORY;
+extern const Info<std::string> SWITCH_USB_GAME_DIRECTORY;
 extern const Info<GameListSort> SWITCH_GAME_LIST_SORT;
 extern const Info<GameListFilter> SWITCH_GAME_LIST_FILTER;
 extern const std::array<Info<WiimoteLayout>, 4> SWITCH_WIIMOTE_LAYOUTS;

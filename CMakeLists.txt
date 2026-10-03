@@ -738,6 +738,7 @@ endif()
 
 if(PORPOISE)
   add_subdirectory(Externals/borealis)
+  add_subdirectory(Externals/libusbhsfs)
 endif()
 
 if(NOT (WIN32 AND _M_ARM_64) AND NOT PORPOISE)

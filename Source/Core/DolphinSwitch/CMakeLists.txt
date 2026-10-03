@@ -35,6 +35,8 @@ add_executable(porpoise
   ShellSwitch.h
   ShellSystemSwitch.cpp
   ShellSystemSwitch.h
+  UsbStorageSwitch.cpp
+  UsbStorageSwitch.h
 )
 
 if(USE_RETRO_ACHIEVEMENTS)
@@ -50,6 +52,7 @@ PRIVATE
   uicommon
   borealis
   imgui
+  usbhsfs
 )
 
 set_source_files_properties(ShellAchievementsSwitch.cpp ShellControlsSwitch.cpp

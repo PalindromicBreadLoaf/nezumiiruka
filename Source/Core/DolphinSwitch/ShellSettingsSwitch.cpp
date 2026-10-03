@@ -53,6 +53,7 @@
 #include "DolphinSwitch/ShellFormatSwitch.h"
 #include "DolphinSwitch/ShellMemoryCardsSwitch.h"
 #include "DolphinSwitch/ShellSystemSwitch.h"
+#include "DolphinSwitch/UsbStorageSwitch.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
 #ifdef HAS_FRAME_GENERATION
@@ -491,7 +492,6 @@ void BuildGraphics(PageBuilder& page)
                {"Exclusive ubershaders", ShaderCompilationMode::SynchronousUberShaders},
                {"Hybrid ubershaders", ShaderCompilationMode::AsynchronousUberShaders},
                {"Skip drawing until compiled", ShaderCompilationMode::AsynchronousSkipRendering}});
-  page.Note("Deko3D by default uses a hybrid-like approach. This setting only applies to Vulkan.");
   page.Toggle("Compile shaders before starting", Config::GFX_WAIT_FOR_SHADERS_BEFORE_STARTING);
 }
 
@@ -994,6 +994,8 @@ void BuildAbout(PageBuilder& page)
   page.Header("Folders");
   page.Info("User folder", File::GetUserPath(D_USER_IDX));
   page.Info("Game folder", SwitchSettings::GetGameDirectory());
+  for (const UsbStorage::Volume& volume : UsbStorage::GetVolumes())
+    page.Info("USB drive", fmt::format("{} ({})", volume.root, volume.label));
   page.Info("Custom covers", File::GetUserPath(D_COVERCACHE_IDX));
   page.Info("Custom textures", File::GetUserPath(D_HIRESTEXTURES_IDX));
   page.Info("Riivolution", File::GetUserPath(D_RIIVOLUTION_IDX));
@@ -1009,6 +1011,9 @@ void BuildLibrary(PageBuilder& page, const std::function<void()>& clear_cache)
   page.Text("Game folder", Config::SWITCH_GAME_DIRECTORY,
             File::GetUserPath(D_USER_IDX) + "roms" DIR_SEP);
   page.Note("Leave empty for the default folder. Subfolders are searched too.");
+  page.Text("USB game folder", Config::SWITCH_USB_GAME_DIRECTORY, "Whole drive");
+  page.Note("The folder(s) searched on every USB drive. Leave empty to search "
+            "the whole drive.");
   page.Choice("Sort by", Config::SWITCH_GAME_LIST_SORT,
               {{"Title", Config::GameListSort::Title},
                {"Time played", Config::GameListSort::TimePlayed},

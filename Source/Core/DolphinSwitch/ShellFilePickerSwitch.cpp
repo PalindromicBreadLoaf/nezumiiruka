@@ -13,12 +13,15 @@
 #include "Common/CommonPaths.h"
 #include "Common/FileUtil.h"
 #include "Common/StringUtil.h"
+#include "DolphinSwitch/UsbStorageSwitch.h"
 #include "UICommon/UICommon.h"
 
 namespace Shell
 {
 namespace
 {
+constexpr const char* SD_ROOT = "sdmc:/";
+
 std::string WithTrailingSeparator(std::string directory)
 {
   if (!directory.empty() && directory.back() != '/')
@@ -127,6 +130,7 @@ private:
     std::ranges::sort(files, by_name);
 
     brls::View* focus = nullptr;
+    brls::View* first_drive = nullptr;
 
     const std::string parent_directory = GetParent(directory);
     if (!parent_directory.empty())
@@ -136,6 +140,20 @@ private:
         name.pop_back();
       focus = AddCell("..", "Parent folder",
                       [this, parent_directory, name] { Populate(parent_directory, name); });
+    }
+    else
+    {
+      std::vector<UsbStorage::Volume> drives = UsbStorage::GetVolumes();
+      drives.insert(drives.begin(), {.root = SD_ROOT, .label = "SD card"});
+      for (const UsbStorage::Volume& drive : drives)
+      {
+        if (drive.root == directory)
+          continue;
+        brls::View* cell =
+            AddCell(drive.label, drive.root, [this, root = drive.root] { Populate(root, {}); });
+        if (first_drive == nullptr)
+          first_drive = cell;
+      }
     }
 
     for (const File::FSTEntry& folder : folders)
@@ -154,6 +172,9 @@ private:
       if (focus == nullptr)
         focus = cell;
     }
+
+    if (focus == nullptr)
+      focus = first_drive;
 
     if (focus == nullptr)
     {
