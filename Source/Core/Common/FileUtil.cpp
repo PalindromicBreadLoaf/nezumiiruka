@@ -3,6 +3,7 @@
 
 #include "Common/FileUtil.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -370,10 +371,30 @@ bool CopyRegularFile(std::string_view source_path, std::string_view destination_
 {
   DEBUG_LOG_FMT(COMMON, "{}: {} --> {}", __func__, source_path, destination_path);
 
+  std::error_code error;
+#ifdef __SWITCH__
+  bool copied = false;
+  {
+    IOFile src(std::string(source_path), "rb");
+    IOFile dst(std::string(destination_path), "wb");
+    std::vector<u8> buffer(64 * 1024);
+    u64 remaining = src.IsOpen() ? src.GetSize() : 0;
+    copied = src.IsOpen() && dst.IsOpen();
+    while (copied && remaining != 0)
+    {
+      const size_t chunk = static_cast<size_t>(std::min<u64>(remaining, buffer.size()));
+      copied = src.ReadBytes(buffer.data(), chunk) && dst.WriteBytes(buffer.data(), chunk);
+      remaining -= chunk;
+    }
+    copied = copied && dst.Flush();
+  }
+  if (!copied)
+    error = std::make_error_code(std::errc::io_error);
+#else
   auto src_path = StringToPath(source_path);
   auto dst_path = StringToPath(destination_path);
-  std::error_code error;
   bool copied = fs::copy_file(src_path, dst_path, fs::copy_options::overwrite_existing, error);
+#endif
   if (!copied)
   {
     ERROR_LOG_FMT(COMMON, "{}: failed {} --> {}: {}", __func__, source_path, destination_path,
@@ -569,6 +590,16 @@ FSTEntry ScanDirectoryTree(const std::string& directory, bool recursive)
 bool DeleteDirRecursively(const std::string& directory)
 {
   DEBUG_LOG_FMT(COMMON, "{}: {}", __func__, directory);
+
+#ifdef __SWITCH__
+  FsFileSystem* device;
+  char horizon_path[FS_MAX_PATH];
+  if (fsdevTranslatePath(directory.c_str(), &device, horizon_path) != -1 &&
+      R_SUCCEEDED(fsFsDeleteDirectoryRecursively(device, horizon_path)))
+  {
+    return true;
+  }
+#endif
 
   std::error_code error;
   const std::uintmax_t num_removed = std::filesystem::remove_all(StringToPath(directory), error);
