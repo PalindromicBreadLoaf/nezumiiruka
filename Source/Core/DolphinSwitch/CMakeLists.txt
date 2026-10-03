@@ -7,6 +7,7 @@ add_executable(porpoise
   HorizonExceptionEntry.S
   HostSwitch.cpp
   MainSwitch.cpp
+  MallocSwitch.c
   MemoryCardsSwitch.cpp
   MemoryCardsSwitch.h
   PauseMenuSwitch.cpp

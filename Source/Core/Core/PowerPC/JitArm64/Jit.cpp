@@ -4,7 +4,6 @@
 #include "Core/PowerPC/JitArm64/Jit.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cstdio>
 #include <optional>
 #include <span>
@@ -224,42 +223,24 @@ void JitArm64::ClearCache()
 {
 #ifdef __SWITCH__
   const Common::HorizonClocks::ScopedCpuBoost boost;
-
-  // TODO: remove this timing once the multi-second flush is gone.
-  using Clock = std::chrono::steady_clock;
-  const auto start = Clock::now();
-  const size_t block_count = blocks.GetBlockCount();
 #endif
 
   m_fault_to_handler.clear();
-
-  blocks.Clear();
-  blocks.ClearRangesToFree();
 #ifdef __SWITCH__
-  const auto blocks_cleared = Clock::now();
+  m_fault_to_handler_pool.release();
+  blocks.Discard();
+#else
+  blocks.Clear();
 #endif
+  blocks.ClearRangesToFree();
   const Common::ScopedJITPageWriteAndNoExecute enable_jit_page_writes;
   m_far_code_0.ClearCodeSpace();
   m_near_code_0.ClearCodeSpace();
   m_near_code_1.ClearCodeSpace();
   m_far_code_1.ClearCodeSpace();
-#ifdef __SWITCH__
-  const auto code_cleared = Clock::now();
-#endif
   RefreshConfig();
 
   GenerateAsmAndResetFreeMemoryRanges();
-
-#ifdef __SWITCH__
-  const auto ms = [](auto d) {
-    return std::chrono::duration_cast<std::chrono::microseconds>(d).count() / 1000.0;
-  };
-  NOTICE_LOG_FMT(DYNA_REC,
-                 "JIT cache cleared: {} blocks, {:.1f} ms destroying blocks, {:.1f} ms poisoning "
-                 "code, {:.1f} ms regenerating routines",
-                 block_count, ms(blocks_cleared - start), ms(code_cleared - blocks_cleared),
-                 ms(Clock::now() - code_cleared));
-#endif
 }
 
 void JitArm64::GenerateAsmAndResetFreeMemoryRanges()

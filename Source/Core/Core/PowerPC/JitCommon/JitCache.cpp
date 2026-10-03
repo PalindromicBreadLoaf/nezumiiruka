@@ -96,6 +96,23 @@ void JitBaseBlockCache::Clear()
     m_entry_points_arena.Clear();
 }
 
+void JitBaseBlockCache::Discard()
+{
+  m_jit.js.fifoWriteAddresses.clear();
+  m_jit.js.pairedQuantizeAddresses.clear();
+  m_jit.js.noSpeculativeConstantsAddresses.clear();
+  block_map.clear();
+  links_to.clear();
+  block_range_map.clear();
+
+  valid_block.ClearAll();
+
+  if (m_entry_points_ptr)
+    m_entry_points_arena.Clear();
+  else
+    m_fast_block_map_fallback.fill(nullptr);
+}
+
 void JitBaseBlockCache::Reset()
 {
   Shutdown();

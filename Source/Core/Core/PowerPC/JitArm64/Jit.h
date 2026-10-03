@@ -6,6 +6,9 @@
 #include <atomic>
 #include <cstddef>
 #include <map>
+#ifdef __SWITCH__
+#include <memory_resource>
+#endif
 #include <optional>
 
 #include "Common/Arm64Emitter.h"
@@ -405,8 +408,13 @@ protected:
   void SetFPRFIfNeeded(bool single, Arm64Gen::ARM64Reg reg);
   void Force25BitPrecision(Arm64Gen::ARM64Reg output, Arm64Gen::ARM64Reg input);
 
+#ifdef __SWITCH__
+  std::pmr::unsynchronized_pool_resource m_fault_to_handler_pool;
+  std::pmr::map<const u8*, FastmemArea> m_fault_to_handler{&m_fault_to_handler_pool};
+#else
   // <Fast path fault location, slow path handler location>
   std::map<const u8*, FastmemArea> m_fault_to_handler{};
+#endif
   Arm64GPRCache gpr;
   Arm64FPRCache fpr;
 

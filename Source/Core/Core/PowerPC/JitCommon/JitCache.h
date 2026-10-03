@@ -165,6 +165,7 @@ public:
   virtual void Init();
   void Shutdown();
   void Clear();
+  void Discard();
   void Reset();
 
   // Code Cache
