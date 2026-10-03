@@ -143,3 +143,7 @@
 	path = Externals/libusbhsfs/libusbhsfs
 	url = https://github.com/DarkMatterCore/libusbhsfs.git
 	shallow = true
+[submodule "Externals/uam/uam"]
+	path = Externals/uam/uam
+	url = https://github.com/PalindromicBreadLoaf/uam.git
+	shallow = true

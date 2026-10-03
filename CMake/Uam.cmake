@@ -3,17 +3,13 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # deko3d only accepts DKSH, so uam is compiled into the NRO and Dolphin's generated GLSL is
-# translated at runtime. uam is based on mesa 19.0 whilst NXVK is (currently) 26.1.4.
-# To fix this, both are partial-linked into a single object and every symbol but the bridge
-# entry point is made local. Yes this means shader compilation stutter on Deko3D.
-
-set(UAM_ROOT "${CMAKE_SOURCE_DIR}/../uam" CACHE PATH "Root of the uam checkout")
+# translated at runtime.
+set(UAM_ROOT "${CMAKE_SOURCE_DIR}/Externals/uam/uam" CACHE PATH "Root of the uam checkout")
 
 if(NOT EXISTS "${UAM_ROOT}/source/compiler_iface.cpp")
   message(FATAL_ERROR
     "uam sources not found at ${UAM_ROOT}.\n"
-    "Clone it next to the porpoise checkout (git clone https://github.com/devkitPro/uam) or point "
-    "UAM_ROOT at an existing one.")
+    "Run git submodule update --init --recursive or set UAM_ROOT to an existing checkout.")
 endif()
 
 find_program(UAM_BISON NAMES bison)

@@ -33,14 +33,12 @@ Make sure to pull submodules before building:
 git submodule update --init --recursive
 ```
 
-Two checkouts are expected alongside this one. NXVK (optional), which supplies the Vulkan driver, and my uam fork (not optional).
+NXVK (optional, only if you want the Vulkan backend), is to be placed at:
 ```shell
-git clone https://github.com/PalindromicBreadLoaf/uam ../uam
 git clone https://github.com/PalindromicBreadLoaf/nxvk.git ../nxvk
 ```
-Point `UAM_ROOT`/`NXVK_ROOT` elsewhere if they live somewhere other than `../`.
-
-Build each of the above projects using their respective methods before proceeding.
+Point `NXVK_ROOT` elsewhere if it lives somewhere other than `../`, and build it using its own
+method before proceeding.
 
 ```shell
 cmake -S . -B build/switch \
