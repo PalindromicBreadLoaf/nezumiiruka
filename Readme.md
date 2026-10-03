@@ -33,12 +33,13 @@ Make sure to pull submodules before building:
 git submodule update --init --recursive
 ```
 
-NXVK (optional, only if you want the Vulkan backend), is to be placed at:
+NXVK (optional, only if you want the Vulkan backend), should be installed prior to building:
 ```shell
-git clone https://github.com/PalindromicBreadLoaf/nxvk.git ../nxvk
+git clone https://github.com/PalindromicBreadLoaf/nxvk.git
+cd nxvk
+make
+sudo make install
 ```
-Point `NXVK_ROOT` elsewhere if it lives somewhere other than `../`, and build it using its own
-method before proceeding.
 
 ```shell
 cmake -S . -B build/switch \
