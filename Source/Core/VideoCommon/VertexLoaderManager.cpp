@@ -76,6 +76,26 @@ void Clear()
   s_native_vertex_map.clear();
 }
 
+#ifdef __SWITCH__
+std::vector<LoaderInfo> GetLoaderInfo()
+{
+  std::lock_guard<std::mutex> lk(s_vertex_loader_map_lock);
+  std::vector<LoaderInfo> loaders;
+  loaders.reserve(s_vertex_loader_map.size());
+  for (const auto& [uid, loader] : s_vertex_loader_map)
+  {
+    LoaderInfo& info = loaders.emplace_back();
+    const std::span<const u8> code = loader->GetCode();
+    info.code_start = code.data();
+    info.code.assign(code.begin(), code.end());
+    info.vertices =
+        static_cast<u32>(__atomic_load_n(&loader->m_numLoadedVertices, __ATOMIC_RELAXED));
+    info.description = loader->Describe();
+  }
+  return loaders;
+}
+#endif
+
 void UpdateVertexArrayPointers()
 {
   // Anything to update?

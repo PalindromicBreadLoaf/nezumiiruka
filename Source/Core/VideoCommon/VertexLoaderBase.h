@@ -5,6 +5,7 @@
 
 #include <array>
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -61,6 +62,11 @@ public:
                                                               const VAT& vtx_attr);
   virtual ~VertexLoaderBase() {}
   virtual int RunVertices(const u8* src, u8* dst, int count) = 0;
+
+#ifdef __SWITCH__
+  virtual std::span<const u8> GetCode() const { return {}; }
+  std::string Describe() const;
+#endif
 
   // per loader public state
   PortableVertexDeclaration m_native_vtx_decl{};

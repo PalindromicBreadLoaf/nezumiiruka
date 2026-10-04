@@ -232,6 +232,43 @@ u32 VertexLoaderBase::GetVertexComponents(const TVtxDesc& vtx_desc, const VAT& v
   return components;
 }
 
+#ifdef __SWITCH__
+std::string VertexLoaderBase::Describe() const
+{
+  std::string out;
+  if (m_VtxDesc.low.PosMatIdx)
+    out += "posmtx, ";
+  for (u32 i = 0; i < m_VtxDesc.low.TexMatIdx.Size(); i++)
+  {
+    if (m_VtxDesc.low.TexMatIdx[i])
+      out += fmt::format("tex{}mtx, ", i);
+  }
+  out += fmt::format("pos {} {} {} frac {}", m_VtxDesc.low.Position, m_VtxAttr.g0.PosElements,
+                     m_VtxAttr.g0.PosFormat, m_VtxAttr.g0.PosFrac);
+  if (m_VtxDesc.low.Normal != VertexComponentFormat::NotPresent)
+  {
+    out += fmt::format(", normal {} {} {}{}", m_VtxDesc.low.Normal, m_VtxAttr.g0.NormalElements,
+                       m_VtxAttr.g0.NormalFormat, m_VtxAttr.g0.NormalIndex3 ? " index3" : "");
+  }
+  for (u32 i = 0; i < m_VtxDesc.low.Color.Size(); i++)
+  {
+    if (m_VtxDesc.low.Color[i] != VertexComponentFormat::NotPresent)
+      out += fmt::format(", color{} {} {}", i, m_VtxDesc.low.Color[i], m_VtxAttr.GetColorFormat(i));
+  }
+  for (u32 i = 0; i < m_VtxDesc.high.TexCoord.Size(); i++)
+  {
+    if (m_VtxDesc.high.TexCoord[i] != VertexComponentFormat::NotPresent)
+    {
+      out += fmt::format(", tex{} {} {} {} frac {}", i, m_VtxDesc.high.TexCoord[i],
+                         m_VtxAttr.GetTexElements(i), m_VtxAttr.GetTexFormat(i),
+                         m_VtxAttr.GetTexFrac(i));
+    }
+  }
+  out += fmt::format("; {} bytes in, {} bytes out", m_vertex_size, m_native_vtx_decl.stride);
+  return out;
+}
+#endif
+
 std::unique_ptr<VertexLoaderBase> VertexLoaderBase::CreateVertexLoader(const TVtxDesc& vtx_desc,
                                                                        const VAT& vtx_attr)
 {

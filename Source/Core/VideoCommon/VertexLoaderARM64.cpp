@@ -518,6 +518,9 @@ void VertexLoaderARM64::GenerateVertexLoader()
   }
 
   FlushIcache();
+#ifdef __SWITCH__
+  m_code_end = GetCodePtr();
+#endif
 
   ASSERT_MSG(VIDEO, m_vertex_size == m_src_ofs,
              "Vertex size from vertex loader ({}) does not match expected vertex size ({})!\nVtx "

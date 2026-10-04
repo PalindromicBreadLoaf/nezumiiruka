@@ -43,6 +43,7 @@
 #include "Core/System.h"
 #include "VideoCommon/OnScreenDisplay.h"
 #include "VideoCommon/Statistics.h"
+#include "VideoCommon/VertexLoaderManager.h"
 
 extern "C" void _start();
 extern "C" char __end__[];
@@ -67,6 +68,8 @@ constexpr std::size_t MAX_REPORTED_BLOCKS = 24;
 constexpr std::size_t MAX_LISTED_BLOCKS = 60;
 constexpr std::size_t MAX_BLOCK_INSTRUCTIONS = 2048;
 constexpr std::size_t MAX_LISTED_UNKNOWN = 12;
+constexpr std::size_t MAX_LISTED_LOADERS = 20;
+constexpr std::size_t MAX_REPORTED_LOADERS = 6;
 
 constexpr u64 NO_TICKS = std::numeric_limits<u64>::max();
 
@@ -133,6 +136,16 @@ struct BlockLabel
   std::size_t hot_index = std::numeric_limits<std::size_t>::max();
 };
 
+struct HotLoader
+{
+  uintptr_t start = 0;
+  uintptr_t end = 0;
+  std::string description;
+  u32 vertices = 0;
+  u64 self = 0;
+  std::vector<std::pair<u32, u64>> instructions;
+};
+
 struct Capture
 {
   std::array<Region, MAX_REGIONS> regions{};
@@ -172,6 +185,9 @@ struct Capture
   std::unordered_map<u32, BlockLabel> block_labels;
   std::vector<HotBlock> hot_blocks;
   bool blocks_resolved = false;
+
+  std::unordered_map<uintptr_t, u32> loader_vertices_at_start;
+  std::vector<HotLoader> loaders;
 };
 
 std::atomic<u32> s_cpu_thread_handle{INVALID_HANDLE};
@@ -599,6 +615,55 @@ void ResolveBlocks(Core::System& system)
   s_capture.blocks_resolved = true;
 }
 
+HotLoader* FindLoader(u64 address)
+{
+  const auto after =
+      std::upper_bound(s_capture.loaders.begin(), s_capture.loaders.end(), address,
+                       [](u64 pc, const HotLoader& loader) { return pc < loader.start; });
+  if (after == s_capture.loaders.begin())
+    return nullptr;
+  HotLoader& loader = *std::prev(after);
+  return address < loader.end ? &loader : nullptr;
+}
+
+void ResolveLoaders()
+{
+  s_capture.loaders.clear();
+  for (VertexLoaderManager::LoaderInfo& info : VertexLoaderManager::GetLoaderInfo())
+  {
+    if (info.code.empty())
+      continue;
+    HotLoader& loader = s_capture.loaders.emplace_back();
+    loader.start = reinterpret_cast<uintptr_t>(info.code_start);
+    loader.end = loader.start + info.code.size();
+    loader.description = std::move(info.description);
+    const auto before = s_capture.loader_vertices_at_start.find(loader.start);
+    loader.vertices =
+        info.vertices - (before != s_capture.loader_vertices_at_start.end() ? before->second : 0);
+    for (std::size_t i = 0; i + sizeof(u32) <= info.code.size(); i += sizeof(u32))
+    {
+      u32 encoding;
+      std::memcpy(&encoding, info.code.data() + i, sizeof(encoding));
+      loader.instructions.emplace_back(encoding, 0);
+    }
+  }
+  std::sort(s_capture.loaders.begin(), s_capture.loaders.end(),
+            [](const HotLoader& a, const HotLoader& b) { return a.start < b.start; });
+
+  for (const Sample& sample : Samples())
+  {
+    if (sample.blocked || !InCodeArena(sample.pc) || FindRegion(sample.pc) != nullptr)
+      continue;
+    HotLoader* const loader = FindLoader(sample.pc);
+    if (loader == nullptr)
+      continue;
+    ++loader->self;
+    const std::size_t index = (sample.pc - loader->start) / sizeof(u32);
+    if (index < loader->instructions.size())
+      ++loader->instructions[index].second;
+  }
+}
+
 std::string_view SvcName(u16 svc)
 {
   switch (svc)
@@ -647,7 +712,13 @@ std::string Label(u64 address)
   if (InModule(address))
     return fmt::format("m:{:x}", address - s_capture.module_start);
   if (InCodeArena(address))
+  {
+    if (const HotLoader* loader = FindLoader(address))
+    {
+      return fmt::format("v:L{}+{:x}", loader - s_capture.loaders.data(), address - loader->start);
+    }
     return fmt::format("v:{:x}", address - s_capture.code_start);
+  }
   return fmt::format("?:{:x}", address);
 }
 
@@ -924,6 +995,51 @@ void AppendBlocks(std::string& out, u64 cpu_samples)
   }
 }
 
+void AppendLoaders(std::string& out)
+{
+  std::vector<const HotLoader*> ranked;
+  for (const HotLoader& loader : s_capture.loaders)
+  {
+    if (loader.self != 0)
+      ranked.push_back(&loader);
+  }
+  if (ranked.empty())
+    return;
+  std::sort(ranked.begin(), ranked.end(),
+            [](const HotLoader* a, const HotLoader* b) { return a->self > b->self; });
+
+  const double ns_per_sample =
+      s_capture.rounds != 0 ? s_capture.elapsed * 1e9 / static_cast<double>(s_capture.rounds) : 0.0;
+
+  out += "\nVertex loaders, by samples. ns/vertex is sampled time over the vertices the loader "
+         "converted during the capture.\n";
+  out += "  samples    vertices  ns/vertex  loader\n";
+  for (std::size_t i = 0; i < ranked.size() && i < MAX_LISTED_LOADERS; ++i)
+  {
+    const HotLoader& loader = *ranked[i];
+    out += fmt::format("  {:7}  {:10}  {:9}  L{}: {}\n", loader.self, loader.vertices,
+                       loader.vertices != 0 ?
+                           fmt::format("{:.1f}", loader.self * ns_per_sample / loader.vertices) :
+                           "-",
+                       &loader - s_capture.loaders.data(), loader.description);
+  }
+
+  for (std::size_t i = 0; i < ranked.size() && i < MAX_REPORTED_LOADERS; ++i)
+  {
+    const HotLoader& loader = *ranked[i];
+    out += fmt::format("\nVertex loader L{}, {} host instructions. Columns are samples and the "
+                       "AArch64 encoding; Tools/symbolize-switch-profile.py --disasm turns it "
+                       "back into mnemonics.\n",
+                       &loader - s_capture.loaders.data(), loader.instructions.size());
+    u32 offset = 0;
+    for (const auto& [encoding, count] : loader.instructions)
+    {
+      out += fmt::format("  +{:#06x}  {:7}  {:08x}\n", offset, count, encoding);
+      offset += sizeof(u32);
+    }
+  }
+}
+
 void AppendUnknownCode(std::string& out)
 {
   std::map<u64, u64> pages;
@@ -997,6 +1113,7 @@ std::string BuildReport()
     }
   }
 
+  AppendLoaders(out);
   AppendUnknownCode(out);
   return out;
 }
@@ -1030,6 +1147,8 @@ void WriteReport()
   s_capture.samples = {};
   s_capture.block_labels = {};
   s_capture.hot_blocks = {};
+  s_capture.loaders = {};
+  s_capture.loader_vertices_at_start = {};
 }
 }  // namespace
 
@@ -1109,6 +1228,13 @@ void Start(Core::System& system, double seconds)
       s_capture.regions[i].holds_blocks = false;
   }
 
+  for (const VertexLoaderManager::LoaderInfo& info : VertexLoaderManager::GetLoaderInfo())
+  {
+    if (!info.code.empty())
+      s_capture.loader_vertices_at_start[reinterpret_cast<uintptr_t>(info.code_start)] =
+          info.vertices;
+  }
+
   std::array<ThreadInfo, MAX_THREADS> threads;
   const std::size_t thread_count = Common::HorizonThreadRegistry::Snapshot(threads);
   const double rounds = seconds * 1e9 / SAMPLE_PERIOD_NS;
@@ -1139,6 +1265,7 @@ void Poll(Core::System& system)
   const std::lock_guard lock(s_lifecycle_mutex);
   JoinSampler();
   ResolveBlocks(system);
+  ResolveLoaders();
   WriteReport();
 }
 

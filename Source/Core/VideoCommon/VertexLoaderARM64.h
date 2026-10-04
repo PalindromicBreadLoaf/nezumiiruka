@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <span>
 #include <utility>
 
 #include "Common/Arm64Emitter.h"
@@ -22,9 +23,16 @@ public:
 protected:
   int RunVertices(const u8* src, u8* dst, int count) override;
 
+#ifdef __SWITCH__
+  std::span<const u8> GetCode() const override { return {GetRegionStart(), m_code_end}; }
+#endif
+
 private:
   u32 m_src_ofs = 0;
   u32 m_dst_ofs = 0;
+#ifdef __SWITCH__
+  const u8* m_code_end = nullptr;
+#endif
   Arm64Gen::FixupBranch m_skip_vertex;
   Arm64Gen::ARM64FloatEmitter m_float_emit;
   std::pair<Arm64Gen::ARM64Reg, u32> GetVertexAddr(CPArray array, VertexComponentFormat attribute);

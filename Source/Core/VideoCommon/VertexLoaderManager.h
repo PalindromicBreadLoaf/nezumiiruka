@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "Common/CommonTypes.h"
 #include "Common/EnumMap.h"
@@ -53,6 +54,17 @@ VertexLoaderBase* GetOrCreateLoader(int vtx_attr_group);
 }  // namespace detail
 
 NativeVertexFormat* GetCurrentVertexFormat();
+
+#ifdef __SWITCH__
+struct LoaderInfo
+{
+  const u8* code_start = nullptr;
+  std::vector<u8> code;
+  u32 vertices = 0;
+  std::string description;
+};
+std::vector<LoaderInfo> GetLoaderInfo();
+#endif
 
 // Resolved pointers to array bases. Used by vertex loaders.
 extern Common::EnumMap<u8*, CPArray::TexCoord7> cached_arraybases;
