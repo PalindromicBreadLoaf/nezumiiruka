@@ -1366,9 +1366,6 @@ bool JitArm64::DoJit(u32 em_address, JitBlock* b, u32 nextPC)
   js.numLoadStoreInst = 0;
   js.numFloatingPointInst = 0;
 
-#ifdef __SWITCH__
-  AlignCode16();
-#endif
   b->normalEntry = GetWritableCodePtr();
 
   // Conditionally add profiling code.
