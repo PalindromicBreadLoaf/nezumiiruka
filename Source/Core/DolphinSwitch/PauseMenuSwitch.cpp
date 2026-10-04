@@ -28,6 +28,7 @@
 #include "Core/HW/SI/SI_Device.h"
 #include "Core/HW/Wiimote.h"
 #include "Core/HorizonSampler.h"
+#include "Core/PatchEngine.h"
 #include "Core/State.h"
 #include "Core/System.h"
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
@@ -255,6 +256,7 @@ void PauseMenu::TryOpen()
 
 void PauseMenu::Close(std::function<void()> after_resume)
 {
+  ApplyCheats();
   m_after_resume = std::move(after_resume);
   m_state = State::Closing;
   Publish();
@@ -402,6 +404,8 @@ void PauseMenu::Back()
 
   if (CurrentPage().id == PageId::Confirm)
     m_confirmation.reset();
+  else if (CurrentPage().id == PageId::Cheats)
+    ApplyCheats();
 
   m_pages.pop_back();
   m_status.clear();
@@ -439,6 +443,9 @@ void PauseMenu::Rebuild()
     break;
   case PageId::Controls:
     m_rows = BuildControls();
+    break;
+  case PageId::Cheats:
+    m_rows = BuildCheats();
     break;
   case PageId::Discs:
     m_rows = BuildDiscs();
@@ -489,6 +496,8 @@ std::string PauseMenu::GetPageTitle() const
     return "Settings";
   case PageId::Controls:
     return "Controls";
+  case PageId::Cheats:
+    return "Cheats";
   case PageId::Discs:
     return "Change disc";
   case PageId::Confirm:
@@ -522,6 +531,18 @@ std::vector<PauseMenu::Row> PauseMenu::BuildMain()
   rows.push_back(Row{.kind = RowKind::Submenu,
                      .label = "Controls",
                      .activate = [this] { Push(PageId::Controls); }});
+
+  Row cheats{.kind = RowKind::Submenu, .label = "Cheats", .activate = [this] {
+               const SConfig& config = SConfig::GetInstance();
+               m_cheats = CheatsSwitch::Load(config.GetGameID(), config.GetRevision());
+               Push(PageId::Cheats);
+             }};
+  if (!Config::AreCheatsEnabled())
+  {
+    cheats.value = "Off for this game";
+    cheats.enabled = false;
+  }
+  rows.push_back(std::move(cheats));
 
   if (!m_disc_path.empty())
   {
@@ -777,6 +798,52 @@ std::vector<PauseMenu::Row> PauseMenu::BuildControls()
   return rows;
 }
 
+std::vector<PauseMenu::Row> PauseMenu::BuildCheats()
+{
+  std::vector<Row> rows;
+
+  const auto add_section = [this, &rows](std::string header, auto& codes) {
+    if (codes.empty())
+      return;
+
+    rows.push_back(Row{.kind = RowKind::Header, .label = std::move(header)});
+    for (size_t i = 0; i < codes.size(); ++i)
+    {
+      Row row{.kind = RowKind::Choice,
+              .label = codes[i].name.empty() ? std::string("Unnamed") : codes[i].name,
+              .value = codes[i].enabled ? "On" : "Off"};
+      row.change = [this, &codes, i](int) {
+        codes[i].enabled = !codes[i].enabled;
+        CheatsSwitch::Save(SConfig::GetInstance().GetGameID(), m_cheats);
+        m_cheats_dirty = true;
+      };
+      rows.push_back(std::move(row));
+    }
+  };
+
+  add_section("Gecko codes", m_cheats.gecko);
+  add_section("Action Replay codes", m_cheats.action_replay);
+  add_section("Patches", m_cheats.patches);
+
+  if (rows.empty())
+  {
+    rows.push_back(
+        Row{.label = "No cheats yet. Download them from the game list.", .enabled = false});
+  }
+
+  return rows;
+}
+
+void PauseMenu::ApplyCheats()
+{
+  if (!std::exchange(m_cheats_dirty, false))
+    return;
+
+  RunStateJob([this] {
+    Core::RunOnCPUThread(m_system, [&system = m_system] { PatchEngine::Reload(system); });
+  });
+}
+
 PauseMenu::Row PauseMenu::ProfileRow(Kind kind, int slot, std::string label)
 {
   std::vector<std::string> names = ControllerProfiles::GetPresetNames(kind);
@@ -924,6 +991,8 @@ void PauseMenu::Publish()
       view.message = "Changes take effect straight away.";
     else if (page == PageId::Controls)
       view.message = "Profiles are created and edited from the game list.";
+    else if (page == PageId::Cheats)
+      view.message = "Changes take effect when you leave this page.";
 
     view.rows.reserve(m_rows.size());
     for (const Row& row : m_rows)

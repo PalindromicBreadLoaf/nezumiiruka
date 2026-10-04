@@ -14,6 +14,7 @@
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinSwitch/ShellAchievementsSwitch.h"
 #endif
+#include "DolphinSwitch/ShellCheatsSwitch.h"
 #include "DolphinSwitch/ShellGameListSwitch.h"
 #include "DolphinSwitch/ShellLibrarySwitch.h"
 #include "DolphinSwitch/ShellSystemSwitch.h"
@@ -112,6 +113,7 @@ BootRequest Run(const std::string& notice)
   }
 
   StopSystemTasks();
+  StopCheatDownloads();
 #ifdef USE_RETRO_ACHIEVEMENTS
   StopAchievementFetches();
 #endif

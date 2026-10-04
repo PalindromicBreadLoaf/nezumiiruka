@@ -49,6 +49,7 @@
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinSwitch/ShellAchievementsSwitch.h"
 #endif
+#include "DolphinSwitch/ShellCheatsSwitch.h"
 #include "DolphinSwitch/ShellControlsSwitch.h"
 #include "DolphinSwitch/ShellFormatSwitch.h"
 #include "DolphinSwitch/ShellMemoryCardsSwitch.h"
@@ -911,6 +912,18 @@ void BuildGameAchievements(PageBuilder& page, const UICommon::GameFile& game)
 }
 #endif
 
+void BuildGameCheats(PageBuilder& page, const std::shared_ptr<const UICommon::GameFile>& game)
+{
+  page.Header("Cheats");
+  page.Toggle("Enable cheats", Config::MAIN_ENABLE_CHEATS);
+  page.Note("Codes switched on below only run while cheats are enabled.");
+#ifdef USE_RETRO_ACHIEVEMENTS
+  if (Config::Get(Config::RA_ENABLED) && Config::Get(Config::RA_HARDCORE_ENABLED))
+    page.Note("Hardcore mode is on. Only codes approved by RetroAchievements will run.");
+#endif
+  page.Add(CreateGameCheatsView(game));
+}
+
 std::string DescribeSystemMenu()
 {
   const std::string description = GetSystemMenuDescription();
@@ -1221,6 +1234,13 @@ brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::Gam
           context,
           [&](PageBuilder& page) { BuildGameRiivolution(page, *game, riivolution, launch); },
           false);
+    });
+  }
+  if (!game->GetGameID().empty())
+  {
+    tabs->addTab("Cheats", [context, game] {
+      return CreatePage(
+          context, [&](PageBuilder& page) { BuildGameCheats(page, game); }, false);
     });
   }
 #ifdef USE_RETRO_ACHIEVEMENTS

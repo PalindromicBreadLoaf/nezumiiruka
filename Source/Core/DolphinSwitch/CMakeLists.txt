@@ -1,4 +1,6 @@
 add_executable(porpoise
+  CheatsSwitch.cpp
+  CheatsSwitch.h
   ControllerProfilesSwitch.cpp
   ControllerProfilesSwitch.h
   CrashHandlerSwitch.cpp
@@ -18,6 +20,8 @@ add_executable(porpoise
   RiivolutionSwitch.h
   SettingsSwitch.cpp
   SettingsSwitch.h
+  ShellCheatsSwitch.cpp
+  ShellCheatsSwitch.h
   ShellControlsSwitch.cpp
   ShellControlsSwitch.h
   ShellFilePickerSwitch.cpp
@@ -56,7 +60,7 @@ PRIVATE
   usbhsfs
 )
 
-set_source_files_properties(ShellAchievementsSwitch.cpp ShellControlsSwitch.cpp
+set_source_files_properties(ShellAchievementsSwitch.cpp ShellCheatsSwitch.cpp ShellControlsSwitch.cpp
   ShellFilePickerSwitch.cpp ShellGameListSwitch.cpp ShellMemoryCardsSwitch.cpp ShellSettingsSwitch.cpp
   ShellSwitch.cpp
   ShellSystemSwitch.cpp

@@ -18,6 +18,7 @@
 
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
+#include "DolphinSwitch/CheatsSwitch.h"
 #include "DolphinSwitch/ControllerProfilesSwitch.h"
 
 namespace Core
@@ -58,6 +59,7 @@ private:
     LoadState,
     Settings,
     Controls,
+    Cheats,
     Discs,
     Confirm,
   };
@@ -143,6 +145,7 @@ private:
   std::vector<Row> BuildSlots(bool save);
   std::vector<Row> BuildSettings();
   std::vector<Row> BuildControls();
+  std::vector<Row> BuildCheats();
   std::vector<Row> BuildDiscs();
   std::vector<Row> BuildConfirm();
 
@@ -155,6 +158,7 @@ private:
   Row ProfileRow(ControllerProfiles::Kind kind, int slot, std::string label);
   void ApplyProfile(ControllerProfiles::Kind kind, int slot, const std::string& name);
   void FindDiscs();
+  void ApplyCheats();
 
   template <typename T>
   void WriteForGame(const Config::Info<T>& info, const T& value);
@@ -186,6 +190,8 @@ private:
   std::string m_status;
   std::optional<Confirmation> m_confirmation;
   std::vector<Disc> m_discs;
+  CheatsSwitch::GameCheats m_cheats;
+  bool m_cheats_dirty = false;
   std::function<void()> m_deferred;
   std::function<void()> m_after_resume;
   bool m_config_dirty = false;
