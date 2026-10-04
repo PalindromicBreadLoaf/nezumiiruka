@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <array>
 #include <span>
 #include <utility>
 
@@ -35,6 +36,8 @@ private:
 #endif
   Arm64Gen::FixupBranch m_skip_vertex;
   Arm64Gen::ARM64FloatEmitter m_float_emit;
+  std::array<Arm64Gen::ARM64Reg, 12> m_stride_regs;
+  std::array<Arm64Gen::ARM64Reg, 12> m_arraybase_regs;
   std::pair<Arm64Gen::ARM64Reg, u32> GetVertexAddr(CPArray array, VertexComponentFormat attribute);
   void ReadVertex(VertexComponentFormat attribute, ComponentFormat format, int count_in,
                   int count_out, bool dequantize, u8 scaling_exponent,
