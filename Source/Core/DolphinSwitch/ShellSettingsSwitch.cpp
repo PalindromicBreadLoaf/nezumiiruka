@@ -626,7 +626,7 @@ void BuildFrameGeneration(PageBuilder& page)
               {{"100%", 1u}, {"50%", 2u}, {"33%", 3u}, {"25%", 4u}});
   page.Toggle("Performance mode", Config::GFX_FRAME_GENERATION_PERFORMANCE);
   page.Note("Frame generation raises both CPU and GPU requirements when enabled. You will need "
-            "to overclock the system to get good results. Porpoise's stastics counters also do "
+            "to overclock the system to get good results. Nezumiruka's stastics counters also do "
             "not account for latency or cost from lsfg running.");
   page.Note("A lower flow scale and performance mode are both faster, at some cost to quality. "
             "Increasing the render resolution bumps the GPU workload for both it and framegen. "
@@ -989,7 +989,7 @@ void AddSystemMemoryActions(PageBuilder& page, const UICommon::GameFile& game)
 
 void BuildAbout(PageBuilder& page)
 {
-  page.Header("Porpoise");
+  page.Header("Nezumiruka");
   page.Info("Version", UpdaterSwitch::GetCurrentVersion());
   page.Info("Revision", Common::GetScmDescStr());
   page.Info("Branch", Common::GetScmBranchStr());
@@ -1025,7 +1025,7 @@ void BuildAbout(PageBuilder& page)
   page.Info("Riivolution", File::GetUserPath(D_RIIVOLUTION_IDX));
 
   page.Header("Licence");
-  page.Note("Porpoise is a port of the Dolphin emulator, licensed under the GNU GPL version 2 or "
+  page.Note("Nezumiruka is a port of the Dolphin emulator, licensed under the GNU GPL version 2 or "
             "later. The menus use borealis, licensed under the Apache License 2.0.");
 }
 

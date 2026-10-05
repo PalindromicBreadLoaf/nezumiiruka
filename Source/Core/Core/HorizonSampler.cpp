@@ -73,7 +73,7 @@ constexpr std::size_t MAX_REPORTED_LOADERS = 6;
 
 constexpr u64 NO_TICKS = std::numeric_limits<u64>::max();
 
-#ifdef PORPOISE_FRAME_POINTERS
+#ifdef NEZUMIRUKA_FRAME_POINTERS
 constexpr bool FRAME_POINTERS = true;
 #else
 constexpr bool FRAME_POINTERS = false;
@@ -751,7 +751,7 @@ double CpuShare(const ThreadRecord& thread)
 void AppendSummary(std::string& out, const std::vector<std::size_t>& order,
                    const std::vector<u64>& sample_counts, const std::vector<u64>& blocked_counts)
 {
-  out += fmt::format("Porpoise profile: {:.2f} s, {} sampling rounds (~{} ms apart), {} samples, "
+  out += fmt::format("Nezumiruka profile: {:.2f} s, {} sampling rounds (~{} ms apart), {} samples, "
                      "{} dropped\n",
                      s_capture.elapsed, s_capture.rounds, SAMPLE_PERIOD_NS / 1'000'000,
                      s_capture.sample_count, s_capture.dropped_samples);
@@ -762,7 +762,7 @@ void AppendSummary(std::string& out, const std::vector<std::size_t>& order,
   out += fmt::format("frame pointers: {}\n",
                      FRAME_POINTERS ? "on, so stacks are full C++ call chains" :
                                       "off, so stacks are the sampled function and its caller "
-                                      "only (configure with -DPORPOISE_FRAME_POINTERS=ON)");
+                                      "only (configure with -DNEZUMIRUKA_FRAME_POINTERS=ON)");
   if (s_capture.first_error != 0)
   {
     out += fmt::format("First failure was {:#x} (module {}, description {}). A process launched "

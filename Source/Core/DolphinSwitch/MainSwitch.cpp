@@ -14,6 +14,7 @@
 
 #include <fmt/format.h>
 
+#include "Common/CommonPaths.h"
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
@@ -87,7 +88,7 @@ void LogHostEnvironment()
   svcGetInfo(&total_memory, InfoType_TotalMemorySize, CUR_PROCESS_HANDLE, 0);
   svcGetInfo(&used_memory, InfoType_UsedMemorySize, CUR_PROCESS_HANDLE, 0);
 
-  NOTICE_LOG_FMT(COMMON, "porpoise {}, build id {}", Common::GetScmDescStr(),
+  NOTICE_LOG_FMT(COMMON, "nezumiruka {}, build id {}", Common::GetScmDescStr(),
                  Common::HorizonBuildId::GetHex().data());
   NOTICE_LOG_FMT(COMMON, "Applet type {}, core mask {:#06b}, heap {} MiB used of {} MiB",
                  static_cast<int>(appletGetAppletType()), core_mask, used_memory / 0x100000,
@@ -219,6 +220,22 @@ std::string RunGame(PadState& pad, const Shell::BootRequest& request)
   NOTICE_LOG_FMT(BOOT, "Core shut down.");
   return {};
 }
+
+void MigrateLegacyUserDirectory()
+{
+  constexpr const char* LEGACY_USER_DIR = "/switch/porpoise";
+  if (File::Exists(NORMAL_USER_DIR) || !File::IsDirectory(LEGACY_USER_DIR))
+    return;
+
+  File::CreateFullPath(NORMAL_USER_DIR DIR_SEP);
+  for (const File::FSTEntry& entry : File::ScanDirectoryTree(LEGACY_USER_DIR, false).children)
+  {
+    if (!entry.isDirectory && entry.virtualName.find(".nro") != std::string::npos)
+      continue;
+    if (!File::Rename(entry.physicalName, NORMAL_USER_DIR DIR_SEP + entry.virtualName))
+      std::printf("Could not move %s to " NORMAL_USER_DIR "\n", entry.physicalName.c_str());
+  }
+}
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -233,10 +250,9 @@ int main(int argc, char* argv[])
 
   PadState pad;
 
-  // Nothing is logged until UICommon::Init brings up LogManager, so this is the only marker if
-  // something below goes wrong early.
-  std::printf("porpoise %s\n", Common::GetScmDescStr().c_str());
+  std::printf("nezumiruka %s\n", Common::GetScmDescStr().c_str());
 
+  MigrateLegacyUserDirectory();
   UICommon::SetUserDirectory("");
   UICommon::CreateDirectories();
   UICommon::Init();

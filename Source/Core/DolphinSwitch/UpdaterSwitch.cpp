@@ -33,8 +33,8 @@ namespace
 {
 constexpr const char* RELEASES_URL =
     "https://api.github.com/repos/PalindromicBreadLoaf/porpoise/releases?per_page=20";
-constexpr const char* USER_AGENT = "Porpoise-Updater/" PORPOISE_VERSION;
-constexpr std::string_view ASSET_NAME = "porpoise.nro";
+constexpr const char* USER_AGENT = "Nezumiruka-Updater/" NEZUMIRUKA_VERSION;
+constexpr std::string_view ASSET_NAME = "nezumiruka.nro";
 constexpr std::string_view DIGEST_PREFIX = "sha256:";
 constexpr size_t NRO_MAGIC_OFFSET = 0x10;
 constexpr std::string_view NRO_MAGIC = "NRO0";
@@ -243,7 +243,7 @@ std::string GetNotesPath()
 
 const char* GetCurrentVersion()
 {
-  return PORPOISE_VERSION;
+  return NEZUMIRUKA_VERSION;
 }
 
 void SetExecutablePath(std::string path)
@@ -318,7 +318,7 @@ CheckResult CheckForUpdate(bool include_prereleases, const std::atomic_bool& can
 
   if (!newest)
   {
-    result.error = "GitHub lists no release of Porpoise that can be installed.";
+    result.error = "GitHub lists no release of Nezumiruka that can be installed.";
     return result;
   }
 
@@ -333,7 +333,7 @@ std::expected<void, std::string> Install(const Release& release, const std::atom
 {
   const std::string& path = s_executable_path;
   if (!path.ends_with(".nro") || !File::IsFile(path))
-    return std::unexpected("Could not find the running copy of Porpoise.");
+    return std::unexpected("Could not find the running copy of Nezumiruka.");
 
   Common::HttpRequest request(std::chrono::seconds(30), CancelWith(cancelled, progress));
   request.FollowRedirects(5);
@@ -376,7 +376,7 @@ std::expected<void, std::string> Install(const Release& release, const std::atom
     return std::unexpected("Could not install the update.");
   }
 
-  NOTICE_LOG_FMT(COMMON, "Updated Porpoise {} to {}", GetCurrentVersion(), release.tag);
+  NOTICE_LOG_FMT(COMMON, "Updated Nezumiruka {} to {}", GetCurrentVersion(), release.tag);
   return {};
 }
 

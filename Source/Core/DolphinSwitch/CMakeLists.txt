@@ -1,4 +1,4 @@
-add_executable(porpoise
+add_executable(nezumiruka
   CheatsSwitch.cpp
   CheatsSwitch.h
   ControllerProfilesSwitch.cpp
@@ -48,16 +48,16 @@ add_executable(porpoise
   UsbStorageSwitch.h
 )
 
-target_compile_definitions(porpoise PRIVATE PORPOISE_VERSION="${PORPOISE_VERSION}")
+target_compile_definitions(nezumiruka PRIVATE NEZUMIRUKA_VERSION="${NEZUMIRUKA_VERSION}")
 
 if(USE_RETRO_ACHIEVEMENTS)
-  target_sources(porpoise PRIVATE
+  target_sources(nezumiruka PRIVATE
     ShellAchievementsSwitch.cpp
     ShellAchievementsSwitch.h
   )
 endif()
 
-target_link_libraries(porpoise
+target_link_libraries(nezumiruka
 PRIVATE
   core
   uicommon
@@ -75,23 +75,23 @@ set_source_files_properties(ShellAchievementsSwitch.cpp ShellCheatsSwitch.cpp Sh
 
 if(ENABLE_VULKAN)
   # NXVK driver archives are self-contained and resolve backwards into Dolphin's own.
-  target_link_libraries(porpoise PRIVATE nxvk)
+  target_link_libraries(nezumiruka PRIVATE nxvk)
 endif()
 
-nx_generate_nacp(OUTPUT porpoise.nacp
-  NAME "Porpoise"
+nx_generate_nacp(OUTPUT nezumiruka.nacp
+  NAME "Nezumiruka"
   AUTHOR "Dolphin Emulator Project \& PalindromicBreadLoaf"
-  VERSION "${PORPOISE_VERSION}"
+  VERSION "${NEZUMIRUKA_VERSION}"
 )
 
-dkp_add_asset_target(porpoise_romfs "${BOREALIS_ROMFS_DIR}")
-add_dependencies(porpoise_romfs borealis_romfs_files)
-set_target_properties(porpoise_romfs PROPERTIES DKP_ASSET_FILES "${BOREALIS_ROMFS_FILES}")
+dkp_add_asset_target(nezumiruka_romfs "${BOREALIS_ROMFS_DIR}")
+add_dependencies(nezumiruka_romfs borealis_romfs_files)
+set_target_properties(nezumiruka_romfs PROPERTIES DKP_ASSET_FILES "${BOREALIS_ROMFS_FILES}")
 
-# Defines the `porpoise_nro` target that the Switch build is driven through.
-nx_create_nro(porpoise
-  OUTPUT "${CMAKE_BINARY_DIR}/Binaries/porpoise.nro"
+# Defines the `nezumiruka_nro` target that the Switch build is driven through.
+nx_create_nro(nezumiruka
+  OUTPUT "${CMAKE_BINARY_DIR}/Binaries/nezumiruka.nro"
   ICON "${CMAKE_CURRENT_SOURCE_DIR}/icon.jpg"
-  NACP "${CMAKE_CURRENT_BINARY_DIR}/porpoise.nacp"
-  ROMFS porpoise_romfs
+  NACP "${CMAKE_CURRENT_BINARY_DIR}/nezumiruka.nacp"
+  ROMFS nezumiruka_romfs
 )

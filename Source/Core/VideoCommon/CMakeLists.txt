@@ -295,7 +295,7 @@ if(MSVC)
   target_link_libraries(videocommon PRIVATE use_pch)
 endif()
 
-if(PORPOISE)
+if(NEZUMIRUKA)
   # VideoCommon calls UICommon::FormatSize, which makes the two archives mutually dependent.
   target_link_libraries(videocommon PRIVATE uicommon)
   set_target_properties(videocommon uicommon PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)

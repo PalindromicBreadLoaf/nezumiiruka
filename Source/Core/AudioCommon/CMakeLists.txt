@@ -36,7 +36,7 @@ if(ANDROID)
   endif()
 endif()
 
-if(PORPOISE)
+if(NEZUMIRUKA)
   message(STATUS "Enabling audout sound backend")
   target_sources(audiocommon PRIVATE
     HorizonSoundStream.cpp

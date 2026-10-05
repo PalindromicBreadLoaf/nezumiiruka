@@ -27,7 +27,7 @@ target_compile_options(implot PRIVATE
   $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-include ${CMAKE_CURRENT_SOURCE_DIR}/implot_isnan_fix.h>
 )
 
-if(PORPOISE)
+if(NEZUMIRUKA)
   # SHELL: keeps CMake from de-duplicating this against the -include above.
   target_compile_options(implot PRIVATE
     "SHELL:-include ${CMAKE_CURRENT_SOURCE_DIR}/implot_horizon_fix.h")

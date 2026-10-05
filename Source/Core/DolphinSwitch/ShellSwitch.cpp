@@ -63,7 +63,7 @@ brls::View* CreateGameList(Library& library, BootRequest& chosen, const std::str
                            const std::string& focus_path)
 {
   auto* frame = new brls::AppletFrame(new GameListView(library, chosen, focus_path));
-  frame->setTitle("porpoise");
+  frame->setTitle("ネズミイルカ");
 
   if (!notice.empty())
   {
@@ -97,7 +97,7 @@ BootRequest Run(const std::string& notice)
     return {};
   }
 
-  brls::Application::createWindow("porpoise");
+  brls::Application::createWindow("nezumiruka");
   brls::Application::setGlobalQuit(true);
 
   BootRequest chosen;

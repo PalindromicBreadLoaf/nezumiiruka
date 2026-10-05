@@ -31,7 +31,7 @@ target_include_directories(sfml-system PUBLIC SFML/include PRIVATE SFML/src)
 target_include_directories(sfml-network PUBLIC SFML/include PRIVATE SFML/src)
 target_link_libraries(sfml-network PUBLIC sfml-system)
 
-if(PORPOISE)
+if(NEZUMIRUKA)
   # Must come before SFML/include so the shim can provide a proper lookup.
   target_include_directories(sfml-system BEFORE PUBLIC horizon)
   target_include_directories(sfml-network BEFORE PUBLIC horizon)

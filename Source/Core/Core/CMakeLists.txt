@@ -745,7 +745,7 @@ if(TARGET LibUSB::LibUSB)
   )
 endif()
 
-if(NOT PORPOISE)
+if(NOT NEZUMIRUKA)
   target_link_libraries(core PUBLIC videoogl)
 endif()
 
@@ -801,14 +801,13 @@ elseif(UNIX)
       HW/WiimoteReal/IOAndroid.h
     )
   endif()
-elseif(PORPOISE)
-  # Horizon has no TAP device, but CEXIETHERNET still constructs the interface.
+elseif(NEZUMIRUKA)
   target_sources(core PRIVATE
     HW/EXI/BBA/TAP_Unix.cpp
   )
 endif()
 
-if(PORPOISE)
+if(NEZUMIRUKA)
   target_sources(core PRIVATE
     HorizonSampler.cpp
     HorizonSampler.h

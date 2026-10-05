@@ -180,8 +180,6 @@ void DumpStack(DumpWriter& out, u64 stack_pointer, u64 module_base, u64 module_e
 }
 }  // namespace
 
-// switch.ld places _start at 0, so its runtime address is the load base and subtracting it from
-// pc turns the dump into something addr2line can resolve against porpoise.elf.
 extern "C" void _start();
 extern "C" char __end__[];
 
@@ -196,15 +194,12 @@ extern "C" void __libnx_exception_handler(ThreadExceptionDump* ctx)
   if (is_brk)
   {
     const u32 comment = ctx->esr & 0xFFFF;
-    out.Printf("porpoise stopped at brk #%u%s\n", comment,
+    out.Printf("nezumiruka stopped at brk #%u%s\n", comment,
                comment == BRK_BUILTIN_TRAP ? " (__builtin_trap)" : "");
-    out.Printf("This is deliberate, not a bad jump. A failed ASSERT or Crash() leaves the "
-               "condition, file, line and function in the last lines of dolphin.log. If nothing "
-               "is there, the compiler emitted the trap itself and the pc below is the site.\n");
   }
   else
   {
-    out.Printf("porpoise crashed: %s (error_desc 0x%x)\n", DescribeError(ctx->error_desc),
+    out.Printf("nezumiruka crashed: %s (error_desc 0x%x)\n", DescribeError(ctx->error_desc),
                ctx->error_desc);
   }
 
@@ -237,10 +232,10 @@ extern "C" void __libnx_exception_handler(ThreadExceptionDump* ctx)
   if (ctx->pc.x >= module_base && ctx->pc.x < module_end)
   {
     if (ctx->lr.x >= module_base && ctx->lr.x < module_end)
-      out.Printf("pc +%lx  lr +%lx  (aarch64-none-elf-addr2line -e porpoise.elf)\n",
+      out.Printf("pc +%lx  lr +%lx  (aarch64-none-elf-addr2line -e nezumiruka.elf)\n",
                  ctx->pc.x - module_base, ctx->lr.x - module_base);
     else
-      out.Printf("pc +%lx  lr outside module  (aarch64-none-elf-addr2line -e porpoise.elf)\n",
+      out.Printf("pc +%lx  lr outside module  (aarch64-none-elf-addr2line -e nezumiruka.elf)\n",
                  ctx->pc.x - module_base);
   }
   else
@@ -269,12 +264,6 @@ extern "C" void __libnx_exception_handler(ThreadExceptionDump* ctx)
 }
 
 // Overrides newlib's abort
-//
-// newlib's abort() calls exit(), so a library that aborts on one thread runs libnx's __appExit on
-// that thread and closes hid, fs, applet and sm while every other thread is still using them. The
-// next thread to call into one of those aborts inside libnx, and since it is the second abort that
-// reaches the kernel, that is the thread the crash report describes. The original one is gone by
-// then, along with any indication that it ever existed, which makes debugging incredible annoying.
 extern "C" void abort()
 {
   const int fd = open(CRASH_LOG_PATH, O_WRONLY | O_CREAT | O_TRUNC, 0666);
@@ -283,9 +272,9 @@ extern "C" void abort()
   const u64 module_base = reinterpret_cast<u64>(&_start);
   const u64 caller = reinterpret_cast<u64>(__builtin_return_address(0));
 
-  out.Printf("porpoise aborted. Something called abort().\n");
+  out.Printf("nezumiruka aborted. Something called abort().\n");
   if (caller >= module_base)
-    out.Printf("abort called from +%lx  (aarch64-none-elf-addr2line -e porpoise.elf)\n",
+    out.Printf("abort called from +%lx  (aarch64-none-elf-addr2line -e nezumiruka.elf)\n",
                caller - module_base);
   out.Printf("build id %s\n", Common::HorizonBuildId::GetHex().data());
   out.Printf("module base %016lx\n", module_base);

@@ -87,7 +87,7 @@ PRIVATE
   spng::spng
 )
 
-if(PORPOISE)
+if(NEZUMIRUKA)
   target_compile_definitions(inputcommon PRIVATE -DCIFACE_USE_HORIZON)
   target_sources(inputcommon PRIVATE
     ControllerInterface/Horizon/Horizon.cpp

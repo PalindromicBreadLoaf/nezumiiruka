@@ -1,4 +1,4 @@
-if(NOT PORPOISE)
+if(NOT NEZUMIRUKA)
   add_subdirectory(OGL)
 endif()
 add_subdirectory(Null)

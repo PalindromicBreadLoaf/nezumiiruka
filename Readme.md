@@ -1,11 +1,11 @@
-# Porpoise - A Gamecube and Wii Emulator for the Nintendo Switch
+# Nezumiruka - A Gamecube and Wii Emulator for the Nintendo Switch
 
-Porpoise is a port of the [Dolphin](https://github.com/dolphin-emu/dolphin) emulator to the Nintendo Switch.
+Nezumiruka is a port of the [Dolphin](https://github.com/dolphin-emu/dolphin) emulator to the Nintendo Switch.
 
 It features a hand-written Deko3D backend to give the Switch as much of a fighting chance as possible
 of reaching the goal of mostly fullspeed Gamecube at stock handheld clockspeeds.
 
-Porpoise itself licensed under the same terms as Dolphin (GNU General Public License version 2 or later (GPLv2+)).
+Nezumiruka itself licensed under the same terms as Dolphin (GNU General Public License version 2 or later (GPLv2+)).
 LSFG-NX (of which some code was borrowed) is licensed under the GNU General Public License 3 or later (GPLv3+).
 Borealis is licensed under the Apache-2.0 license.
 
@@ -46,24 +46,24 @@ cmake -S . -B build/switch \
     -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Switch.cmake \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-cmake --build build/switch --target porpoise_nro -j$(nproc)
+cmake --build build/switch --target nezumiruka_nro -j$(nproc)
 ```
 
 Only the deko3d renderer is built by default. This should be the renderer you use as it is more 
 performant than Vulkan in every case that I saw. 
 
-If you want, pass `-DPORPOISE_VULKAN=ON` to also build the Vulkan renderer (requires NXVK).
+If you want, pass `-DNEZUMIRUKA_VULKAN=ON` to also build the Vulkan renderer (requires NXVK).
 
-This produces `build/switch/Binaries/porpoise.nro`. Copy it to `/switch/porpoise/` on the SD
+This produces `build/switch/Binaries/nezumiruka.nro`. Copy it to `/switch/nezumiruka/` on the SD
 card.
 
 ## Frame generation
 
-Porpoise can use Lossless Scaling's frame generation to generate extra frames between the ones a game
+Nezumiruka can use Lossless Scaling's frame generation to generate extra frames between the ones a game
 renders. You must supply your own copy of `Lossless.dll`, which can be bought on [Steam](https://store.steampowered.com/app/993090/Lossless_Scaling/).
 
-1. Copy `Lossless.dll` to `/switch/porpoise/FrameGeneration/Lossless.dll`.
-2. In Porpoise, open Settings -> Frame generation and choose Prepare shaders. This will
+1. Copy `Lossless.dll` to `/switch/nezumiruka/FrameGeneration/Lossless.dll`.
+2. In Nezumiruka, open Settings -> Frame generation and choose Prepare shaders. This will
    take a few minutes.
 3. Turn on frame generation and pick a multiplier, flow scale, and performance mode.
 
