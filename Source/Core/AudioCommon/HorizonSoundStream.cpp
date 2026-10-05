@@ -117,12 +117,13 @@ void HorizonSoundStream::SoundLoop()
       if (released_count == BUFFER_COUNT)
         ++m_drain_count;
 
+      m_queued_count -= std::min(released_count, m_queued_count);
       while (released != nullptr)
       {
         // Appending relinks the buffer, so its successor has to be read first.
         AudioOutBuffer* const next = released->next;
         FillBuffer(*released);
-        audoutAppendAudioOutBuffer(released);
+        AppendBuffer(*released);
         released = next;
       }
     }
@@ -156,15 +157,30 @@ bool HorizonSoundStream::StartOutput()
 
   for (AudioOutBuffer& buffer : m_buffers)
   {
-    FillBuffer(buffer);
-    const Result append_result = audoutAppendAudioOutBuffer(&buffer);
-    if (R_FAILED(append_result))
+    bool queued = false;
+    if (R_SUCCEEDED(audoutContainsAudioOutBuffer(&buffer, &queued)) && queued)
     {
-      ERROR_LOG_FMT(AUDIO, "audoutAppendAudioOutBuffer failed: {:#010x}", append_result);
-      return false;
+      ++m_queued_count;
+      continue;
     }
+
+    FillBuffer(buffer);
+    if (!AppendBuffer(buffer))
+      return false;
   }
 
+  return true;
+}
+
+bool HorizonSoundStream::AppendBuffer(AudioOutBuffer& buffer)
+{
+  const Result result = audoutAppendAudioOutBuffer(&buffer);
+  if (R_FAILED(result))
+  {
+    ERROR_LOG_FMT(AUDIO, "audoutAppendAudioOutBuffer failed: {:#010x}", result);
+    return false;
+  }
+  ++m_queued_count;
   return true;
 }
 
@@ -173,9 +189,25 @@ void HorizonSoundStream::StopOutput()
   if (!m_output_started)
     return;
 
-  // This hands every appended buffer back to us.
   audoutStopAudioOut();
   m_output_started = false;
+
+  while (m_queued_count != 0)
+  {
+    AudioOutBuffer* released = nullptr;
+    u32 released_count = 0;
+    if (R_FAILED(audoutWaitPlayFinish(&released, &released_count, WAIT_TIMEOUT_NS)) ||
+        released_count == 0)
+    {
+      break;
+    }
+    m_queued_count -= std::min(released_count, m_queued_count);
+  }
+  if (m_queued_count != 0)
+  {
+    WARN_LOG_FMT(AUDIO, "{} audout buffers were not released on stop.", m_queued_count);
+    m_queued_count = 0;
+  }
 
   if (m_drain_count != 0)
   {

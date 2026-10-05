@@ -51,6 +51,7 @@ private:
   bool StartOutput();
   void StopOutput();
   void FillBuffer(AudioOutBuffer& buffer);
+  bool AppendBuffer(AudioOutBuffer& buffer);
 
   std::array<AudioOutBuffer, BUFFER_COUNT> m_buffers{};
   std::thread m_thread;
@@ -61,6 +62,7 @@ private:
   bool m_audout_initialized = false;
 
   bool m_output_started = false;
+  u32 m_queued_count = 0;
   u64 m_drain_count = 0;
 #endif
 };
