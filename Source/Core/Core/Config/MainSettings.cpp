@@ -67,7 +67,12 @@ const Info<bool> MAIN_LOAD_GAME_INTO_MEMORY{{System::Main, "Core", "LoadGameInto
 const Info<bool> MAIN_SYNC_ON_SKIP_IDLE{{System::Main, "Core", "SyncOnSkipIdle"}, true};
 const Info<std::string> MAIN_DEFAULT_ISO{{System::Main, "Core", "DefaultISO"}, ""};
 const Info<bool> MAIN_ENABLE_CHEATS{{System::Main, "Core", "EnableCheats"}, false};
+#ifdef __SWITCH__
+const Info<int> MAIN_GC_LANGUAGE{{System::Main, "Core", "SelectedLanguage"},
+                                 DiscIO::ToGameCubeLanguage(GetDefaultLanguage())};
+#else
 const Info<int> MAIN_GC_LANGUAGE{{System::Main, "Core", "SelectedLanguage"}, 0};
+#endif
 const Info<bool> MAIN_OVERRIDE_REGION_SETTINGS{{System::Main, "Core", "OverrideRegionSettings"},
                                                false};
 const Info<bool> MAIN_DPL2_DECODER{{System::Main, "Core", "DPL2Decoder"}, false};

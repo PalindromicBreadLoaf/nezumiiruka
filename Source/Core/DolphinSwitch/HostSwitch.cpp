@@ -6,14 +6,26 @@
 
 #include "Core/Host.h"
 
+#include <cstring>
+
+#include <switch.h>
+
 #include "Common/Logging/Log.h"
 #include "DolphinSwitch/PlatformSwitch.h"
 
 std::vector<std::string> Host_GetPreferredLocales()
 {
-  // TODO: Report the console's language through setGetSystemLanguage once there is a UI to
-  // translate.
-  return {};
+  if (R_FAILED(setInitialize()))
+    return {};
+  u64 language_code = 0;
+  const Result rc = setGetSystemLanguage(&language_code);
+  setExit();
+  if (R_FAILED(rc))
+    return {};
+
+  char tag[sizeof(language_code) + 1] = {};
+  std::memcpy(tag, &language_code, sizeof(language_code));
+  return {tag};
 }
 
 void Host_PPCSymbolsChanged()
