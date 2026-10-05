@@ -38,7 +38,7 @@ std::string Describe(lsfg::ErrorCode code)
     return "There was not enough memory to prepare the shaders.";
   case lsfg::ErrorCode::shader_set_unknown:
   case lsfg::ErrorCode::shader_interface_mismatch:
-    return "This Lossless.dll holds a shader set that Nezumiruka does not know how to read.";
+    return "This Lossless.dll holds a shader set that Nezumiiruka does not know how to read.";
   case lsfg::ErrorCode::shader_compile_failed:
     return "A shader from this Lossless.dll did not compile.";
   default:

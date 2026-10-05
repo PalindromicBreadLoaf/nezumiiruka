@@ -247,7 +247,7 @@ if(USE_STATIC_MBEDTLS_LIBRARY AND USE_SHARED_MBEDTLS_LIBRARY)
     add_dependencies(${lib_target} ${mbedcrypto_static_target} ${mbedx509_static_target} ${mbedtls_static_target})
 endif()
 
-if(NEZUMIRUKA)
+if(NEZUMIIRUKA)
     foreach(target IN LISTS target_libraries)
         target_compile_definitions(${target} PUBLIC MBEDTLS_USER_CONFIG_FILE=<horizon_config.h>)
         target_include_directories(${target} PUBLIC ${MBEDTLS_DIR})

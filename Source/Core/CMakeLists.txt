@@ -7,7 +7,7 @@ add_subdirectory(UICommon)
 add_subdirectory(VideoCommon)
 add_subdirectory(VideoBackends)
 
-if(NEZUMIRUKA)
+if(NEZUMIIRUKA)
   add_subdirectory(DolphinSwitch)
 endif()
 

@@ -194,12 +194,12 @@ extern "C" void __libnx_exception_handler(ThreadExceptionDump* ctx)
   if (is_brk)
   {
     const u32 comment = ctx->esr & 0xFFFF;
-    out.Printf("nezumiruka stopped at brk #%u%s\n", comment,
+    out.Printf("nezumiiruka stopped at brk #%u%s\n", comment,
                comment == BRK_BUILTIN_TRAP ? " (__builtin_trap)" : "");
   }
   else
   {
-    out.Printf("nezumiruka crashed: %s (error_desc 0x%x)\n", DescribeError(ctx->error_desc),
+    out.Printf("nezumiiruka crashed: %s (error_desc 0x%x)\n", DescribeError(ctx->error_desc),
                ctx->error_desc);
   }
 
@@ -232,10 +232,10 @@ extern "C" void __libnx_exception_handler(ThreadExceptionDump* ctx)
   if (ctx->pc.x >= module_base && ctx->pc.x < module_end)
   {
     if (ctx->lr.x >= module_base && ctx->lr.x < module_end)
-      out.Printf("pc +%lx  lr +%lx  (aarch64-none-elf-addr2line -e nezumiruka.elf)\n",
+      out.Printf("pc +%lx  lr +%lx  (aarch64-none-elf-addr2line -e nezumiiruka.elf)\n",
                  ctx->pc.x - module_base, ctx->lr.x - module_base);
     else
-      out.Printf("pc +%lx  lr outside module  (aarch64-none-elf-addr2line -e nezumiruka.elf)\n",
+      out.Printf("pc +%lx  lr outside module  (aarch64-none-elf-addr2line -e nezumiiruka.elf)\n",
                  ctx->pc.x - module_base);
   }
   else
@@ -272,9 +272,9 @@ extern "C" void abort()
   const u64 module_base = reinterpret_cast<u64>(&_start);
   const u64 caller = reinterpret_cast<u64>(__builtin_return_address(0));
 
-  out.Printf("nezumiruka aborted. Something called abort().\n");
+  out.Printf("nezumiiruka aborted. Something called abort().\n");
   if (caller >= module_base)
-    out.Printf("abort called from +%lx  (aarch64-none-elf-addr2line -e nezumiruka.elf)\n",
+    out.Printf("abort called from +%lx  (aarch64-none-elf-addr2line -e nezumiiruka.elf)\n",
                caller - module_base);
   out.Printf("build id %s\n", Common::HorizonBuildId::GetHex().data());
   out.Printf("module base %016lx\n", module_base);

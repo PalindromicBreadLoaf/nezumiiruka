@@ -405,7 +405,7 @@ std::string GetPreset(Kind kind, const std::string& name)
 
   Common::IniFile ini;
   std::string preset;
-  if (ini.Load(GetPath(kind, name)) && !ini.GetOrCreateSection("Nezumiruka")->Get("Preset", &preset))
+  if (ini.Load(GetPath(kind, name)) && !ini.GetOrCreateSection("Nezumiiruka")->Get("Preset", &preset))
     ini.GetOrCreateSection("Porpoise")->Get("Preset", &preset);
 
   return IsPreset(kind, preset) ? preset : GetDefaultProfile(kind);
@@ -430,7 +430,7 @@ bool Create(Kind kind, const std::string& name, const std::string& source)
   if (!ini.Load(GetPath(kind, source)))
     return false;
 
-  ini.GetOrCreateSection("Nezumiruka")->Set("Preset", GetPreset(kind, source));
+  ini.GetOrCreateSection("Nezumiiruka")->Set("Preset", GetPreset(kind, source));
   ini.DeleteSection("Porpoise");
   File::CreateFullPath(GetDirectory(kind));
   return ini.Save(GetPath(kind, name));

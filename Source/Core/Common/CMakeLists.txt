@@ -191,7 +191,7 @@ PRIVATE
 )
 
 target_link_libraries(common PRIVATE CURL::libcurl)
-if(NOT NEZUMIRUKA)
+if(NOT NEZUMIIRUKA)
   target_link_libraries(common PRIVATE watcher)
 endif()
 
@@ -229,13 +229,13 @@ endif()
 
 target_sources(common PRIVATE HttpRequest.cpp)
 
-if(NEZUMIRUKA)
+if(NEZUMIIRUKA)
   target_sources(common PRIVATE FilesystemWatcherHorizon.cpp)
 else()
   target_sources(common PRIVATE FilesystemWatcher.cpp)
 endif()
 
-if(NEZUMIRUKA)
+if(NEZUMIIRUKA)
   target_sources(common PRIVATE
     HorizonBuildId.h
     HorizonClocks.cpp
@@ -303,7 +303,7 @@ else()
 endif()
 
 # OpenGL Interface
-if(NOT NEZUMIRUKA)
+if(NOT NEZUMIIRUKA)
   target_sources(common PRIVATE
     GL/GLContext.cpp
     GL/GLContext.h

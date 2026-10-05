@@ -38,9 +38,9 @@ include(RemoveCompileFlag)
 # When using the Visual Studio generator, only show our targets and not the ones from Externals.
 set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT dolphin-emu)
 
-# Nezumiruka is the target for Nintendo Switch.
+# Nezumiiruka is the target for Nintendo Switch.
 if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
-  set(NEZUMIRUKA TRUE)
+  set(NEZUMIIRUKA TRUE)
   message(STATUS "Building for Nintendo Switch")
 endif()
 
@@ -88,7 +88,7 @@ dolphin_check_std_version("LLVM_libc++" _LIBCPP_VERSION ${libc++_min_version})
 # Name of the Dolphin distributor. If you redistribute Dolphin builds (forks,
 # unofficial builds) please consider identifying your distribution with a
 # unique name here.
-set(DISTRIBUTOR "Nezumiruka" CACHE STRING "PalindromicBreadLoaf")
+set(DISTRIBUTOR "Nezumiiruka" CACHE STRING "PalindromicBreadLoaf")
 
 set(DOLPHIN_DEFAULT_UPDATE_TRACK "" CACHE STRING "Name of the default update track. If empty, disables auto-update.")
 
@@ -111,7 +111,7 @@ endif()
 option(USE_UPNP "Enables UPnP port mapping support" ON)
 option(ENABLE_NOGUI "Enable NoGUI frontend" OFF)
 option(ENABLE_QT "Enable Qt (Default)" ON)
-option(ENABLE_LTO "Enables Link Time Optimization" ${NEZUMIRUKA})
+option(ENABLE_LTO "Enables Link Time Optimization" ${NEZUMIIRUKA})
 option(ENABLE_GENERIC "Enables generic build that should run on any little-endian host" OFF)
 option(ENABLE_HEADLESS "Enables running Dolphin as a headless variant" OFF)
 option(ENABLE_ALSA "Enables ALSA sound backend" ON)
@@ -237,7 +237,7 @@ elseif(_ARCH_64 AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
   add_definitions(-D_M_ARM_64=1)
   # CRC instruction set is used in the CRC32 hash function.
   # The devkitPro Switch platform module already sets a richer -march, so use that.
-  if(NOT NEZUMIRUKA)
+  if(NOT NEZUMIIRUKA)
     check_and_add_flag(HAVE_ARCH_ARMV8 -march=armv8-a+crc)
   endif()
 else()
@@ -473,9 +473,9 @@ if(ANDROID)
   SET(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 endif()
 
-if(NEZUMIRUKA)
+if(NEZUMIIRUKA)
   # Version of the port itself, independent of the Dolphin version it tracks.
-  set(NEZUMIRUKA_VERSION "1.0.0-rc1")
+  set(NEZUMIIRUKA_VERSION "1.0.0-rc1")
 
   # The CPU exception entry stub has to be assembly.
   enable_language(ASM)
@@ -500,8 +500,8 @@ if(NEZUMIRUKA)
   set(ENABLE_SDL 0)
 
   # Vulkan via NXVK. Off by default.
-  option(NEZUMIRUKA_VULKAN "Build the NXVK-backed Vulkan video backend alongside deko3d" OFF)
-  set(ENABLE_VULKAN ${NEZUMIRUKA_VULKAN})
+  option(NEZUMIIRUKA_VULKAN "Build the NXVK-backed Vulkan video backend alongside deko3d" OFF)
+  set(ENABLE_VULKAN ${NEZUMIIRUKA_VULKAN})
 
   # Deko3d
   set(ENABLE_DEKO3D 1)
@@ -521,10 +521,10 @@ if(NEZUMIRUKA)
   # newlib hides vasprintf and friends behind __GNU_VISIBLE.
   add_definitions(-D_GNU_SOURCE)
 
-  option(NEZUMIRUKA_FRAME_POINTERS "Keep frame pointers for the on-device profiler" OFF)
-  if(NEZUMIRUKA_FRAME_POINTERS)
+  option(NEZUMIIRUKA_FRAME_POINTERS "Keep frame pointers for the on-device profiler" OFF)
+  if(NEZUMIIRUKA_FRAME_POINTERS)
     add_compile_options(-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer)
-    add_compile_definitions(NEZUMIRUKA_FRAME_POINTERS)
+    add_compile_definitions(NEZUMIIRUKA_FRAME_POINTERS)
   endif()
 
   # Search only the toolchain for libraries and includes
@@ -562,7 +562,7 @@ endif()
 include(CheckLib)
 include(CheckCXXSourceRuns)
 
-if(NOT NEZUMIRUKA)
+if(NOT NEZUMIIRUKA)
   set(OpenGL_GL_PREFERENCE GLVND CACHE STRING "If GLVND, use the vendor-neutral GL libraries (default). If LEGACY, use the legacy ones (might be necessary to have optirun/primusrun work)")
   set_property(CACHE OpenGL_GL_PREFERENCE PROPERTY STRINGS GLVND LEGACY)
   find_package(OpenGL)
@@ -720,7 +720,7 @@ if(ENABLE_VULKAN)
     add_subdirectory(Externals/libadrenotools)
   endif()
 
-  if(NEZUMIRUKA)
+  if(NEZUMIIRUKA)
     include(NXVK)
   endif()
 endif()
@@ -736,12 +736,12 @@ if(ENABLE_DEKO3D)
   endif()
 endif()
 
-if(NEZUMIRUKA)
+if(NEZUMIIRUKA)
   add_subdirectory(Externals/borealis)
   add_subdirectory(Externals/libusbhsfs)
 endif()
 
-if(NOT (WIN32 AND _M_ARM_64) AND NOT NEZUMIRUKA)
+if(NOT (WIN32 AND _M_ARM_64) AND NOT NEZUMIIRUKA)
   # OpenGL is available on all platforms except windows-arm64 and Switch.
   add_definitions(-DHAS_OPENGL)
 endif()
@@ -795,7 +795,7 @@ if(ENABLE_CUBEB)
   add_definitions(-DHAVE_CUBEB)
 endif()
 
-if(NOT ANDROID AND NOT NEZUMIRUKA)
+if(NOT ANDROID AND NOT NEZUMIIRUKA)
   dolphin_find_optional_system_library(LibUSB Externals/libusb)
   add_definitions(-D__LIBUSB__)
 endif()
@@ -816,7 +816,7 @@ dolphin_find_optional_system_library(MBEDTLS Externals/mbedtls 2.28)
 
 dolphin_find_optional_system_library(CURL Externals/curl)
 
-if(NOT ANDROID AND NOT NEZUMIRUKA)
+if(NOT ANDROID AND NOT NEZUMIIRUKA)
   dolphin_find_optional_system_library(HIDAPI Externals/hidapi)
 endif()
 
@@ -830,7 +830,7 @@ if(USE_MGBA)
   dolphin_find_optional_system_library(LIBMGBA Externals/mGBA 0.11)
 endif()
 
-if(NOT NEZUMIRUKA)
+if(NOT NEZUMIIRUKA)
   find_package(SYSTEMD)
 endif()
 if(SYSTEMD_FOUND)
@@ -855,7 +855,7 @@ if (USE_RETRO_ACHIEVEMENTS)
   add_subdirectory(Externals/rcheevos)
 endif()
 
-if(NOT NEZUMIRUKA)
+if(NOT NEZUMIIRUKA)
   # wtr::watcher has no Horizon backend.
   add_subdirectory(Externals/watcher)
 endif()

@@ -18,7 +18,7 @@
 #elif defined(ANDROID)
 #define NORMAL_USER_DIR "/sdcard/dolphin-emu"
 #elif defined(__SWITCH__)
-#define NORMAL_USER_DIR "/switch/nezumiruka"
+#define NORMAL_USER_DIR "/switch/nezumiiruka"
 #else
 #define NORMAL_USER_DIR "dolphin-emu"
 #endif

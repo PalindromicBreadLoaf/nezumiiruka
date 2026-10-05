@@ -230,7 +230,7 @@ __libnx_exception_entry:
   bl svcBreak
   b .
 
-.section .bss.nezumiruka_exception, "aw", %nobits
+.section .bss.nezumiiruka_exception, "aw", %nobits
 .balign 16
 s_slots:
   .space SLOT_COUNT * SLOT_SIZE

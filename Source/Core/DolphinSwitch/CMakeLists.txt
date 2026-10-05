@@ -1,4 +1,4 @@
-add_executable(nezumiruka
+add_executable(nezumiiruka
   CheatsSwitch.cpp
   CheatsSwitch.h
   ControllerProfilesSwitch.cpp
@@ -48,16 +48,16 @@ add_executable(nezumiruka
   UsbStorageSwitch.h
 )
 
-target_compile_definitions(nezumiruka PRIVATE NEZUMIRUKA_VERSION="${NEZUMIRUKA_VERSION}")
+target_compile_definitions(nezumiiruka PRIVATE NEZUMIIRUKA_VERSION="${NEZUMIIRUKA_VERSION}")
 
 if(USE_RETRO_ACHIEVEMENTS)
-  target_sources(nezumiruka PRIVATE
+  target_sources(nezumiiruka PRIVATE
     ShellAchievementsSwitch.cpp
     ShellAchievementsSwitch.h
   )
 endif()
 
-target_link_libraries(nezumiruka
+target_link_libraries(nezumiiruka
 PRIVATE
   core
   uicommon
@@ -75,13 +75,13 @@ set_source_files_properties(ShellAchievementsSwitch.cpp ShellCheatsSwitch.cpp Sh
 
 if(ENABLE_VULKAN)
   # NXVK driver archives are self-contained and resolve backwards into Dolphin's own.
-  target_link_libraries(nezumiruka PRIVATE nxvk)
+  target_link_libraries(nezumiiruka PRIVATE nxvk)
 endif()
 
-nx_generate_nacp(OUTPUT nezumiruka.nacp
-  NAME "Nezumiruka"
+nx_generate_nacp(OUTPUT nezumiiruka.nacp
+  NAME "Nezumiiruka"
   AUTHOR "Dolphin Emulator Project \& PalindromicBreadLoaf"
-  VERSION "${NEZUMIRUKA_VERSION}"
+  VERSION "${NEZUMIIRUKA_VERSION}"
 )
 
 set(_sys_source "${CMAKE_SOURCE_DIR}/Data/Sys")
@@ -95,17 +95,17 @@ add_custom_command(
   DEPENDS ${_sys_files} "${CMAKE_SOURCE_DIR}/CMake/StageSwitchSys.cmake"
   COMMENT "Staging Data/Sys into the romfs"
   VERBATIM)
-add_custom_target(nezumiruka_romfs_sys DEPENDS "${_sys_stamp}")
+add_custom_target(nezumiiruka_romfs_sys DEPENDS "${_sys_stamp}")
 
-dkp_add_asset_target(nezumiruka_romfs "${BOREALIS_ROMFS_DIR}")
-add_dependencies(nezumiruka_romfs borealis_romfs_files nezumiruka_romfs_sys)
-set_target_properties(nezumiruka_romfs PROPERTIES
+dkp_add_asset_target(nezumiiruka_romfs "${BOREALIS_ROMFS_DIR}")
+add_dependencies(nezumiiruka_romfs borealis_romfs_files nezumiiruka_romfs_sys)
+set_target_properties(nezumiiruka_romfs PROPERTIES
   DKP_ASSET_FILES "${BOREALIS_ROMFS_FILES};${_sys_stamp}")
 
-# Defines the `nezumiruka_nro` target that the Switch build is driven through.
-nx_create_nro(nezumiruka
-  OUTPUT "${CMAKE_BINARY_DIR}/Binaries/nezumiruka.nro"
+# Defines the `nezumiiruka_nro` target that the Switch build is driven through.
+nx_create_nro(nezumiiruka
+  OUTPUT "${CMAKE_BINARY_DIR}/Binaries/nezumiiruka.nro"
   ICON "${CMAKE_CURRENT_SOURCE_DIR}/icon.jpg"
-  NACP "${CMAKE_CURRENT_BINARY_DIR}/nezumiruka.nacp"
-  ROMFS nezumiruka_romfs
+  NACP "${CMAKE_CURRENT_BINARY_DIR}/nezumiiruka.nacp"
+  ROMFS nezumiiruka_romfs
 )

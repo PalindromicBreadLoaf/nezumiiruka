@@ -91,7 +91,7 @@ BootRequest Run(const std::string& notice)
     return {};
   }
 
-  brls::Application::createWindow("nezumiruka");
+  brls::Application::createWindow("nezumiiruka");
   brls::Application::setGlobalQuit(true);
 
   BootRequest chosen;

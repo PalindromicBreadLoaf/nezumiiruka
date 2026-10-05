@@ -745,7 +745,7 @@ if(TARGET LibUSB::LibUSB)
   )
 endif()
 
-if(NOT NEZUMIRUKA)
+if(NOT NEZUMIIRUKA)
   target_link_libraries(core PUBLIC videoogl)
 endif()
 
@@ -801,13 +801,13 @@ elseif(UNIX)
       HW/WiimoteReal/IOAndroid.h
     )
   endif()
-elseif(NEZUMIRUKA)
+elseif(NEZUMIIRUKA)
   target_sources(core PRIVATE
     HW/EXI/BBA/TAP_Unix.cpp
   )
 endif()
 
-if(NEZUMIRUKA)
+if(NEZUMIIRUKA)
   target_sources(core PRIVATE
     HorizonSampler.cpp
     HorizonSampler.h

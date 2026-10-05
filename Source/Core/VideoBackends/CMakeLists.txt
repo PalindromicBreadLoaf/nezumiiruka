@@ -1,4 +1,4 @@
-if(NOT NEZUMIRUKA)
+if(NOT NEZUMIIRUKA)
   add_subdirectory(OGL)
 endif()
 add_subdirectory(Null)

@@ -88,7 +88,7 @@ void LogHostEnvironment()
   svcGetInfo(&total_memory, InfoType_TotalMemorySize, CUR_PROCESS_HANDLE, 0);
   svcGetInfo(&used_memory, InfoType_UsedMemorySize, CUR_PROCESS_HANDLE, 0);
 
-  NOTICE_LOG_FMT(COMMON, "nezumiruka {}, build id {}", Common::GetScmDescStr(),
+  NOTICE_LOG_FMT(COMMON, "nezumiiruka {}, build id {}", Common::GetScmDescStr(),
                  Common::HorizonBuildId::GetHex().data());
   NOTICE_LOG_FMT(COMMON, "Applet type {}, core mask {:#06b}, heap {} MiB used of {} MiB",
                  static_cast<int>(appletGetAppletType()), core_mask, used_memory / 0x100000,
@@ -256,7 +256,7 @@ int main(int argc, char* argv[])
 
   PadState pad;
 
-  std::printf("nezumiruka %s\n", Common::GetScmDescStr().c_str());
+  std::printf("nezumiiruka %s\n", Common::GetScmDescStr().c_str());
 
   MigrateLegacyUserDirectory();
   UICommon::SetUserDirectory("");
