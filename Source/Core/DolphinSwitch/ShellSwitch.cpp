@@ -18,6 +18,7 @@
 #include "DolphinSwitch/ShellGameListSwitch.h"
 #include "DolphinSwitch/ShellLibrarySwitch.h"
 #include "DolphinSwitch/ShellSystemSwitch.h"
+#include "DolphinSwitch/ShellUpdaterSwitch.h"
 
 namespace Shell
 {
@@ -104,6 +105,7 @@ BootRequest Run(const std::string& notice)
     Library library;
     brls::Application::pushActivity(
         new brls::Activity(CreateGameList(library, chosen, notice, s_last_chosen)));
+    brls::sync(StartUpdaterOnLaunch);
 
     while (brls::Application::mainLoop())
     {
@@ -114,6 +116,7 @@ BootRequest Run(const std::string& notice)
 
   StopSystemTasks();
   StopCheatDownloads();
+  StopUpdaterTasks();
 #ifdef USE_RETRO_ACHIEVEMENTS
   StopAchievementFetches();
 #endif

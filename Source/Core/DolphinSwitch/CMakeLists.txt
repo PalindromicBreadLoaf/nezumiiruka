@@ -40,9 +40,15 @@ add_executable(porpoise
   ShellSwitch.h
   ShellSystemSwitch.cpp
   ShellSystemSwitch.h
+  ShellUpdaterSwitch.cpp
+  ShellUpdaterSwitch.h
+  UpdaterSwitch.cpp
+  UpdaterSwitch.h
   UsbStorageSwitch.cpp
   UsbStorageSwitch.h
 )
+
+target_compile_definitions(porpoise PRIVATE PORPOISE_VERSION="${PORPOISE_VERSION}")
 
 if(USE_RETRO_ACHIEVEMENTS)
   target_sources(porpoise PRIVATE
@@ -64,6 +70,7 @@ set_source_files_properties(ShellAchievementsSwitch.cpp ShellCheatsSwitch.cpp Sh
   ShellFilePickerSwitch.cpp ShellGameListSwitch.cpp ShellMemoryCardsSwitch.cpp ShellSettingsSwitch.cpp
   ShellSwitch.cpp
   ShellSystemSwitch.cpp
+  ShellUpdaterSwitch.cpp
   PROPERTIES COMPILE_OPTIONS "${BOREALIS_EXCEPTIONS}")
 
 if(ENABLE_VULKAN)

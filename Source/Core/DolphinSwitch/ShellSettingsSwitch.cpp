@@ -54,6 +54,8 @@
 #include "DolphinSwitch/ShellFormatSwitch.h"
 #include "DolphinSwitch/ShellMemoryCardsSwitch.h"
 #include "DolphinSwitch/ShellSystemSwitch.h"
+#include "DolphinSwitch/ShellUpdaterSwitch.h"
+#include "DolphinSwitch/UpdaterSwitch.h"
 #include "DolphinSwitch/UsbStorageSwitch.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
@@ -988,9 +990,18 @@ void AddSystemMemoryActions(PageBuilder& page, const UICommon::GameFile& game)
 void BuildAbout(PageBuilder& page)
 {
   page.Header("Porpoise");
-  page.Info("Version", Common::GetScmDescStr());
+  page.Info("Version", UpdaterSwitch::GetCurrentVersion());
+  page.Info("Revision", Common::GetScmDescStr());
   page.Info("Branch", Common::GetScmBranchStr());
   page.Info("Build ID", Common::HorizonBuildId::GetHex().data());
+
+  page.Header("Updates");
+  page.Action("Check for updates", "", [] { CheckForUpdates(); });
+  page.Action("Release notes", UpdaterSwitch::GetCurrentVersion(), [] { ShowReleaseNotes(); });
+  page.Toggle("Check for updates on startup", Config::SWITCH_CHECK_FOR_UPDATES);
+  page.Choice("Update channel", Config::SWITCH_UPDATE_CHANNEL,
+              {{"Stable", Config::UpdateChannel::Stable},
+               {"Beta", Config::UpdateChannel::Prerelease}});
 
   page.Header("System");
   SetSysFirmwareVersion firmware;

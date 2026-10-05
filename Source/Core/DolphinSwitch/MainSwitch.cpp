@@ -40,6 +40,7 @@
 #include "DolphinSwitch/RiivolutionSwitch.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "DolphinSwitch/ShellSwitch.h"
+#include "DolphinSwitch/UpdaterSwitch.h"
 #include "DolphinSwitch/UsbStorageSwitch.h"
 #include "UICommon/UICommon.h"
 #include "VideoCommon/VideoBackendBase.h"
@@ -266,6 +267,8 @@ int main(int argc, char* argv[])
   // Reserved once for the whole session. Both JitArm64 and VertexLoaderARM64 carve out of this.
   Common::HostCodeMemory::Init();
   Common::ScopeGuard host_code_guard([] { Common::HostCodeMemory::Shutdown(); });
+
+  UpdaterSwitch::SetExecutablePath(argc > 0 && argv[0] != nullptr ? argv[0] : "");
 
   Shell::BootRequest pending;
   if (argc > 1 && argv[1] != nullptr)

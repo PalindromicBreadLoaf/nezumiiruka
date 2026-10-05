@@ -42,6 +42,12 @@ enum class WiimoteLayout : int
   SidewaysJoyCon,
 };
 
+enum class UpdateChannel : int
+{
+  Stable,
+  Prerelease,
+};
+
 extern const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE;
 extern const Info<int> SWITCH_PERFORMANCE_OVERLAY;
 extern const Info<std::string> SWITCH_GAME_DIRECTORY;
@@ -51,6 +57,10 @@ extern const Info<GameListFilter> SWITCH_GAME_LIST_FILTER;
 extern const std::array<Info<WiimoteLayout>, 4> SWITCH_WIIMOTE_LAYOUTS;
 extern const std::array<Info<std::string>, 4> SWITCH_PAD_PROFILES;
 extern const std::array<Info<std::string>, 4> SWITCH_WIIMOTE_PROFILES;
+extern const Info<bool> SWITCH_CHECK_FOR_UPDATES;
+extern const Info<UpdateChannel> SWITCH_UPDATE_CHANNEL;
+extern const Info<std::string> SWITCH_SKIPPED_UPDATE;
+extern const Info<std::string> SWITCH_LAST_RUN_VERSION;
 }  // namespace Config
 
 namespace SwitchSettings
