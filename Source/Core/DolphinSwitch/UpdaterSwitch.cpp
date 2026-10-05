@@ -373,12 +373,10 @@ std::expected<void, std::string> Install(const Release& release, const std::atom
   {
     if (File::Rename(backup, path))
       return std::unexpected("Could not install the update. The current version was restored.");
-    return std::unexpected(
-        fmt::format("Could not install the update.", backup));
+    return std::unexpected("Could not install the update.");
   }
 
-  NOTICE_LOG_FMT(COMMON, "Updated Porpoise {} to {}",
-                 GetCurrentVersion(), release.tag, backup);
+  NOTICE_LOG_FMT(COMMON, "Updated Porpoise {} to {}", GetCurrentVersion(), release.tag);
   return {};
 }
 

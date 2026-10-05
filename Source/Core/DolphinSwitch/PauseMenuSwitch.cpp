@@ -632,6 +632,33 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSlots(bool save)
     rows.push_back(std::move(row));
   }
 
+  if (save)
+    return rows;
+
+  rows.push_back(Row{.kind = RowKind::Header, .label = "Undo"});
+
+  const bool can_undo_load = ::State::CanUndoLoadState();
+  rows.push_back(Row{.label = "Undo last load",
+                     .value = can_undo_load ? "" : "Nothing to undo",
+                     .enabled = can_undo_load,
+                     .activate = [this] {
+                       Defer("Undoing the last load...", [this] {
+                         RunStateJob([this] { ::State::UndoLoadState(m_system); });
+                         Close();
+                       });
+                     }});
+
+  const u64 overwritten_at = ::State::GetUnixTimeOfUndoSaveState();
+  rows.push_back(Row{.label = "Load overwritten state",
+                     .value = overwritten_at != 0 ? FormatSlotTime(overwritten_at) : "None",
+                     .enabled = overwritten_at != 0,
+                     .activate = [this] {
+                       Defer("Loading the overwritten state...", [this] {
+                         RunStateJob([this] { ::State::UndoSaveState(m_system); });
+                         Close();
+                       });
+                     }});
+
   return rows;
 }
 
