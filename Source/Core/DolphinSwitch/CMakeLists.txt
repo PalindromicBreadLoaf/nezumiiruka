@@ -84,9 +84,23 @@ nx_generate_nacp(OUTPUT nezumiruka.nacp
   VERSION "${NEZUMIRUKA_VERSION}"
 )
 
+set(_sys_source "${CMAKE_SOURCE_DIR}/Data/Sys")
+set(_sys_stamp "${CMAKE_CURRENT_BINARY_DIR}/romfs_sys.stamp")
+file(GLOB_RECURSE _sys_files CONFIGURE_DEPENDS "${_sys_source}/*")
+list(FILTER _sys_files EXCLUDE REGEX "^${_sys_source}/Themes/")
+add_custom_command(
+  OUTPUT "${_sys_stamp}"
+  COMMAND "${CMAKE_COMMAND}" -DSRC=${_sys_source} -DDEST=${BOREALIS_ROMFS_DIR}/Sys
+          -DSTAMP=${_sys_stamp} -P "${CMAKE_SOURCE_DIR}/CMake/StageSwitchSys.cmake"
+  DEPENDS ${_sys_files} "${CMAKE_SOURCE_DIR}/CMake/StageSwitchSys.cmake"
+  COMMENT "Staging Data/Sys into the romfs"
+  VERBATIM)
+add_custom_target(nezumiruka_romfs_sys DEPENDS "${_sys_stamp}")
+
 dkp_add_asset_target(nezumiruka_romfs "${BOREALIS_ROMFS_DIR}")
-add_dependencies(nezumiruka_romfs borealis_romfs_files)
-set_target_properties(nezumiruka_romfs PROPERTIES DKP_ASSET_FILES "${BOREALIS_ROMFS_FILES}")
+add_dependencies(nezumiruka_romfs borealis_romfs_files nezumiruka_romfs_sys)
+set_target_properties(nezumiruka_romfs PROPERTIES
+  DKP_ASSET_FILES "${BOREALIS_ROMFS_FILES};${_sys_stamp}")
 
 # Defines the `nezumiruka_nro` target that the Switch build is driven through.
 nx_create_nro(nezumiruka

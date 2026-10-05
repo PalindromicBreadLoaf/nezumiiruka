@@ -31,7 +31,6 @@ class Services
 public:
   Services()
   {
-    m_romfs = R_SUCCEEDED(romfsInit());
     plInitialize(PlServiceType_User);
     setsysInitialize();
     setInitialize();
@@ -48,15 +47,10 @@ public:
     setExit();
     setsysExit();
     plExit();
-    if (m_romfs)
-      romfsExit();
   }
 
   Services(const Services&) = delete;
   Services& operator=(const Services&) = delete;
-
-private:
-  bool m_romfs = false;
 };
 
 brls::View* CreateGameList(Library& library, BootRequest& chosen, const std::string& notice,

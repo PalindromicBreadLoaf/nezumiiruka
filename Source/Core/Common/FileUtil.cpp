@@ -843,8 +843,6 @@ static std::string CreateSysDirectoryPath()
 #define SYS_FOLDER_NAME "Sys"
 #if defined __APPLE__
 #define SYSDATA_DIR "Contents/Resources/" SYS_FOLDER_NAME
-#elif defined(__SWITCH__)
-#define SYSDATA_DIR SYS_FOLDER_NAME
 #else
 #define SYSDATA_DIR DATA_DIR SYS_FOLDER_NAME
 #endif
@@ -857,9 +855,7 @@ static std::string CreateSysDirectoryPath()
   sys_directory = s_android_sys_directory + DIR_SEP;
   ASSERT_MSG(COMMON, !s_android_sys_directory.empty(), "Sys directory has not been set");
 #elif defined(__SWITCH__)
-  // Shipped next to the user directory on the SD card rather than embedded in the NRO.
-  // TODO: package Data/Sys into the release zip.
-  sys_directory = NORMAL_USER_DIR DIR_SEP SYSDATA_DIR DIR_SEP;
+  sys_directory = "romfs:/" SYS_FOLDER_NAME DIR_SEP;
 #else
   const std::string local_sys_directory = GetExeDirectory() + DIR_SEP SYS_FOLDER_NAME DIR_SEP;
   if (IsDirectory(local_sys_directory))

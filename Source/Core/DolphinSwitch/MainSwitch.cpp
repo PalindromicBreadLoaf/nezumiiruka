@@ -248,6 +248,12 @@ int main(int argc, char* argv[])
       socketExit();
   });
 
+  const bool have_romfs = R_SUCCEEDED(romfsInit());
+  Common::ScopeGuard romfs_guard([have_romfs] {
+    if (have_romfs)
+      romfsExit();
+  });
+
   PadState pad;
 
   std::printf("nezumiruka %s\n", Common::GetScmDescStr().c_str());
