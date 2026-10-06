@@ -51,8 +51,16 @@ std::unique_ptr<PlatformSwitch> g_platform;
 
 namespace
 {
-// Applet mode is granted neither JIT capability nor enough memory to hold guest RAM,
-// so it is worth raising an error on.
+bool s_exit_requested = false;
+AppletHookCookie s_exit_hook;
+
+void OnAppletHook(AppletHookType hook, void*)
+{
+  if (hook == AppletHookType_OnExitRequest)
+    s_exit_requested = true;
+}
+
+// Applet mode is granted neither JIT capability nor enough memory to hold guest RAM.
 bool RunningAsApplication()
 {
   switch (appletGetAppletType())
@@ -240,6 +248,13 @@ void MigrateLegacyUserDirectory()
 
 int main(int argc, char* argv[])
 {
+  appletLockExit();
+  appletHook(&s_exit_hook, OnAppletHook, nullptr);
+  Common::ScopeGuard exit_lock_guard([] {
+    appletUnhook(&s_exit_hook);
+    appletUnlockExit();
+  });
+
   const bool have_socket = R_SUCCEEDED(socketInitializeDefault());
   if (have_socket)
     RedirectStdioToNxlink();
@@ -303,13 +318,13 @@ int main(int argc, char* argv[])
     notice = "WARNING: applet mode. Relaunch by holding R while starting a game.";
   }
 
-  while (appletMainLoop())
+  while (!s_exit_requested && appletMainLoop())
   {
     Shell::BootRequest request = std::exchange(pending, {});
 
     if (request.IsEmpty())
       request = Shell::Run(notice);
-    if (request.IsEmpty())
+    if (request.IsEmpty() || s_exit_requested)
       break;
 
     notice = RunGame(pad, request);

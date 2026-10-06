@@ -42,7 +42,7 @@ void PlatformSwitch::MainLoop()
   while (m_running.IsSet())
   {
     if (!appletMainLoop())
-      RequestShutdown();
+      Stop();
 
     m_focused.store(appletGetFocusState() == AppletFocusState_InFocus, std::memory_order_relaxed);
 
