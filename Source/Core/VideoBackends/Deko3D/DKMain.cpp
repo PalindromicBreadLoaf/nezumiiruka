@@ -54,7 +54,11 @@ void VideoBackend::InitBackendInfo(const WindowSystemInfo& wsi)
   g_backend_info.bSupportsLodBiasInSampler = true;
   g_backend_info.bSupportsSettingObjectNames = false;
   g_backend_info.bSupportsPartialMultisampleResolve = true;
-  g_backend_info.bSupportsDynamicVertexLoader = false;
+  g_backend_info.bSupportsDynamicVertexLoader = true;
+  g_backend_info.bSupportsVSLinePointExpand = true;
+  g_backend_info.bSupportsLargePoints = true;
+  g_backend_info.bSupportsCoarseDerivatives = true;
+  g_backend_info.bSupportsTextureQueryLevels = true;
 
   g_backend_info.bSupportsShaderBinaries = true;
   g_backend_info.bSupportsBackgroundCompiling = true;
@@ -66,14 +70,15 @@ void VideoBackend::InitBackendInfo(const WindowSystemInfo& wsi)
   g_backend_info.bSupportsST3CTextures = true;
   g_backend_info.bSupportsBPTCTextures = true;
 
-  // TODO: enable once the corresponding deko3d paths land.
+  // TODO: GPU texture decoding shows wrong textures in multiple games.
   g_backend_info.bSupportsGPUTextureDecoding = false;
+  g_backend_info.bSupportsDepthReadback = true;
+  g_backend_info.bSupportsPartialDepthCopies = true;
+
   g_backend_info.bSupportsPipelineCacheData = false;
-  g_backend_info.bSupportsDepthReadback = false;
 
   g_backend_info.Adapters.clear();
-  // TODO: advertise {1, 2, 4, 8} once DkMultisampleState + blit resolve are implemented.
-  g_backend_info.AAModes = {1};
+  g_backend_info.AAModes = {1, 2, 4};
 }
 
 bool VideoBackend::Initialize(const WindowSystemInfo& wsi)

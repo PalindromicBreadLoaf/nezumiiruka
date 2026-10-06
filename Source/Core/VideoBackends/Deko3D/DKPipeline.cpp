@@ -80,6 +80,7 @@ DkMultisampleState GetMultisampleState(const FramebufferState& state)
   dkMultisampleStateDefaults(&multisample);
   multisample.mode = GetDkMsMode(state.samples);
   multisample.rasterizerMode = multisample.mode;
+  dkMultisampleStateSetLocations(&multisample, nullptr, 0);
   return multisample;
 }
 
@@ -319,10 +320,11 @@ std::unique_ptr<DKPipeline> DKPipeline::Create(const AbstractPipelineConfig& con
   dkCmdBufBindColorWriteState(scratch, &color_write);
   dkCmdBufReplayCmds(scratch, blend_commands.data(), static_cast<u32>(blend_commands.size()));
   dkCmdBufBindDepthStencilState(scratch, &depth_stencil);
+  const auto& attributes =
+      vertex_format ? vertex_format->GetAttributes() : DKVertexFormat::GetUnusedAttributes();
+  dkCmdBufBindVtxAttribState(scratch, attributes.data(), static_cast<u32>(attributes.size()));
   if (vertex_format)
   {
-    dkCmdBufBindVtxAttribState(scratch, vertex_format->GetAttributes().data(),
-                               static_cast<u32>(vertex_format->GetAttributes().size()));
     dkCmdBufBindVtxBufferState(scratch, buffer_states.data(),
                                static_cast<u32>(buffer_states.size()));
   }

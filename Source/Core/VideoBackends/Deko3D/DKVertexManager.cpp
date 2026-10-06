@@ -4,6 +4,7 @@
 
 #include "VideoBackends/Deko3D/DKVertexManager.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "Common/Align.h"
@@ -336,6 +337,43 @@ bool DKVertexManager::UploadTexelBuffer(const void* data, u32 data_size, TexelBu
   m_texel_stream_buffer->CommitMemory(data_size);
   ADDSTAT(g_stats.this_frame.bytes_uniform_streamed, data_size);
   DKStateTracker::GetInstance()->SetTexelBuffer(0, m_texel_buffer_descriptors[format]);
+  return true;
+}
+
+bool DKVertexManager::UploadTexelBuffer(const void* data, u32 data_size, TexelBufferFormat format,
+                                        u32* out_offset, const void* palette_data, u32 palette_size,
+                                        TexelBufferFormat palette_format, u32* out_palette_offset)
+{
+  const u32 elem_size = GetTexelBufferElementSize(format);
+  const u32 palette_elem_size = GetTexelBufferElementSize(palette_format);
+  const u32 reserve_size = data_size + palette_size + palette_elem_size;
+  if (reserve_size > m_texel_stream_buffer->GetCurrentSize())
+    return false;
+
+  const u32 alignment = std::max(elem_size, palette_elem_size);
+  if (!m_texel_stream_buffer->ReserveMemory(reserve_size, alignment))
+  {
+    WARN_LOG_FMT(VIDEO, "Executing command buffer while waiting for space in texel buffer");
+    DKGfx::GetInstance()->ExecuteCommandBuffer(false);
+    if (!m_texel_stream_buffer->ReserveMemory(reserve_size, alignment))
+    {
+      PanicAlertFmt("Failed to allocate {} bytes from texel buffer", reserve_size);
+      return false;
+    }
+  }
+
+  const u32 palette_byte_offset = Common::AlignUp(data_size, palette_elem_size);
+  std::memcpy(m_texel_stream_buffer->GetCurrentHostPointer(), data, data_size);
+  std::memcpy(m_texel_stream_buffer->GetCurrentHostPointer() + palette_byte_offset, palette_data,
+              palette_size);
+  *out_offset = m_texel_stream_buffer->GetCurrentOffset() / elem_size;
+  *out_palette_offset =
+      (m_texel_stream_buffer->GetCurrentOffset() + palette_byte_offset) / palette_elem_size;
+
+  m_texel_stream_buffer->CommitMemory(palette_byte_offset + palette_size);
+  ADDSTAT(g_stats.this_frame.bytes_uniform_streamed, palette_byte_offset + palette_size);
+  DKStateTracker::GetInstance()->SetTexelBuffer(0, m_texel_buffer_descriptors[format]);
+  DKStateTracker::GetInstance()->SetTexelBuffer(1, m_texel_buffer_descriptors[palette_format]);
   return true;
 }
 }  // namespace Deko3D

@@ -32,13 +32,10 @@ DkImageType GetDkImageType(const TextureConfig& config)
   if (config.type == AbstractTextureType::Texture_CubeMap)
     return DkImageType_Cubemap;
 
-  if (config.IsMultisampled())
-    return config.layers > 1 ? DkImageType_2DMSArray : DkImageType_2DMS;
-
   if (config.type == AbstractTextureType::Texture_2D)
-    return DkImageType_2D;
+    return config.IsMultisampled() ? DkImageType_2DMS : DkImageType_2D;
 
-  return DkImageType_2DArray;
+  return config.IsMultisampled() ? DkImageType_2DMSArray : DkImageType_2DArray;
 }
 
 DkMsMode GetDkMsMode(u32 samples)
@@ -274,9 +271,12 @@ void DKTexture::ResolveFromTexture(const AbstractTexture* src, const MathUtil::R
       static_cast<u32>(rect.left),       static_cast<u32>(rect.top),         0,
       static_cast<u32>(rect.GetWidth()), static_cast<u32>(rect.GetHeight()), 1};
 
-  // A linearly filtered blit doubles as an MSAA resolve while still allowing a sub-rectangle.
-  dkCmdBufBlitImage(g_dk_command_buffer_mgr->GetCurrentCommandBuffer(), &src_view, &image_rect,
-                    &dst_view, &image_rect, DkBlitFlag_FilterLinear, 0);
+  DkCmdBuf cmdbuf = g_dk_command_buffer_mgr->GetCurrentCommandBuffer();
+
+  dkCmdBufBarrier(cmdbuf, DkBarrier_Fragments, 0);
+
+  dkCmdBufBlitImage(cmdbuf, &src_view, &image_rect, &dst_view, &image_rect, DkBlitFlag_FilterLinear,
+                    0);
 }
 
 void DKTexture::Load(u32 level, u32 width, u32 height, u32 row_length, const u8* buffer,

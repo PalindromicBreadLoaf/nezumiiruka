@@ -28,6 +28,9 @@ public:
   void UploadUtilityUniforms(const void* uniforms, u32 uniforms_size) override;
   bool UploadTexelBuffer(const void* data, u32 data_size, TexelBufferFormat format,
                          u32* out_offset) override;
+  bool UploadTexelBuffer(const void* data, u32 data_size, TexelBufferFormat format, u32* out_offset,
+                         const void* palette_data, u32 palette_size,
+                         TexelBufferFormat palette_format, u32* out_palette_offset) override;
 
 protected:
   void ResetBuffer(u32 vertex_stride) override;

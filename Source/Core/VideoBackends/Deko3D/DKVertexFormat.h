@@ -30,6 +30,8 @@ public:
   }
   const DkVtxBufferState& GetBufferState() const { return m_buffer_state; }
 
+  static const std::array<DkVtxAttribState, MAX_VERTEX_ATTRIBUTES>& GetUnusedAttributes();
+
 private:
   void MapAttributes();
   void AddAttribute(u32 location, DkVtxAttribSize size, DkVtxAttribType type, u32 offset);

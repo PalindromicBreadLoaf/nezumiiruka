@@ -217,7 +217,7 @@ void DKStateTracker::SetVertexBuffer(DkGpuAddr addr, u32 size)
     return;
 
   m_vertex_buffer = {addr, size};
-  m_dirty_flags |= DIRTY_FLAG_VERTEX_BUFFER;
+  m_dirty_flags |= DIRTY_FLAG_VERTEX_BUFFER | DIRTY_FLAG_SSBO;
 }
 
 void DKStateTracker::SetIndexBuffer(DkGpuAddr addr, DkIdxFormat format)

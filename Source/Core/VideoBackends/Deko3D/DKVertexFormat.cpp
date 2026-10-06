@@ -68,6 +68,16 @@ DKVertexFormat::DKVertexFormat(const PortableVertexDeclaration& vtx_decl)
   MapAttributes();
 }
 
+const std::array<DkVtxAttribState, MAX_VERTEX_ATTRIBUTES>& DKVertexFormat::GetUnusedAttributes()
+{
+  static const auto attributes = [] {
+    std::array<DkVtxAttribState, MAX_VERTEX_ATTRIBUTES> unused;
+    unused.fill(MakeUnusedAttribute());
+    return unused;
+  }();
+  return attributes;
+}
+
 void DKVertexFormat::AddAttribute(u32 location, DkVtxAttribSize size, DkVtxAttribType type,
                                   u32 offset)
 {

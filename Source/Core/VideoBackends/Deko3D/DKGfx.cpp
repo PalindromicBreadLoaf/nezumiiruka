@@ -247,11 +247,13 @@ void DKGfx::DispatchComputeShader(const AbstractShader* shader, u32 /*groupsize_
 {
   // The local group size is baked into the shader by uam, so only the group count is passed here.
   DKStateTracker::GetInstance()->SetComputeShader(static_cast<const DKShader*>(shader));
-  if (DKStateTracker::GetInstance()->BindCompute())
-  {
-    dkCmdBufDispatchCompute(g_dk_command_buffer_mgr->GetCurrentCommandBuffer(), groups_x, groups_y,
-                            groups_z);
-  }
+  if (!DKStateTracker::GetInstance()->BindCompute())
+    return;
+
+  DkCmdBuf cmdbuf = g_dk_command_buffer_mgr->GetCurrentCommandBuffer();
+  dkCmdBufDispatchCompute(cmdbuf, groups_x, groups_y, groups_z);
+
+  dkCmdBufBarrier(cmdbuf, DkBarrier_Primitives, DkInvalidateFlags_Image);
 }
 
 void DKGfx::ExecuteCommandBuffer(bool wait_for_completion)
