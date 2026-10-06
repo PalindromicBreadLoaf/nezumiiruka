@@ -82,12 +82,9 @@ DKGfx::CreateFramebuffer(AbstractTexture* color_attachment, AbstractTexture* dep
 
 std::unique_ptr<AbstractShader>
 DKGfx::CreateShaderFromSource(ShaderStage stage, std::string_view source,
-                              VideoCommon::ShaderIncluder* /*shader_includer*/,
-                              std::string_view name)
+                              VideoCommon::ShaderIncluder* shader_includer, std::string_view name)
 {
-  // TODO: uam has no #include support, so graphics-mod shaders that use the includer will not
-  // resolve.
-  const auto dksh = ShaderCompiler::CompileShader(stage, source, name);
+  const auto dksh = ShaderCompiler::CompileShader(stage, source, shader_includer, name);
   if (!dksh)
     return nullptr;
 
