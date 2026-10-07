@@ -925,6 +925,7 @@ void BuildControls(PageBuilder& page, bool wii)
   std::vector<Option<SerialInterface::SIDevices>> port_devices = {
       {"Nothing", SerialInterface::SIDEVICE_NONE},
       {"Standard controller", SerialInterface::SIDEVICE_GC_CONTROLLER},
+      {"GameCube adapter", SerialInterface::SIDEVICE_WIIU_ADAPTER},
   };
 #ifdef HAS_LIBMGBA
   port_devices.push_back({"Game Boy Advance", SerialInterface::SIDEVICE_GC_GBA_EMULATED});
@@ -936,6 +937,12 @@ void BuildControls(PageBuilder& page, bool wii)
     if (!page.IsPerGame())
       page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port), port_devices);
     AddProfileCell(page, fmt::format("Port {} profile", port + 1), Kind::GCPad, port);
+  }
+
+  if (!page.IsPerGame())
+  {
+    page.Note("The GameCube adapter passes a controller on the official adapter straight through, "
+              "without a profile. Port N takes player N's GameCube controller.");
   }
 
   if (wii)
