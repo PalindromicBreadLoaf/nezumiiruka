@@ -136,9 +136,6 @@ void ApplyPlatformConfigOverrides()
     Config::SetCurrent(Config::GFX_VERTEX_LOADER_TYPE, VertexLoaderType::Software);
   }
 
-  // The CPU and GPU threads each get a dedicated core, so dual-core is mandatory here.
-  Config::SetCurrent(Config::MAIN_CPU_THREAD, true);
-
   // The block cache's large entry point map wants 64 GiB of address space, which is twenty times
   // the application heap. There's no point even trying.
   Config::SetCurrent(Config::MAIN_LARGE_ENTRY_POINTS_MAP, false);

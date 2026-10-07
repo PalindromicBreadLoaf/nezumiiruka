@@ -660,6 +660,9 @@ void BuildEmulation(PageBuilder& page)
               {{"JIT recompiler (recommended)", PowerPC::CPUCore::JITARM64},
                {"Cached interpreter (slow)", PowerPC::CPUCore::CachedInterpreter},
                {"Interpreter (very slow)", PowerPC::CPUCore::Interpreter}});
+  page.Toggle("Dual core", Config::MAIN_CPU_THREAD);
+  page.Note("Runs the emulated GPU on its own core. Turning it off is much slower, but can fix "
+            "some crashes.");
   page.Custom("CPU clock override", {"Off", "50%", "75%", "90%", "110%", "125%", "150%", "200%"},
               OverclockBinding(page.GetContext(), {0.5f, 0.75f, 0.9f, 1.1f, 1.25f, 1.5f, 2.0f}));
   page.Note("Underclocking the emulated CPU can make demanding games reach full speed, at the "

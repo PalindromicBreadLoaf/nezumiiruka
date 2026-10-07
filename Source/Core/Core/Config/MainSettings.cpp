@@ -56,7 +56,7 @@ const Info<bool> MAIN_RUSH_FRAME_PRESENTATION{{System::Main, "Core", "RushFrameP
                                               false};
 const Info<bool> MAIN_SMOOTH_EARLY_PRESENTATION{{System::Main, "Core", "SmoothEarlyPresentation"},
                                                 false};
-#if defined(ANDROID)
+#if defined(ANDROID) || defined(__SWITCH__)
 // Currently enabled by default on Android because the performance boost is really needed.
 constexpr bool DEFAULT_CPU_THREAD = true;
 #else
