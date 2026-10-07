@@ -48,6 +48,21 @@ enum class UpdateChannel : int
   Prerelease,
 };
 
+enum class GBAScreens : int
+{
+  Hidden,
+  Small,
+  Large,
+};
+
+enum class GBAScreenCorner : int
+{
+  TopLeft,
+  TopRight,
+  BottomLeft,
+  BottomRight,
+};
+
 extern const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE;
 extern const Info<int> SWITCH_PERFORMANCE_OVERLAY;
 extern const Info<std::string> SWITCH_GAME_DIRECTORY;
@@ -61,6 +76,8 @@ extern const Info<bool> SWITCH_CHECK_FOR_UPDATES;
 extern const Info<UpdateChannel> SWITCH_UPDATE_CHANNEL;
 extern const Info<std::string> SWITCH_SKIPPED_UPDATE;
 extern const Info<std::string> SWITCH_LAST_RUN_VERSION;
+extern const Info<GBAScreens> SWITCH_GBA_SCREENS;
+extern const Info<GBAScreenCorner> SWITCH_GBA_SCREEN_CORNER;
 }  // namespace Config
 
 namespace SwitchSettings

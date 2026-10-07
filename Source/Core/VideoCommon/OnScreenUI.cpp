@@ -43,6 +43,7 @@ namespace
 {
 std::mutex s_host_ui_mutex;
 std::function<void()> s_host_ui_callback;
+std::function<void()> s_host_ui_release_callback;
 }  // namespace
 
 bool OnScreenUI::Initialize(u32 width, u32 height, float scale)
@@ -123,6 +124,10 @@ OnScreenUI::~OnScreenUI()
   ImPlot::DestroyContext();
   ImGui::DestroyContext();
   m_imgui_textures.clear();
+
+  std::lock_guard host_ui_lock(s_host_ui_mutex);
+  if (s_host_ui_release_callback)
+    s_host_ui_release_callback();
 }
 
 bool OnScreenUI::RecompileImGuiPipeline()
@@ -537,6 +542,12 @@ void OnScreenUI::SetHostUICallback(std::function<void()> callback)
 {
   std::lock_guard host_ui_lock(s_host_ui_mutex);
   s_host_ui_callback = std::move(callback);
+}
+
+void OnScreenUI::SetHostUIReleaseCallback(std::function<void()> callback)
+{
+  std::lock_guard host_ui_lock(s_host_ui_mutex);
+  s_host_ui_release_callback = std::move(callback);
 }
 
 std::unique_lock<std::mutex> OnScreenUI::GetImGuiLock()

@@ -7,11 +7,16 @@
 #include "Core/Host.h"
 
 #include <cstring>
+#include <utility>
 
 #include <switch.h>
 
 #include "Common/Logging/Log.h"
 #include "DolphinSwitch/PlatformSwitch.h"
+
+#ifdef HAS_LIBMGBA
+#include "DolphinSwitch/GBAOverlaySwitch.h"
+#endif
 
 std::vector<std::string> Host_GetPreferredLocales()
 {
@@ -115,5 +120,9 @@ bool Host_UpdateDiscordPresenceRaw(const std::string& details, const std::string
 
 std::unique_ptr<GBAHostInterface> Host_CreateGBAHost(std::weak_ptr<HW::GBA::Core> core)
 {
+#ifdef HAS_LIBMGBA
+  return GBAOverlay::CreateHost(std::move(core));
+#else
   return nullptr;
+#endif
 }

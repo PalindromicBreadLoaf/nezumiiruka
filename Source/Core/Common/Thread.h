@@ -39,6 +39,7 @@ enum class ThreadCoreRole
   Host,
   Worker,
   ShaderCompiler,
+  GBA,
 };
 void PinCurrentThreadToRole(ThreadCoreRole role);
 

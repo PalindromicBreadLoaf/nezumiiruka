@@ -218,6 +218,9 @@ void PinCurrentThreadToRole(ThreadCoreRole role)
     target = layout->gpu_core;
     role_name = "gpu";
     break;
+  case ThreadCoreRole::GBA:
+    role_name = "gba";
+    break;
   default:
     break;
   }

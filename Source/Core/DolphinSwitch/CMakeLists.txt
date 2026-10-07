@@ -50,6 +50,13 @@ add_executable(nezumiiruka
 
 target_compile_definitions(nezumiiruka PRIVATE NEZUMIIRUKA_VERSION="${NEZUMIIRUKA_VERSION}")
 
+if(USE_MGBA)
+  target_sources(nezumiiruka PRIVATE
+    GBAOverlaySwitch.cpp
+    GBAOverlaySwitch.h
+  )
+endif()
+
 if(USE_RETRO_ACHIEVEMENTS)
   target_sources(nezumiiruka PRIVATE
     ShellAchievementsSwitch.cpp

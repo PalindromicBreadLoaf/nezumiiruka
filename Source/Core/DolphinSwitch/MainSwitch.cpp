@@ -36,6 +36,9 @@
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
 #include "DolphinSwitch/ControllerProfilesSwitch.h"
+#ifdef HAS_LIBMGBA
+#include "DolphinSwitch/GBAOverlaySwitch.h"
+#endif
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
 #include "DolphinSwitch/PlatformSwitch.h"
 #include "DolphinSwitch/RiivolutionSwitch.h"
@@ -44,6 +47,7 @@
 #include "DolphinSwitch/UpdaterSwitch.h"
 #include "DolphinSwitch/UsbStorageSwitch.h"
 #include "UICommon/UICommon.h"
+#include "VideoCommon/OnScreenUI.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -281,6 +285,9 @@ int main(int argc, char* argv[])
 
   SwitchSettings::ApplyDefaults();
   ControllerProfiles::WritePresets();
+#ifdef HAS_LIBMGBA
+  VideoCommon::OnScreenUI::SetHostUIReleaseCallback(GBAOverlay::ReleaseTextures);
+#endif
   File::CreateFullPath(SwitchSettings::GetGameDirectory());
   File::CreateFullPath(RiivolutionSwitch::GetPatchDirectory());
 

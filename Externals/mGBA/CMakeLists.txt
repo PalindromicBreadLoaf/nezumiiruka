@@ -15,4 +15,12 @@ if(ANDROID)
   target_compile_definitions(mgba PRIVATE -Dfutimes=futimens)
 endif()
 
+if(NEZUMIIRUKA)
+  target_sources(mgba PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/mgba/src/util/vfs/vfs-fd.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/mgba/src/util/vfs/vfs-dirent.c
+  )
+  target_compile_definitions(mgba PUBLIC ENABLE_VFS_FD)
+endif()
+
 add_library(mGBA::mgba ALIAS mgba)

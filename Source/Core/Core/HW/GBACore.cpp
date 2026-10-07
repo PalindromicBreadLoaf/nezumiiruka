@@ -27,6 +27,7 @@
 #include "Common/Logging/Log.h"
 #include "Common/MinizipUtil.h"
 #include "Common/ScopeGuard.h"
+#include "Common/Thread.h"
 
 #include "Core/Config/MainSettings.h"
 #include "Core/ConfigManager.h"
@@ -559,6 +560,15 @@ void Core::PushEvent(SyncEvent event)
 
 void Core::HandleEvent(SyncEvent event)
 {
+#ifdef __SWITCH__
+  static thread_local bool s_pinned = false;
+  if (!s_pinned)
+  {
+    Common::PinCurrentThreadToRole(Common::ThreadCoreRole::GBA);
+    s_pinned = true;
+  }
+#endif
+
   m_keys = event.keys;
 
   RunUntil(event.run_until_ticks);

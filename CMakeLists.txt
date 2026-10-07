@@ -512,7 +512,6 @@ if(NEZUMIIRUKA)
   set(USE_DISCORD_PRESENCE 0)
   set(USE_UPNP 0)
   set(ENCODE_FRAMEDUMPS 0)
-  set(USE_MGBA 0)
   set(DSPTOOL 0)
 
   # Always build what we vendor.

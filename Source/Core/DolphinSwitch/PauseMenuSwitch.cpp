@@ -23,6 +23,7 @@
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/HW/DVD/DVDInterface.h"
+#include "Core/HW/GBAPad.h"
 #include "Core/HW/GCPad.h"
 #include "Core/HW/ProcessorInterface.h"
 #include "Core/HW/SI/SI_Device.h"
@@ -32,6 +33,9 @@
 #include "Core/State.h"
 #include "Core/System.h"
 #include "DolphinSwitch/PerformanceOverlaySwitch.h"
+#ifdef HAS_LIBMGBA
+#include "DolphinSwitch/GBAOverlaySwitch.h"
+#endif
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "InputCommon/ControllerEmu/ControllerEmu.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
@@ -61,10 +65,10 @@ constexpr std::array<u64, 4> DIRECTIONS = {BUTTON_UP, BUTTON_DOWN, BUTTON_LEFT, 
 constexpr u64 OPEN_CHORD = HidNpadButton_Plus | HidNpadButton_Minus;
 constexpr u64 CLOSE_BUTTONS = HidNpadButton_Plus | HidNpadButton_Minus;
 
-constexpr u64 STICK_DIRECTIONS =
-    HidNpadButton_StickLLeft | HidNpadButton_StickLUp | HidNpadButton_StickLRight |
-    HidNpadButton_StickLDown | HidNpadButton_StickRLeft | HidNpadButton_StickRUp |
-    HidNpadButton_StickRRight | HidNpadButton_StickRDown;
+constexpr u64 STICK_DIRECTIONS = HidNpadButton_StickLLeft | HidNpadButton_StickLUp |
+                                 HidNpadButton_StickLRight | HidNpadButton_StickLDown |
+                                 HidNpadButton_StickRLeft | HidNpadButton_StickRUp |
+                                 HidNpadButton_StickRRight | HidNpadButton_StickRDown;
 
 constexpr auto MINUS_HOLD_TO_OPEN = std::chrono::milliseconds(500);
 constexpr auto REPEAT_DELAY = std::chrono::milliseconds(400);
@@ -182,7 +186,12 @@ PauseMenu::PauseMenu(Core::System& system, std::string disc_path,
         R_SUCCEEDED(plGetSharedFontByType(&m_extended_font, PlSharedFontType_NintendoExt));
   }
 
-  VideoCommon::OnScreenUI::SetHostUICallback([this] { Draw(); });
+  VideoCommon::OnScreenUI::SetHostUICallback([this] {
+#ifdef HAS_LIBMGBA
+    GBAOverlay::Draw();
+#endif
+    Draw();
+  });
 }
 
 PauseMenu::~PauseMenu()
@@ -511,13 +520,13 @@ std::vector<PauseMenu::Row> PauseMenu::BuildMain()
   std::vector<Row> rows;
 
   rows.push_back(Row{.label = "Resume", .activate = [this] { Close(); }});
-  rows.push_back(Row{.kind = RowKind::Submenu,
-                     .label = "Save state",
-                     .activate = [this] { Push(PageId::SaveState); }});
+  rows.push_back(Row{.kind = RowKind::Submenu, .label = "Save state", .activate = [this] {
+                       Push(PageId::SaveState);
+                     }});
 
-  Row load{.kind = RowKind::Submenu,
-           .label = "Load state",
-           .activate = [this] { Push(PageId::LoadState); }};
+  Row load{.kind = RowKind::Submenu, .label = "Load state", .activate = [this] {
+             Push(PageId::LoadState);
+           }};
   if (AchievementManager::GetInstance().IsHardcoreModeActive())
   {
     load.value = "Not in hardcore mode";
@@ -525,12 +534,12 @@ std::vector<PauseMenu::Row> PauseMenu::BuildMain()
   }
   rows.push_back(std::move(load));
 
-  rows.push_back(Row{.kind = RowKind::Submenu,
-                     .label = "Settings",
-                     .activate = [this] { Push(PageId::Settings); }});
-  rows.push_back(Row{.kind = RowKind::Submenu,
-                     .label = "Controls",
-                     .activate = [this] { Push(PageId::Controls); }});
+  rows.push_back(Row{.kind = RowKind::Submenu, .label = "Settings", .activate = [this] {
+                       Push(PageId::Settings);
+                     }});
+  rows.push_back(Row{.kind = RowKind::Submenu, .label = "Controls", .activate = [this] {
+                       Push(PageId::Controls);
+                     }});
 
   Row cheats{.kind = RowKind::Submenu, .label = "Cheats", .activate = [this] {
                const SConfig& config = SConfig::GetInstance();
@@ -557,22 +566,19 @@ std::vector<PauseMenu::Row> PauseMenu::BuildMain()
   rows.push_back(Row{.label = "Take screenshot",
                      .activate = [this] { Close([] { Core::SaveScreenShot(); }); }});
 
-  rows.push_back(Row{.label = Core::HorizonSampler::IsRunning() ? "Stop profile capture" :
-                                                                   "Capture profile (10 s)",
-                     .activate = [this] {
-                       Close([this] {
-                         Core::HorizonSampler::Toggle(m_system, PROFILE_CAPTURE_SECONDS);
-                       });
-                     }});
+  rows.push_back(
+      Row{.label =
+              Core::HorizonSampler::IsRunning() ? "Stop profile capture" : "Capture profile",
+          .activate = [this] {
+            Close([this] { Core::HorizonSampler::Toggle(m_system, PROFILE_CAPTURE_SECONDS); });
+          }});
 
-  rows.push_back(Row{.label = "Reset", .activate = [this] {
-                       Confirm("Reset the game? Anything you have not saved will be lost.", "Reset",
-                               [this] {
-                                 Close([this] {
-                                   m_system.GetProcessorInterface().ResetButton_Tap();
-                                 });
-                               });
-                     }});
+  rows.push_back(
+      Row{.label = "Reset", .activate = [this] {
+            Confirm("Reset the game? Anything you have not saved will be lost.", "Reset", [this] {
+              Close([this] { m_system.GetProcessorInterface().ResetButton_Tap(); });
+            });
+          }});
 
   rows.push_back(Row{.label = "Quit to game list", .activate = [this] {
                        Confirm("Quit to the game list? Anything you have not saved will be lost.",
@@ -687,37 +693,37 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
   rows.push_back(Row{.kind = RowKind::Header, .label = "This game"});
 
   AddChoice<int>(rows, "Internal resolution",
-                         {{"Native (640×528)", 1},
-                          {"2× (1280×1056)", 2},
-                          {"3× (1920×1584)", 3},
-                          {"4× (2560×2112)", 4}},
-                         Config::Get(Config::GFX_EFB_SCALE),
-                         [this](const int& value) { WriteForGame(Config::GFX_EFB_SCALE, value); });
+                 {{"Native (640×528)", 1},
+                  {"2× (1280×1056)", 2},
+                  {"3× (1920×1584)", 3},
+                  {"4× (2560×2112)", 4}},
+                 Config::Get(Config::GFX_EFB_SCALE),
+                 [this](const int& value) { WriteForGame(Config::GFX_EFB_SCALE, value); });
 
-  AddChoice<AspectMode>(rows,
-      "Aspect ratio",
-      {{"Auto", AspectMode::Auto},
-       {"Force 16:9", AspectMode::ForceWide},
-       {"Force 4:3", AspectMode::ForceStandard},
-       {"Stretch to screen", AspectMode::Stretch}},
-      Config::Get(Config::GFX_ASPECT_RATIO),
-      [this](const AspectMode& value) { WriteForGame(Config::GFX_ASPECT_RATIO, value); });
+  AddChoice<AspectMode>(rows, "Aspect ratio",
+                        {{"Auto", AspectMode::Auto},
+                         {"Force 16:9", AspectMode::ForceWide},
+                         {"Force 4:3", AspectMode::ForceStandard},
+                         {"Stretch to screen", AspectMode::Stretch}},
+                        Config::Get(Config::GFX_ASPECT_RATIO), [this](const AspectMode& value) {
+                          WriteForGame(Config::GFX_ASPECT_RATIO, value);
+                        });
 
-  AddChoice<bool>(rows,
-      "Widescreen hack", {{"Off", false}, {"On", true}}, Config::Get(Config::GFX_WIDESCREEN_HACK),
-      [this](const bool& value) { WriteForGame(Config::GFX_WIDESCREEN_HACK, value); });
+  AddChoice<bool>(rows, "Widescreen hack", {{"Off", false}, {"On", true}},
+                  Config::Get(Config::GFX_WIDESCREEN_HACK),
+                  [this](const bool& value) { WriteForGame(Config::GFX_WIDESCREEN_HACK, value); });
 
-  AddChoice<float>(rows,
-      "Speed limit",
-      {{"50%", 0.5f},
-       {"75%", 0.75f},
-       {"100% (full speed)", 1.0f},
-       {"125%", 1.25f},
-       {"150%", 1.5f},
-       {"200%", 2.0f},
-       {"Unlimited", 0.0f}},
-      Config::Get(Config::MAIN_EMULATION_SPEED),
-      [this](const float& value) { WriteForGame(Config::MAIN_EMULATION_SPEED, value); });
+  AddChoice<float>(rows, "Speed limit",
+                   {{"50%", 0.5f},
+                    {"75%", 0.75f},
+                    {"100% (full speed)", 1.0f},
+                    {"125%", 1.25f},
+                    {"150%", 1.5f},
+                    {"200%", 2.0f},
+                    {"Unlimited", 0.0f}},
+                   Config::Get(Config::MAIN_EMULATION_SPEED), [this](const float& value) {
+                     WriteForGame(Config::MAIN_EMULATION_SPEED, value);
+                   });
 
 #ifdef HAS_FRAME_GENERATION
   if (Config::Get(Config::MAIN_GFX_BACKEND) == "Deko3D")
@@ -729,11 +735,11 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
                                  Config::Get(Config::GFX_FRAME_GENERATION_MULTIPLIER) :
                                  0;
       AddChoice<u32>(rows, "Frame generation", {{"Off", 0}, {"2×", 2}, {"3×", 3}, {"4×", 4}},
-                             multiplier, [this](const u32& value) {
-                               WriteForGame(Config::GFX_FRAME_GENERATION, value != 0);
-                               if (value != 0)
-                                 WriteForGame(Config::GFX_FRAME_GENERATION_MULTIPLIER, value);
-                             });
+                     multiplier, [this](const u32& value) {
+                       WriteForGame(Config::GFX_FRAME_GENERATION, value != 0);
+                       if (value != 0)
+                         WriteForGame(Config::GFX_FRAME_GENERATION_MULTIPLIER, value);
+                     });
     }
     else
     {
@@ -748,31 +754,31 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
   rows.push_back(Row{.kind = RowKind::Header, .label = "All games"});
 
   AddChoice<int>(rows, "Volume",
-                         {{"Muted", 0},
-                          {"10%", 10},
-                          {"20%", 20},
-                          {"30%", 30},
-                          {"40%", 40},
-                          {"50%", 50},
-                          {"60%", 60},
-                          {"70%", 70},
-                          {"80%", 80},
-                          {"90%", 90},
-                          {"100%", 100}},
-                         Config::Get(Config::MAIN_AUDIO_VOLUME), [this](const int& value) {
-                           WriteGlobal(Config::MAIN_AUDIO_VOLUME, value);
-                           AudioCommon::UpdateSoundStream(m_system);
-                         });
+                 {{"Muted", 0},
+                  {"10%", 10},
+                  {"20%", 20},
+                  {"30%", 30},
+                  {"40%", 40},
+                  {"50%", 50},
+                  {"60%", 60},
+                  {"70%", 70},
+                  {"80%", 80},
+                  {"90%", 90},
+                  {"100%", 100}},
+                 Config::Get(Config::MAIN_AUDIO_VOLUME), [this](const int& value) {
+                   WriteGlobal(Config::MAIN_AUDIO_VOLUME, value);
+                   AudioCommon::UpdateSoundStream(m_system);
+                 });
 
   AddChoice<int>(rows, "Performance overlay",
-                         {{"Off", 0}, {"Statistics", 1}, {"Statistics and graphs", 2}},
-                         Config::Get(Config::SWITCH_PERFORMANCE_OVERLAY), [this](const int& value) {
-                           PerfOverlay::SetLevel(value);
-                           m_config_dirty = true;
-                         });
+                 {{"Off", 0}, {"Statistics", 1}, {"Statistics and graphs", 2}},
+                 Config::Get(Config::SWITCH_PERFORMANCE_OVERLAY), [this](const int& value) {
+                   PerfOverlay::SetLevel(value);
+                   m_config_dirty = true;
+                 });
 
-  AddChoice<Config::PerformanceProfile>(rows,
-      "Clock profile",
+  AddChoice<Config::PerformanceProfile>(
+      rows, "Clock profile",
       {{"Stock (memory 1331 MHz)", Config::PerformanceProfile::Stock},
        {"Faster memory (1600 MHz)", Config::PerformanceProfile::FasterMemory},
        {"Faster memory and GPU (460 MHz)", Config::PerformanceProfile::FasterMemoryAndGpu}},
@@ -796,7 +802,8 @@ std::vector<PauseMenu::Row> PauseMenu::BuildControls()
     for (int index = 0; index < ControllerProfiles::SLOT_COUNT; ++index)
     {
       if (Config::Get(Config::GetInfoForWiimoteSource(index)) == WiimoteSource::Emulated)
-        remotes.push_back(ProfileRow(Kind::Wiimote, index, fmt::format("Wii Remote {}", index + 1)));
+        remotes.push_back(
+            ProfileRow(Kind::Wiimote, index, fmt::format("Wii Remote {}", index + 1)));
     }
 
     if (!remotes.empty())
@@ -818,6 +825,43 @@ std::vector<PauseMenu::Row> PauseMenu::BuildControls()
     rows.push_back(Row{.kind = RowKind::Header, .label = "GameCube controllers"});
     std::ranges::move(pads, std::back_inserter(rows));
   }
+
+#ifdef HAS_LIBMGBA
+  std::vector<Row> gbas;
+  for (int port = 0; port < ControllerProfiles::SLOT_COUNT; ++port)
+  {
+    if (Config::Get(Config::GetInfoForSIDevice(port)) != SerialInterface::SIDEVICE_GC_GBA_EMULATED)
+      continue;
+
+    gbas.push_back(Row{.label = fmt::format("Reset GBA {}", port + 1), .activate = [this, port] {
+                         Pad::SetGBAReset(port, true);
+                         Close();
+                       }});
+  }
+
+  if (!gbas.empty())
+  {
+    rows.push_back(Row{.kind = RowKind::Header, .label = "Game Boy Advance"});
+    AddChoice<Config::GBAScreens>(rows, "Screens",
+                                  {{"Hidden", Config::GBAScreens::Hidden},
+                                   {"Small", Config::GBAScreens::Small},
+                                   {"Large", Config::GBAScreens::Large}},
+                                  Config::Get(Config::SWITCH_GBA_SCREENS),
+                                  [this](const Config::GBAScreens& value) {
+                                    WriteGlobal(Config::SWITCH_GBA_SCREENS, value);
+                                  });
+    AddChoice<Config::GBAScreenCorner>(rows, "Position",
+                                       {{"Top left", Config::GBAScreenCorner::TopLeft},
+                                        {"Top right", Config::GBAScreenCorner::TopRight},
+                                        {"Bottom left", Config::GBAScreenCorner::BottomLeft},
+                                        {"Bottom right", Config::GBAScreenCorner::BottomRight}},
+                                       Config::Get(Config::SWITCH_GBA_SCREEN_CORNER),
+                                       [this](const Config::GBAScreenCorner& value) {
+                                         WriteGlobal(Config::SWITCH_GBA_SCREEN_CORNER, value);
+                                       });
+    std::ranges::move(gbas, std::back_inserter(rows));
+  }
+#endif
 
   if (rows.empty())
     rows.push_back(Row{.label = "No emulated controllers are connected.", .enabled = false});
@@ -946,7 +990,8 @@ std::vector<PauseMenu::Row> PauseMenu::BuildDiscs()
   }
 
   if (rows.empty())
-    rows.push_back(Row{.label = "No other discs of this game are in the game list.", .enabled = false});
+    rows.push_back(
+        Row{.label = "No other discs of this game are in the game list.", .enabled = false});
 
   return rows;
 }
@@ -958,10 +1003,11 @@ std::vector<PauseMenu::Row> PauseMenu::BuildConfirm()
 
   return {
       Row{.label = m_confirmation->action,
-          .activate = [this] {
-            const auto on_confirm = m_confirmation->on_confirm;
-            on_confirm();
-          }},
+          .activate =
+              [this] {
+                const auto on_confirm = m_confirmation->on_confirm;
+                on_confirm();
+              }},
       Row{.label = "Cancel", .activate = [this] { Back(); }},
   };
 }
@@ -1062,14 +1108,13 @@ ImFont* PauseMenu::GetFont()
 
       ImFontConfig font_config;
       font_config.FontDataOwnedByAtlas = false;
-      m_font = atlas->AddFontFromMemoryTTF(m_standard_font.address,
-                                           static_cast<int>(m_standard_font.size), 0.0f,
-                                           &font_config);
+      m_font = atlas->AddFontFromMemoryTTF(
+          m_standard_font.address, static_cast<int>(m_standard_font.size), 0.0f, &font_config);
       if (m_font)
       {
         font_config.MergeMode = true;
-        atlas->AddFontFromMemoryTTF(m_extended_font.address,
-                                    static_cast<int>(m_extended_font.size), 0.0f, &font_config);
+        atlas->AddFontFromMemoryTTF(m_extended_font.address, static_cast<int>(m_extended_font.size),
+                                    0.0f, &font_config);
       }
     }
   }
@@ -1109,10 +1154,9 @@ void PauseMenu::Draw()
   float message_height = 0.0f;
   if (!m_view.message.empty())
   {
-    message_height = font->CalcTextSizeA(message_size, FLT_MAX, inner_width,
-                                         m_view.message.c_str())
-                         .y +
-                     14.0f * scale;
+    message_height =
+        font->CalcTextSizeA(message_size, FLT_MAX, inner_width, m_view.message.c_str()).y +
+        14.0f * scale;
   }
 
   const float heading_height =
@@ -1137,8 +1181,7 @@ void PauseMenu::Draw()
   draw->AddText(font, TITLE_SIZE * scale, {left, y}, TEXT_COLOUR, title.c_str());
   y += (TITLE_SIZE + 4.0f) * scale;
 
-  draw->AddText(font, PAGE_TITLE_SIZE * scale, {left, y}, ACCENT_COLOUR,
-                m_view.page_title.c_str());
+  draw->AddText(font, PAGE_TITLE_SIZE * scale, {left, y}, ACCENT_COLOUR, m_view.page_title.c_str());
   y += (PAGE_TITLE_SIZE + 16.0f) * scale;
 
   draw->AddLine({left, y}, {right, y}, DIVIDER_COLOUR, scale);
@@ -1183,8 +1226,7 @@ void PauseMenu::Draw()
     float value_right = right;
     if (row.kind == RowKind::Submenu)
     {
-      DrawArrow(draw, {right - arrow * 0.6f, centre_y}, arrow, ArrowDirection::Right,
-                label_colour);
+      DrawArrow(draw, {right - arrow * 0.6f, centre_y}, arrow, ArrowDirection::Right, label_colour);
       value_right -= arrow * 3.0f;
     }
     const bool arrows = row.kind == RowKind::Choice && selected && row.enabled;
@@ -1199,8 +1241,8 @@ void PauseMenu::Draw()
     float value_width = 0.0f;
     if (!row.value.empty())
     {
-      const float space = value_right - left - label_width - 32.0f * scale -
-                          (arrows ? arrow * 3.0f : 0.0f);
+      const float space =
+          value_right - left - label_width - 32.0f * scale - (arrows ? arrow * 3.0f : 0.0f);
       const std::string value = Truncate(font, row_text, row.value, std::max(space, 0.0f));
       value_width = TextWidth(font, row_text, value);
       draw->AddText(font, row_text, {value_right - value_width, text_y}, value_colour,
@@ -1222,15 +1264,14 @@ void PauseMenu::Draw()
     DrawArrow(draw, {right, list_top - 6.0f * scale}, arrow * 0.8f, ArrowDirection::Up,
               DIM_TEXT_COLOUR);
   if (last < row_count)
-    DrawArrow(draw, {right, y + 6.0f * scale}, arrow * 0.8f, ArrowDirection::Down,
-              DIM_TEXT_COLOUR);
+    DrawArrow(draw, {right, y + 6.0f * scale}, arrow * 0.8f, ArrowDirection::Down, DIM_TEXT_COLOUR);
 
   y += 12.0f * scale;
   draw->AddLine({left, y}, {right, y}, DIVIDER_COLOUR, scale);
   y += 14.0f * scale;
 
-  const std::string hints = m_font ? " Select     Back     Resume" :
-                                     "A Select    B Back    + Resume";
+  const std::string hints =
+      m_font ? " Select     Back     Resume" : "A Select    B Back    + Resume";
   const float hints_width = TextWidth(font, footer_size, hints);
   draw->AddText(font, footer_size, {right - hints_width, y}, DIM_TEXT_COLOUR, hints.c_str());
 

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <optional>
 #include <string>
 #include <thread>
@@ -51,6 +52,7 @@
 #endif
 #include "DolphinSwitch/ShellCheatsSwitch.h"
 #include "DolphinSwitch/ShellControlsSwitch.h"
+#include "DolphinSwitch/ShellFilePickerSwitch.h"
 #include "DolphinSwitch/ShellFormatSwitch.h"
 #include "DolphinSwitch/ShellMemoryCardsSwitch.h"
 #include "DolphinSwitch/ShellSystemSwitch.h"
@@ -829,6 +831,87 @@ void ShowControllerApplet()
                                 fmt::format("{} players connected.", info.player_count));
 }
 
+#ifdef HAS_LIBMGBA
+std::string DescribeFile(const std::string& path, const std::string& empty)
+{
+  if (path.empty())
+    return empty;
+
+  std::string name, extension;
+  SplitPath(path, nullptr, &name, &extension);
+  return name + extension;
+}
+
+void AddFileCell(PageBuilder& page, const std::string& title, const Config::Info<std::string>& info,
+                 const std::string& empty, const std::string& picker_title,
+                 std::vector<std::string> extensions,
+                 std::function<void(const std::string&)> on_changed = {})
+{
+  const ContextPtr context = page.GetContext();
+
+  auto* cell = new brls::DetailCell();
+  cell->setText(title);
+  cell->setDetailText(DescribeFile(context->Read(info), empty));
+
+  const auto set = [context, &info, cell, empty, on_changed](const std::string& path) {
+    context->Write(info, path);
+    cell->setDetailText(DescribeFile(path, empty));
+    if (on_changed)
+      on_changed(path);
+  };
+
+  cell->registerClickAction([context, &info, title, picker_title, extensions, set](brls::View*) {
+    const std::string current = context->Read(info);
+    const auto pick = [picker_title, extensions, set, current] {
+      const std::string directory = current.empty() ?
+                                        std::string("sdmc:/") :
+                                        current.substr(0, current.find_last_of('/') + 1);
+      brls::Application::pushActivity(
+          CreateFilePickerActivity(picker_title, directory, extensions, set));
+    };
+
+    if (current.empty())
+    {
+      pick();
+      return true;
+    }
+
+    auto* dialog = new brls::Dialog(fmt::format("{}: {}", title, DescribeFile(current, {})));
+    dialog->addButton("Cancel", [] {});
+    dialog->addButton("Remove", [set] { set({}); });
+    dialog->addButton("Change", pick);
+    dialog->open();
+    return true;
+  });
+
+  page.Add(cell);
+}
+
+void BuildGBA(PageBuilder& page)
+{
+  page.Header("Game Boy Advance");
+  AddFileCell(page, "BIOS", Config::MAIN_GBA_BIOS_PATH, "Default location",
+              "Choose a GBA BIOS (gba_bios.bin)", {".bin"}, [](const std::string& path) {
+                File::SetUserPath(F_GBABIOS_IDX, path.empty() ?
+                                                     File::GetUserPath(D_GBAUSER_IDX) + GBA_BIOS :
+                                                     path);
+              });
+  page.Note(fmt::format("The default location is {}{}.",
+                        File::GetUserPath(D_GBAUSER_IDX), GBA_BIOS));
+
+  for (int port = 0; port < ControllerProfiles::SLOT_COUNT; ++port)
+  {
+    AddFileCell(page, fmt::format("GBA {} cartridge", port + 1), Config::MAIN_GBA_ROM_PATHS[port],
+                "None", fmt::format("Choose a cartridge for GBA {}", port + 1),
+                {".gba", ".agb", ".mb", ".gb", ".gbc", ".bin", ".zip", ".7z"});
+  }
+  page.Note("Most link games don't require any ROM.");
+
+  page.Toggle("Keep saves next to the cartridge", Config::MAIN_GBA_SAVES_IN_ROM_PATH);
+  page.Note("A GBA in port N is controlled by player N's controller.");
+}
+#endif
+
 void BuildControls(PageBuilder& page, bool wii)
 {
   using ControllerProfiles::Kind;
@@ -839,15 +922,19 @@ void BuildControls(PageBuilder& page, bool wii)
     page.Action("Change grip and order", "", ShowControllerApplet);
   }
 
+  std::vector<Option<SerialInterface::SIDevices>> port_devices = {
+      {"Nothing", SerialInterface::SIDEVICE_NONE},
+      {"Standard controller", SerialInterface::SIDEVICE_GC_CONTROLLER},
+  };
+#ifdef HAS_LIBMGBA
+  port_devices.push_back({"Game Boy Advance", SerialInterface::SIDEVICE_GC_GBA_EMULATED});
+#endif
+
   page.Header("GameCube controller ports");
   for (int port = 0; port < ControllerProfiles::SLOT_COUNT; ++port)
   {
     if (!page.IsPerGame())
-    {
-      page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port),
-                  {{"Nothing", SerialInterface::SIDEVICE_NONE},
-                   {"Standard controller", SerialInterface::SIDEVICE_GC_CONTROLLER}});
-    }
+      page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port), port_devices);
     AddProfileCell(page, fmt::format("Port {} profile", port + 1), Kind::GCPad, port);
   }
 
@@ -866,6 +953,10 @@ void BuildControls(PageBuilder& page, bool wii)
 
   if (page.IsPerGame())
     return;
+
+#ifdef HAS_LIBMGBA
+  BuildGBA(page);
+#endif
 
   page.Header("Profiles");
   for (const Kind kind : {Kind::GCPad, Kind::Wiimote})

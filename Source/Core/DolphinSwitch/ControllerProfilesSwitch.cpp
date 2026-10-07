@@ -17,6 +17,7 @@
 #include "Common/IniFile.h"
 #include "Common/Logging/Log.h"
 #include "Common/StringUtil.h"
+#include "Core/HW/GBAPadEmu.h"
 #include "Core/HW/GCPadEmu.h"
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteEmu/Extension/Classic.h"
@@ -349,6 +350,30 @@ void ApplyProfiles(Kind kind, const std::string& ini_name, const std::string& se
   if (!ini.Save(path))
     ERROR_LOG_FMT(CONTROLLERINTERFACE, "Could not write {}", path);
 }
+
+void ApplyGBAPads()
+{
+  const std::string path = File::GetUserPath(D_CONFIG_IDX) + "GBA.ini";
+
+  Common::IniFile ini;
+  ini.Load(path);
+
+  for (int slot = 0; slot < SLOT_COUNT; ++slot)
+  {
+    GBAPad pad(slot);
+    Common::IniFile::Section* section = ini.GetOrCreateSection(pad.GetName());
+    if (section->GetValues().empty())
+    {
+      pad.LoadDefaults(g_controller_interface);
+      pad.SaveConfig(section);
+    }
+
+    section->Set("Device", fmt::format("Horizon/0/Player {}", slot + 1));
+  }
+
+  if (!ini.Save(path))
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "Could not write {}", path);
+}
 }  // namespace
 
 std::string GetKindLabel(Kind kind)
@@ -533,5 +558,6 @@ void ApplyProfiles()
 {
   ApplyProfiles(Kind::GCPad, GCPAD_CONFIG, "GCPad");
   ApplyProfiles(Kind::Wiimote, WIIMOTE_INI_NAME ".ini", "Wiimote");
+  ApplyGBAPads();
 }
 }  // namespace ControllerProfiles

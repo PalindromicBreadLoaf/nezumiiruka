@@ -62,6 +62,7 @@ public:
   void SetMousePress(u32 button_mask);
 
   static void SetHostUICallback(std::function<void()> callback);
+  static void SetHostUIReleaseCallback(std::function<void()> callback);
 
 private:
   void DrawDebugText();

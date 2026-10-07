@@ -91,7 +91,21 @@ void GBAPad::LoadDefaults(const ControllerInterface& ciface)
 {
   EmulatedController::LoadDefaults(ciface);
 
-#ifndef ANDROID
+#if defined(__SWITCH__)
+  // Buttons
+  m_buttons->SetControlExpression(0, "`B`");
+  m_buttons->SetControlExpression(1, "`A`");
+  m_buttons->SetControlExpression(2, "`L`");
+  m_buttons->SetControlExpression(3, "`R`");
+  m_buttons->SetControlExpression(4, "`Minus`");  // Select
+  m_buttons->SetControlExpression(5, "`Plus`");   // Start
+
+  // D-Pad
+  m_dpad->SetControlExpression(0, "`Pad Up` | `Left Y+`");
+  m_dpad->SetControlExpression(1, "`Pad Down` | `Left Y-`");
+  m_dpad->SetControlExpression(2, "`Pad Left` | `Left X-`");
+  m_dpad->SetControlExpression(3, "`Pad Right` | `Left X+`");
+#elif !defined(ANDROID)
   // Buttons
   m_buttons->SetControlExpression(0, "`Z`");  // B
   m_buttons->SetControlExpression(1, "`X`");  // A

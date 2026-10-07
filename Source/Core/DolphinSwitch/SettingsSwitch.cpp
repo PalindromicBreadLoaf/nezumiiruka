@@ -44,6 +44,10 @@ const Info<UpdateChannel> SWITCH_UPDATE_CHANNEL{{System::Main, "Switch", "Update
                                                 UpdateChannel::Stable};
 const Info<std::string> SWITCH_SKIPPED_UPDATE{{System::Main, "Switch", "SkippedUpdate"}, ""};
 const Info<std::string> SWITCH_LAST_RUN_VERSION{{System::Main, "Switch", "LastRunVersion"}, ""};
+const Info<GBAScreens> SWITCH_GBA_SCREENS{{System::Main, "Switch", "GBAScreens"},
+                                          GBAScreens::Small};
+const Info<GBAScreenCorner> SWITCH_GBA_SCREEN_CORNER{{System::Main, "Switch", "GBAScreenCorner"},
+                                                     GBAScreenCorner::TopRight};
 }  // namespace Config
 
 namespace SwitchSettings
