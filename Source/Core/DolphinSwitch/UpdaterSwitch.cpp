@@ -32,7 +32,7 @@ namespace UpdaterSwitch
 namespace
 {
 constexpr const char* RELEASES_URL =
-    "https://api.github.com/repos/PalindromicBreadLoaf/porpoise/releases?per_page=20";
+    "https://api.github.com/repos/PalindromicBreadLoaf/nezumiiruka/releases?per_page=20";
 constexpr const char* USER_AGENT = "Nezumiiruka-Updater/" NEZUMIIRUKA_VERSION;
 constexpr std::string_view ASSET_NAME = "nezumiiruka.nro";
 constexpr std::string_view DIGEST_PREFIX = "sha256:";
