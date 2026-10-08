@@ -9,7 +9,7 @@ of reaching the goal of mostly fullspeed GameCube at stock handheld clockspeeds.
 Nezumiiruka itself is licensed under the same terms as Dolphin (GNU General Public License version 2 or later (GPLv2+)).
 LSFG-NX (of which some code was borrowed) is licensed under the GNU General Public License 3 or later (GPLv3+).
 Borealis is licensed under the Apache-2.0 license. libusbhsfs is licensed under the GNU General Public License version 2
-or later or later license (GPLv2+).
+or later license (GPLv2+).
 
 If you find this software helpful, consider donating at: https://ko-fi.com/palindromicbreadloaf
 
