@@ -9,11 +9,16 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cctype>
 #include <cstddef>
 #include <cstring>
+#include <ctime>
 #include <limits>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <new>
+#include <optional>
 #include <set>
 #include <span>
 #include <string>
@@ -22,6 +27,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <fmt/chrono.h>
 #include <fmt/format.h>
 
 #include <switch.h>
@@ -33,9 +39,16 @@
 #include "Common/HorizonThreadRegistry.h"
 #include "Common/HostCodeMemory.h"
 #include "Common/Logging/Log.h"
+#include "Common/MemoryUtil.h"
 #include "Common/Thread.h"
+#include "Common/TimeUtil.h"
+#include "Common/Version.h"
+#include "Core/Config/GraphicsSettings.h"
+#include "Core/Config/MainSettings.h"
+#include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
+#include "Core/HW/Memmap.h"
 #include "Core/HW/SystemTimers.h"
 #include "Core/PowerPC/JitCommon/JitCache.h"
 #include "Core/PowerPC/JitInterface.h"
@@ -44,6 +57,7 @@
 #include "VideoCommon/OnScreenDisplay.h"
 #include "VideoCommon/Statistics.h"
 #include "VideoCommon/VertexLoaderManager.h"
+#include "VideoCommon/VideoConfig.h"
 
 extern "C" void _start();
 extern "C" char __end__[];
@@ -59,10 +73,17 @@ constexpr u64 BUCKET_NS = 250'000'000;
 constexpr int PAUSE_RETRIES = 8;
 constexpr u64 PAUSE_RETRY_NS = 1'000;
 
+#ifdef NEZUMIIRUKA_FRAME_POINTERS
+constexpr bool FRAME_POINTERS = true;
+#else
+constexpr bool FRAME_POINTERS = false;
+#endif
+
 constexpr std::size_t MAX_THREADS = Common::HorizonThreadRegistry::MAX_THREADS;
 constexpr std::size_t MAX_REGIONS = 64;
-constexpr std::size_t MAX_FRAMES = 16;
+constexpr std::size_t MAX_FRAMES = FRAME_POINTERS ? 16 : 1;
 constexpr std::size_t MAX_SAMPLES = 512 * 1024;
+constexpr std::size_t MIN_SAMPLES = 4 * 1024;
 
 constexpr std::size_t MAX_REPORTED_BLOCKS = 24;
 constexpr std::size_t MAX_LISTED_BLOCKS = 60;
@@ -72,12 +93,6 @@ constexpr std::size_t MAX_LISTED_LOADERS = 20;
 constexpr std::size_t MAX_REPORTED_LOADERS = 6;
 
 constexpr u64 NO_TICKS = std::numeric_limits<u64>::max();
-
-#ifdef NEZUMIIRUKA_FRAME_POINTERS
-constexpr bool FRAME_POINTERS = true;
-#else
-constexpr bool FRAME_POINTERS = false;
-#endif
 
 struct Region
 {
@@ -164,7 +179,8 @@ struct Capture
   std::size_t thread_count = 0;
   u32 sampler_handle = INVALID_HANDLE;
 
-  std::vector<Sample> samples;
+  std::unique_ptr<Sample[]> samples;
+  std::size_t sample_capacity = 0;
   std::size_t sample_count = 0;
   u64 dropped_samples = 0;
   u64 rounds = 0;
@@ -180,6 +196,9 @@ struct Capture
   Result first_error = 0;
   double seconds = 0.0;
   double elapsed = 0.0;
+  std::string started_at;
+  std::string host_description;
+  std::string emulation_description;
   std::string report_path;
 
   std::unordered_map<u32, BlockLabel> block_labels;
@@ -340,7 +359,7 @@ void TakeSample(std::size_t index)
     svcSleepThread(PAUSE_RETRY_NS);
   }
 
-  Sample* const sample = s_capture.sample_count < s_capture.samples.size() ?
+  Sample* const sample = s_capture.sample_count < s_capture.sample_capacity ?
                              &s_capture.samples[s_capture.sample_count] :
                              nullptr;
   if (R_SUCCEEDED(result) && sample != nullptr)
@@ -500,7 +519,7 @@ void JoinSampler()
 
 std::span<const Sample> Samples()
 {
-  return {s_capture.samples.data(), s_capture.sample_count};
+  return {s_capture.samples.get(), s_capture.sample_count};
 }
 
 bool KeepLinkRegister(const Sample& sample)
@@ -751,27 +770,27 @@ double CpuShare(const ThreadRecord& thread)
 void AppendSummary(std::string& out, const std::vector<std::size_t>& order,
                    const std::vector<u64>& sample_counts, const std::vector<u64>& blocked_counts)
 {
-  out += fmt::format("Nezumiiruka profile: {:.2f} s, {} sampling rounds (~{} ms apart), {} samples, "
-                     "{} dropped\n",
-                     s_capture.elapsed, s_capture.rounds, SAMPLE_PERIOD_NS / 1'000'000,
-                     s_capture.sample_count, s_capture.dropped_samples);
+  out += fmt::format("Nezumiiruka profile started {}: {:.2f} s, {} sampling rounds (~{} ms apart), "
+                     "{} samples, {} dropped (buffer holds {})\n",
+                     s_capture.started_at, s_capture.elapsed, s_capture.rounds,
+                     SAMPLE_PERIOD_NS / 1'000'000, s_capture.sample_count,
+                     s_capture.dropped_samples, s_capture.sample_capacity);
   out += fmt::format("build id {}\n", Common::HorizonBuildId::GetHex().data());
+  out += fmt::format("scm {}\n", Common::GetScmDescStr());
+  out += s_capture.host_description;
+  out += s_capture.emulation_description;
   out += fmt::format("module base {} size {:#x}\n",
                      fmt::ptr(reinterpret_cast<const void*>(s_capture.module_start)),
                      s_capture.module_end - s_capture.module_start);
-  out += fmt::format("frame pointers: {}\n",
-                     FRAME_POINTERS ? "on, so stacks are full C++ call chains" :
-                                      "off, so stacks are the sampled function and its caller "
-                                      "only (configure with -DNEZUMIIRUKA_FRAME_POINTERS=ON)");
+  out += fmt::format("frame pointers: {}\n", FRAME_POINTERS ? "on" : "off");
   if (s_capture.first_error != 0)
   {
-    out += fmt::format("First failure was {:#x} (module {}, description {}). A process launched "
-                       "without the thread-activity syscalls cannot be sampled at all.\n",
-                       s_capture.first_error, R_MODULE(s_capture.first_error),
-                       R_DESCRIPTION(s_capture.first_error));
+    out +=
+        fmt::format("First failure was {:#x} (module {}, description {}).\n", s_capture.first_error,
+                    R_MODULE(s_capture.first_error), R_DESCRIPTION(s_capture.first_error));
   }
   if (!s_capture.jit_active)
-    out += "No JIT is active, so every CPU thread sample lands in the module.\n";
+    out += "No JIT is active. Every CPU thread sample lands in the module.\n";
 
   if (s_capture.buckets.size() >= 2)
   {
@@ -942,11 +961,7 @@ void AppendThread(std::string& out, std::size_t index, std::size_t column)
     std::vector<std::pair<u32, u64>> pcs(guest_pcs.begin(), guest_pcs.end());
     std::sort(pcs.begin(), pcs.end(),
               [](const auto& a, const auto& b) { return a.second > b.second; });
-    out += fmt::format("Guest PCs ({} distinct). A linked block exit branches straight to its "
-                       "successor without storing pc, so this is the last address the core went "
-                       "through the dispatcher for, not the one it is running. Read it as the "
-                       "entry point of a hot linked chain.\n",
-                       pcs.size());
+    out += fmt::format("Guest PCs ({} distinct).\n", pcs.size());
     for (const auto& [guest_pc, count] : pcs)
       out += fmt::format("  {:5.2f}%  {:7}  {:08x}\n", count * percent, count, guest_pc);
   }
@@ -966,8 +981,7 @@ void AppendBlocks(std::string& out, u64 cpu_samples)
   if (ranked.size() > MAX_LISTED_BLOCKS)
     ranked.resize(MAX_LISTED_BLOCKS);
 
-  out += "\nHot JIT blocks, as a share of CPU thread samples. self is time in the block's own "
-         "code; inclusive adds the C++ and assembly routines it called.\n";
+  out += "\nHot JIT blocks, as a share of CPU thread samples.\n";
   out += "     self  inclusive  block\n";
   for (const HotBlock* block : ranked)
   {
@@ -983,8 +997,7 @@ void AppendBlocks(std::string& out, u64 cpu_samples)
 
     out +=
         fmt::format("\nBlock {:08x}{}, {} host instructions. Columns are samples and the "
-                    "AArch64 encoding; Tools/symbolize-switch-profile.py --disasm turns it "
-                    "back into mnemonics.\n",
+                    "AArch64 encoding.\n",
                     block.guest_address, block.far_code ? " far" : "", block.instructions.size());
     u32 offset = 0;
     for (const auto& [encoding, count] : block.instructions)
@@ -1028,8 +1041,7 @@ void AppendLoaders(std::string& out)
   {
     const HotLoader& loader = *ranked[i];
     out += fmt::format("\nVertex loader L{}, {} host instructions. Columns are samples and the "
-                       "AArch64 encoding; Tools/symbolize-switch-profile.py --disasm turns it "
-                       "back into mnemonics.\n",
+                       "AArch64 encoding.\n",
                        &loader - s_capture.loaders.data(), loader.instructions.size());
     u32 offset = 0;
     for (const auto& [encoding, count] : loader.instructions)
@@ -1144,11 +1156,125 @@ void WriteReport()
     OSD::AddMessage("Profile capture done, but the report could not be written.", 8000);
   }
 
-  s_capture.samples = {};
+  s_capture.samples.reset();
+  s_capture.sample_capacity = 0;
   s_capture.block_labels = {};
   s_capture.hot_blocks = {};
   s_capture.loaders = {};
   s_capture.loader_vertices_at_start = {};
+}
+
+std::string_view CpuCoreName(PowerPC::CPUCore core)
+{
+  switch (core)
+  {
+  case PowerPC::CPUCore::Interpreter:
+    return "interpreter";
+  case PowerPC::CPUCore::CachedInterpreter:
+    return "cached interpreter";
+  case PowerPC::CPUCore::JITARM64:
+    return "JIT";
+  default:
+    return "other";
+  }
+}
+
+std::string_view ShaderModeName(ShaderCompilationMode mode)
+{
+  switch (mode)
+  {
+  case ShaderCompilationMode::Synchronous:
+    return "specialised";
+  case ShaderCompilationMode::SynchronousUberShaders:
+    return "exclusive ubershaders";
+  case ShaderCompilationMode::AsynchronousUberShaders:
+    return "hybrid ubershaders";
+  case ShaderCompilationMode::AsynchronousSkipRendering:
+    return "skip drawing";
+  default:
+    return "other";
+  }
+}
+
+std::string_view OnOff(bool value)
+{
+  return value ? "on" : "off";
+}
+
+std::string DescribeEmulation(Core::System& system)
+{
+  const SConfig& config = SConfig::GetInstance();
+  std::string out =
+      fmt::format("game {} rev {} \"{}\" ({})\n", config.GetGameID(), config.GetRevision(),
+                  config.GetTitleName(), system.IsWii() ? "Wii" : "GameCube");
+
+  out += fmt::format(
+      "cpu: {}, dual core {}, MMU {}, sync GPU {}, ",
+      CpuCoreName(Config::Get(Config::MAIN_CPU_CORE)), OnOff(Config::Get(Config::MAIN_CPU_THREAD)),
+      OnOff(Config::Get(Config::MAIN_MMU)), OnOff(Config::Get(Config::MAIN_SYNC_GPU)));
+  if (Config::Get(Config::MAIN_OVERCLOCK_ENABLE))
+    out += fmt::format("overclock {:.0f}%, ", 100.0f * Config::Get(Config::MAIN_OVERCLOCK));
+  else
+    out += "overclock off, ";
+  out += fmt::format("speed limit {:.0f}%, cheats {}\n",
+                     100.0f * Config::Get(Config::MAIN_EMULATION_SPEED),
+                     OnOff(Config::Get(Config::MAIN_ENABLE_CHEATS)));
+
+  out += fmt::format("fastmem {}, page table fastmem {}, arena {}\n",
+                     OnOff(Config::Get(Config::MAIN_FASTMEM)),
+                     OnOff(Config::Get(Config::MAIN_PAGE_TABLE_FASTMEM)),
+                     system.GetMemory().GetLogicalBase() != nullptr ? "mapped" : "not mapped");
+
+  const int efb_scale = Config::Get(Config::GFX_EFB_SCALE);
+  out += fmt::format("video: internal resolution {}, MSAA {}x{}, shaders {}, frame generation ",
+                     efb_scale == 0 ? "auto" : fmt::format("{}x", efb_scale),
+                     Config::Get(Config::GFX_MSAA), Config::Get(Config::GFX_SSAA) ? " SSAA" : "",
+                     ShaderModeName(Config::Get(Config::GFX_SHADER_COMPILATION_MODE)));
+  if (Config::Get(Config::GFX_FRAME_GENERATION))
+    out += fmt::format("{}x\n", Config::Get(Config::GFX_FRAME_GENERATION_MULTIPLIER));
+  else
+    out += "off\n";
+
+  out += fmt::format("hacks: skip EFB access {}, EFB copies to texture only {}, defer EFB copies "
+                     "{}, XFB copies to texture only {}, immediate XFB {}, ignore format changes "
+                     "{}, bounding box {}, VBI skip {}\n",
+                     OnOff(!Config::Get(Config::GFX_HACK_EFB_ACCESS_ENABLE)),
+                     OnOff(Config::Get(Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM)),
+                     OnOff(Config::Get(Config::GFX_HACK_DEFER_EFB_COPIES)),
+                     OnOff(Config::Get(Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM)),
+                     OnOff(Config::Get(Config::GFX_HACK_IMMEDIATE_XFB)),
+                     OnOff(!Config::Get(Config::GFX_HACK_EFB_EMULATE_FORMAT_CHANGES)),
+                     OnOff(Config::Get(Config::GFX_HACK_BBOX_ENABLE)),
+                     OnOff(Config::Get(Config::GFX_HACK_VI_SKIP)));
+  return out;
+}
+
+std::string ReportPath(const std::tm* time)
+{
+  std::string name = "profile";
+  std::string game_id = SConfig::GetInstance().GetGameID();
+  std::erase_if(game_id, [](char c) { return !std::isalnum(static_cast<unsigned char>(c)); });
+  if (!game_id.empty())
+    name += '-' + game_id;
+  if (time != nullptr)
+    name += fmt::format("-{:%Y%m%d-%H%M%S}", *time);
+  return File::GetUserPath(D_DUMP_IDX) + name + ".txt";
+}
+
+bool AllocateSamples(std::size_t wanted)
+{
+  const std::size_t budget = Common::MemUnallocated() / 4 / sizeof(Sample);
+  for (std::size_t count = std::min({wanted, MAX_SAMPLES, budget}); count >= MIN_SAMPLES;
+       count /= 2)
+  {
+    s_capture.samples.reset(new (std::nothrow) Sample[count]);
+    if (s_capture.samples)
+    {
+      s_capture.sample_capacity = count;
+      return true;
+    }
+  }
+  return false;
 }
 }  // namespace
 
@@ -1173,7 +1299,7 @@ bool IsRunning()
   return s_running.load(std::memory_order_relaxed);
 }
 
-void Start(Core::System& system, double seconds)
+void Start(Core::System& system, double seconds, std::string host_description)
 {
   if (IsRunning())
     return;
@@ -1194,7 +1320,11 @@ void Start(Core::System& system, double seconds)
   s_capture.ppc_state = &system.GetPPCState();
   s_capture.global_timer = &system.GetCoreTiming().GetGlobals().global_timer;
   s_capture.ticks_per_second = system.GetSystemTimers().GetTicksPerSecond();
-  s_capture.report_path = File::GetUserPath(D_DUMP_IDX) + "profile.txt";
+  const std::optional<std::tm> now = Common::LocalTime(std::time(nullptr));
+  s_capture.started_at = now ? fmt::format("{:%Y-%m-%d %H:%M:%S}", *now) : "at an unknown time";
+  s_capture.report_path = ReportPath(now ? &*now : nullptr);
+  s_capture.host_description = std::move(host_description);
+  s_capture.emulation_description = DescribeEmulation(system);
 
   const auto [code_start, code_end] = Common::HostCodeMemory::GetExecutableRange();
   s_capture.code_start = reinterpret_cast<uintptr_t>(code_start);
@@ -1238,8 +1368,12 @@ void Start(Core::System& system, double seconds)
   std::array<ThreadInfo, MAX_THREADS> threads;
   const std::size_t thread_count = Common::HorizonThreadRegistry::Snapshot(threads);
   const double rounds = seconds * 1e9 / SAMPLE_PERIOD_NS;
-  s_capture.samples.resize(std::min<std::size_t>(
-      MAX_SAMPLES, static_cast<std::size_t>(rounds * static_cast<double>(thread_count + 2))));
+  if (!AllocateSamples(static_cast<std::size_t>(rounds * static_cast<double>(thread_count + 2))))
+  {
+    s_capture = {};
+    OSD::AddMessage("Not enough free memory to profile", 4000);
+    return;
+  }
   s_capture.buckets.reserve(static_cast<std::size_t>(seconds * 1e9 / BUCKET_NS) + 8);
 
   File::CreateFullPath(File::GetUserPath(D_DUMP_IDX));
@@ -1269,13 +1403,6 @@ void Poll(Core::System& system)
   WriteReport();
 }
 
-void Toggle(Core::System& system, double seconds)
-{
-  if (IsRunning())
-    Stop();
-  else
-    Start(system, seconds);
-}
 }  // namespace Core::HorizonSampler
 
 #endif

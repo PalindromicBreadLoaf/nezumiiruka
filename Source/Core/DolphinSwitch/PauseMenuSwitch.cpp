@@ -172,6 +172,91 @@ void DrawArrow(ImDrawList* draw, ImVec2 centre, float size, ArrowDirection direc
     break;
   }
 }
+std::string_view ProductModelName(SetSysProductModel model)
+{
+  switch (model)
+  {
+  case SetSysProductModel_Nx:
+    return "Erista";
+  case SetSysProductModel_Iowa:
+    return "Mariko";
+  case SetSysProductModel_Hoag:
+    return "Lite";
+  case SetSysProductModel_Aula:
+    return "OLED";
+  default:
+    return "unknown";
+  }
+}
+
+std::string_view PerformanceProfileName(Config::PerformanceProfile profile)
+{
+  switch (profile)
+  {
+  case Config::PerformanceProfile::Stock:
+    return "stock";
+  case Config::PerformanceProfile::FasterMemoryAndGpu:
+    return "faster memory and GPU";
+  case Config::PerformanceProfile::FasterMemory:
+  default:
+    return "faster memory";
+  }
+}
+
+std::string ProfileClockRate(PcvModule module, PcvModuleId module_id)
+{
+  u32 hz = 0;
+  if (hosversionAtLeast(8, 0, 0))
+  {
+    ClkrstSession session;
+    if (R_FAILED(clkrstOpenSession(&session, module_id, 3)))
+      return "n/a";
+    const Result rc = clkrstGetClockRate(&session, &hz);
+    clkrstCloseSession(&session);
+    if (R_FAILED(rc))
+      return "n/a";
+  }
+  else if (R_FAILED(pcvGetClockRate(module, &hz)))
+  {
+    return "n/a";
+  }
+  return fmt::format("{:.1f} MHz", hz / 1e6);
+}
+
+std::string DescribeHostForProfile()
+{
+  std::string out = fmt::format("Nezumiiruka {}\n", NEZUMIIRUKA_VERSION);
+
+  SetSysProductModel model = SetSysProductModel_Invalid;
+  if (R_SUCCEEDED(setsysInitialize()))
+  {
+    setsysGetProductModel(&model);
+    setsysExit();
+  }
+  const u32 version = hosversionGet();
+  out += fmt::format(
+      "console {}, firmware {}.{}.{}{}, {}\n", ProductModelName(model), HOSVER_MAJOR(version),
+      HOSVER_MINOR(version), HOSVER_MICRO(version), hosversionIsAtmosphere() ? " (Atmosphere)" : "",
+      appletGetOperationMode() == AppletOperationMode_Console ? "docked" : "handheld");
+
+  const bool clkrst = hosversionAtLeast(8, 0, 0);
+  const bool clocks_open = R_SUCCEEDED(clkrst ? clkrstInitialize() : pcvInitialize());
+  out +=
+      fmt::format("clocks: CPU {}, GPU {}, memory {}; clock profile {} (configuration {:#010x})\n",
+                  clocks_open ? ProfileClockRate(PcvModule_CpuBus, PcvModuleId_CpuBus) : "n/a",
+                  clocks_open ? ProfileClockRate(PcvModule_GPU, PcvModuleId_GPU) : "n/a",
+                  clocks_open ? ProfileClockRate(PcvModule_EMC, PcvModuleId_EMC) : "n/a",
+                  PerformanceProfileName(Config::Get(Config::SWITCH_PERFORMANCE_PROFILE)),
+                  SwitchSettings::GetPerformanceConfiguration());
+  if (clocks_open)
+  {
+    if (clkrst)
+      clkrstExit();
+    else
+      pcvExit();
+  }
+  return out;
+}
 }  // namespace
 
 PauseMenu::PauseMenu(Core::System& system, std::string disc_path,
@@ -570,7 +655,13 @@ std::vector<PauseMenu::Row> PauseMenu::BuildMain()
       Row{.label =
               Core::HorizonSampler::IsRunning() ? "Stop profile capture" : "Capture profile",
           .activate = [this] {
-            Close([this] { Core::HorizonSampler::Toggle(m_system, PROFILE_CAPTURE_SECONDS); });
+            Close([this] {
+              if (Core::HorizonSampler::IsRunning())
+                Core::HorizonSampler::Stop();
+              else
+                Core::HorizonSampler::Start(m_system, PROFILE_CAPTURE_SECONDS,
+                                            DescribeHostForProfile());
+            });
           }});
 
   rows.push_back(

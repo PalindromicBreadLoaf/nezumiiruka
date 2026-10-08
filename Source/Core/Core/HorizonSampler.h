@@ -6,12 +6,13 @@
 
 #ifdef __SWITCH__
 
+#include <string>
+
 namespace Core
 {
 class System;
 }
 
-// Statistical profiler for every thread that has named itself through Common::SetCurrentThreadName.
 namespace Core::HorizonSampler
 {
 void RegisterCpuThread();
@@ -21,9 +22,8 @@ bool IsRunning();
 
 void Poll(Core::System& system);
 
-void Start(Core::System& system, double seconds);
+void Start(Core::System& system, double seconds, std::string host_description);
 void Stop();
-void Toggle(Core::System& system, double seconds);
 }  // namespace Core::HorizonSampler
 
 #endif
