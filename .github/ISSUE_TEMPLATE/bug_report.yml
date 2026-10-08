@@ -1,0 +1,184 @@
+# Copyright 2026 Dolphin Emulator Project
+# Copyright 2026 PalindromicBreadLoaf (palindromicbreadloaf@tuta.com)
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+name: Bug report
+description: Report anything that is broken.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search the existing issues first be sure to test with the latest release.
+
+  - type: input
+    id: version
+    attributes:
+      label: Nezumiiruka version and build ID
+      description: Settings -> About shows the Version, Revision and Build ID (first 8 characters). Please copy all three.
+      placeholder: "1.0.0-rc1, 3d568be4a0, build ID 1a2b3c4d..."
+    validations:
+      required: true
+
+  - type: input
+    id: hos
+    attributes:
+      label: Horizon version
+      description: System Settings -> System.
+      placeholder: "20.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: ams
+    attributes:
+      label: Atmosphère version
+      description: |
+        Shown under "Current version" in System Settings -> System, after the firmware version
+        (for example `20.0.0|AMS 1.12.0|E`).
+      placeholder: "1.12.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: model
+    attributes:
+      label: Console model
+      options:
+        - Switch v1 (Erista)
+        - Switch v2 (Mariko)
+        - Switch Lite
+        - Switch OLED
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Docked or handheld?
+      options:
+        - Handheld
+        - Docked
+        - Both
+    validations:
+      required: true
+
+  - type: input
+    id: clocks
+    attributes:
+      label: Overclocking
+      description: |
+        Are you overclocking (Horizon OC)? If so, list the CPU, GPU and memory clocks.
+        Write "Stock" if you are not.
+      placeholder: "CPU 1785 MHz, GPU 921 MHz, MEM 1600 MHz"
+    validations:
+      required: true
+
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      description: |
+        The game name, region, and title ID. Leave this empty if the problem is not tied to one game.
+      placeholder: "Super Mario Sunshine (USA), GMSE01"
+
+  - type: input
+    id: format
+    attributes:
+      label: Game file format and location
+      description: The file type and whether it is on the SD card or a USB drive.
+      placeholder: "RVZ / SD card"
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Settings you have changed
+      description: |
+        The renderer (Deko3D (default) or Vulkan) and anything else you have changed.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can I make this happen? Does it happen every time?
+      placeholder: |
+        1. Boot the game
+        2. Start a new game
+        3. Enter the first level
+        4. The game freezes
+    validations:
+      required: true
+
+  - type: textarea
+    id: regression
+    attributes:
+      label: Did this work before?
+      description: |
+        If an earlier Nezumiiruka version worked, say which. If you have tried the same game in
+        Dolphin on a PC or Android, say whether the problem happens there too.
+
+  - type: textarea
+    id: main-log
+    attributes:
+      label: Nezumiiruka log (dolphin.log)
+      description: |
+        Required for every report. The log is `/switch/nezumiiruka/Logs/dolphin.log`.
+
+        It keeps growing across launches, so if it's too large, please delete it, reproduce the problem once,
+        then attach the new file.
+    validations:
+      required: true
+
+  - type: textarea
+    id: crash-log
+    attributes:
+      label: Crash log (crash.log)
+      description: |
+        If Nezumiiruka crashed, attach `/switch/nezumiiruka/crash.log`.
+
+  - type: textarea
+    id: ams-report
+    attributes:
+      label: Atmosphère crash report
+      description: |
+        If the console showed an Atmosphère error screen ("A fatal error occurred"),
+        attach the newest file from `/atmosphere/crash_reports/`, and from
+        `/atmosphere/fatal_errors/` if anything is there.
+
+  - type: textarea
+    id: profile
+    attributes:
+      label: Performance profile
+      description: |
+        For slowdowns only. While the slow part is on screen, press + and − together to open the
+        pause menu and choose "Capture profile". Keep still until the capture finishes (a message
+        appears on screen), then attach the newest `profile-<game ID>-<date>.txt` from
+        `/switch/nezumiiruka/Dump/`.
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or video
+      description: |
+        Very helpful for graphical problems. You can use the console's capture button, or "Take
+        screenshot", in the pause menu. Those screenshots are saved in
+        `/switch/nezumiiruka/ScreenShots/`.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I have searched the existing issues and this has not already been reported.
+          required: true
+        - label: I legally dumped this game myself.
+          required: true
