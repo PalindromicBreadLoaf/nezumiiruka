@@ -541,9 +541,28 @@ void GameListView::ShowCover(const UICommon::GameFile& game)
   }
 }
 
+std::string GameListView::FindOtherDisc(const UICommon::GameFile& game) const
+{
+  if (!DiscIO::IsDisc(game.GetPlatform()))
+    return {};
+
+  std::string match_without_revision;
+  for (const GamePtr& other : m_games)
+  {
+    if (other->GetGameID() != game.GetGameID() || other->GetDiscNumber() == game.GetDiscNumber())
+      continue;
+
+    if (other->GetRevision() == game.GetRevision())
+      return other->GetFilePath();
+    match_without_revision = other->GetFilePath();
+  }
+  return match_without_revision;
+}
+
 void GameListView::Launch(const GamePtr& game, bool riivolution)
 {
-  m_chosen = {.path = game->GetFilePath(), .riivolution = riivolution};
+  m_chosen = {
+      .path = game->GetFilePath(), .other_disc = FindOtherDisc(*game), .riivolution = riivolution};
   brls::Application::quit();
 }
 

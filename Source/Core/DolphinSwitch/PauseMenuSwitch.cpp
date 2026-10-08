@@ -44,6 +44,7 @@
 #include "UICommon/GameFileCache.h"
 #include "VideoCommon/AsyncRequests.h"
 #include "VideoCommon/OnScreenUI.h"
+#include "VideoCommon/PostProcessing.h"
 #include "VideoCommon/Present.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -261,7 +262,8 @@ std::string DescribeHostForProfile()
 
 PauseMenu::PauseMenu(Core::System& system, std::string disc_path,
                      std::function<void()> request_quit)
-    : m_system(system), m_disc_path(std::move(disc_path)), m_request_quit(std::move(request_quit))
+    : m_system(system), m_disc_path(std::move(disc_path)), m_request_quit(std::move(request_quit)),
+      m_figures(system)
 {
   m_pl_initialized = R_SUCCEEDED(plInitialize(PlServiceType_User));
   if (m_pl_initialized)
@@ -391,6 +393,12 @@ void PauseMenu::HandleInput(u64 buttons, u64 pressed)
     return;
   }
 
+  if (pressed & (HidNpadButton_L | HidNpadButton_R))
+  {
+    JumpSelection((pressed & HidNpadButton_L) ? -MAX_VISIBLE_ROWS : MAX_VISIBLE_ROWS);
+    return;
+  }
+
   const int selected = CurrentPage().selected;
   if ((pressed & HidNpadButton_A) && selected < static_cast<int>(m_rows.size()))
   {
@@ -459,6 +467,25 @@ void PauseMenu::MoveSelection(int delta)
     if (m_rows[index].kind != RowKind::Header)
       break;
   }
+
+  page.selected = index;
+  ClampSelection();
+  Publish();
+}
+
+void PauseMenu::JumpSelection(int delta)
+{
+  const int count = static_cast<int>(m_rows.size());
+  if (count == 0)
+    return;
+
+  Page& page = CurrentPage();
+  int index = std::clamp(page.selected + delta, 0, count - 1);
+  const int step = delta < 0 ? -1 : 1;
+  while (index >= 0 && index < count && m_rows[index].kind == RowKind::Header)
+    index += step;
+  if (index < 0 || index >= count)
+    return;
 
   page.selected = index;
   ClampSelection();
@@ -544,6 +571,18 @@ void PauseMenu::Rebuild()
   case PageId::Discs:
     m_rows = BuildDiscs();
     break;
+  case PageId::Figures:
+    m_rows = BuildFigures();
+    break;
+  case PageId::FigureFiles:
+    m_rows = BuildFigureFiles();
+    break;
+  case PageId::FigureGames:
+    m_rows = BuildFigureGames();
+    break;
+  case PageId::FigureCharacters:
+    m_rows = BuildFigureCharacters();
+    break;
   case PageId::Confirm:
     m_rows = BuildConfirm();
     break;
@@ -594,6 +633,14 @@ std::string PauseMenu::GetPageTitle() const
     return "Cheats";
   case PageId::Discs:
     return "Change disc";
+  case PageId::Figures:
+    return "Figures";
+  case PageId::FigureFiles:
+    return DescribeFigureTarget();
+  case PageId::FigureGames:
+    return "Choose a game";
+  case PageId::FigureCharacters:
+    return "Create a figure";
   case PageId::Confirm:
     return m_confirmation ? m_confirmation->action : "";
   }
@@ -620,6 +667,7 @@ std::vector<PauseMenu::Row> PauseMenu::BuildMain()
   rows.push_back(std::move(load));
 
   rows.push_back(Row{.kind = RowKind::Submenu, .label = "Settings", .activate = [this] {
+                       m_post_shaders = VideoCommon::PostProcessing::GetShaderList();
                        Push(PageId::Settings);
                      }});
   rows.push_back(Row{.kind = RowKind::Submenu, .label = "Controls", .activate = [this] {
@@ -638,6 +686,13 @@ std::vector<PauseMenu::Row> PauseMenu::BuildMain()
   }
   rows.push_back(std::move(cheats));
 
+  if (HasFigureDevices())
+  {
+    rows.push_back(Row{.kind = RowKind::Submenu, .label = "Figures", .activate = [this] {
+                         Push(PageId::Figures);
+                       }});
+  }
+
   if (!m_disc_path.empty())
   {
     rows.push_back(Row{.kind = RowKind::Submenu, .label = "Change disc", .activate = [this] {
@@ -652,8 +707,7 @@ std::vector<PauseMenu::Row> PauseMenu::BuildMain()
                      .activate = [this] { Close([] { Core::SaveScreenShot(); }); }});
 
   rows.push_back(
-      Row{.label =
-              Core::HorizonSampler::IsRunning() ? "Stop profile capture" : "Capture profile",
+      Row{.label = Core::HorizonSampler::IsRunning() ? "Stop profile capture" : "Capture profile",
           .activate = [this] {
             Close([this] {
               if (Core::HorizonSampler::IsRunning())
@@ -803,6 +857,14 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
   AddChoice<bool>(rows, "Widescreen hack", {{"Off", false}, {"On", true}},
                   Config::Get(Config::GFX_WIDESCREEN_HACK),
                   [this](const bool& value) { WriteForGame(Config::GFX_WIDESCREEN_HACK, value); });
+
+  Options<std::string> shaders = {{"Off", ""}};
+  for (const std::string& shader : m_post_shaders)
+    shaders.emplace_back(shader, shader);
+  AddChoice<std::string>(
+      rows, "Post-processing shader", std::move(shaders),
+      Config::Get(Config::GFX_ENHANCE_POST_SHADER),
+      [this](const std::string& value) { WriteForGame(Config::GFX_ENHANCE_POST_SHADER, value); });
 
   AddChoice<float>(rows, "Speed limit",
                    {{"50%", 0.5f},
@@ -1087,6 +1149,162 @@ std::vector<PauseMenu::Row> PauseMenu::BuildDiscs()
   return rows;
 }
 
+bool PauseMenu::HasFigureDevices() const
+{
+  return m_system.IsWii() && (Config::Get(Config::MAIN_EMULATE_SKYLANDER_PORTAL) ||
+                              Config::Get(Config::MAIN_EMULATE_INFINITY_BASE));
+}
+
+std::string PauseMenu::DescribeFigureTarget() const
+{
+  if (m_figure_target.infinity)
+    return FiguresSwitch::GetInfinitySlotName(m_figure_target.slot);
+  return fmt::format("Portal slot {}", m_figure_target.slot + 1);
+}
+
+std::vector<PauseMenu::Row> PauseMenu::BuildFigures()
+{
+  std::vector<Row> rows;
+
+  const auto add_slot = [this, &rows](bool infinity, size_t slot, std::string label,
+                                      const std::string& name) {
+    rows.push_back(Row{.kind = RowKind::Submenu,
+                       .label = std::move(label),
+                       .value = name.empty() ? std::string("Empty") : name,
+                       .activate = [this, infinity, slot] {
+                         m_figure_target = {.infinity = infinity, .slot = slot};
+                         Defer("Looking for figures...", [this, infinity] {
+                           m_figure_files = infinity ? FiguresSwitch::ListInfinityFiles() :
+                                                       FiguresSwitch::ListSkylanderFiles();
+                           Push(PageId::FigureFiles);
+                         });
+                       }});
+  };
+
+  if (Config::Get(Config::MAIN_EMULATE_SKYLANDER_PORTAL))
+  {
+    rows.push_back(Row{.kind = RowKind::Header, .label = "Skylanders portal"});
+    for (size_t slot = 0; slot < FiguresSwitch::SKYLANDER_SLOTS; ++slot)
+    {
+      add_slot(false, slot, fmt::format("Slot {}", slot + 1), m_figures.GetSkylanderName(slot));
+    }
+  }
+
+  if (Config::Get(Config::MAIN_EMULATE_INFINITY_BASE))
+  {
+    rows.push_back(Row{.kind = RowKind::Header, .label = "Disney Infinity base"});
+    for (size_t slot = 0; slot < FiguresSwitch::INFINITY_SLOTS; ++slot)
+    {
+      add_slot(true, slot, FiguresSwitch::GetInfinitySlotName(slot),
+               m_figures.GetInfinityName(slot));
+    }
+  }
+
+  return rows;
+}
+
+void PauseMenu::FinishPlacingFigure(const std::string& error, const std::string& success)
+{
+  if (error.empty())
+  {
+    while (m_pages.size() > 1 && CurrentPage().id != PageId::Figures)
+      m_pages.pop_back();
+    Rebuild();
+  }
+
+  m_status = error.empty() ? success : error;
+  Publish();
+}
+
+std::vector<PauseMenu::Row> PauseMenu::BuildFigureFiles()
+{
+  std::vector<Row> rows;
+  const FigureTarget target = m_figure_target;
+
+  const std::string& current = target.infinity ? m_figures.GetInfinityName(target.slot) :
+                                                 m_figures.GetSkylanderName(target.slot);
+  if (!current.empty())
+  {
+    rows.push_back(Row{.label = "Remove the figure", .value = current, .activate = [this, target] {
+                         if (target.infinity)
+                           m_figures.RemoveInfinity(target.slot);
+                         else
+                           m_figures.RemoveSkylander(target.slot);
+                         FinishPlacingFigure({}, "Figure removed.");
+                       }});
+  }
+
+  rows.push_back(
+      Row{.kind = RowKind::Submenu, .label = "Create a new figure", .activate = [this, target] {
+            if (target.infinity)
+            {
+              m_figure_characters = FiguresSwitch::GetInfinityCharacters(target.slot);
+              Push(PageId::FigureCharacters);
+            }
+            else
+            {
+              Push(PageId::FigureGames);
+            }
+          }});
+
+  rows.push_back(Row{.kind = RowKind::Header, .label = "Your figures"});
+  for (const FiguresSwitch::FigureFile& file : m_figure_files)
+  {
+    rows.push_back(Row{.label = file.name, .activate = [this, target, file] {
+                         const std::string error =
+                             target.infinity ? m_figures.LoadInfinity(target.slot, file.path) :
+                                               m_figures.LoadSkylander(target.slot, file.path);
+                         FinishPlacingFigure(error, fmt::format("Placed {}.", file.name));
+                       }});
+  }
+
+  if (m_figure_files.empty())
+    rows.push_back(Row{.label = "No figure files found.", .enabled = false});
+
+  return rows;
+}
+
+std::vector<PauseMenu::Row> PauseMenu::BuildFigureGames()
+{
+  std::vector<Row> rows;
+
+  const std::vector<std::string> games = FiguresSwitch::GetSkylanderGames();
+  for (size_t game = 0; game < games.size(); ++game)
+  {
+    rows.push_back(Row{.kind = RowKind::Submenu, .label = games[game], .activate = [this, game] {
+                         m_figure_target.game = game;
+                         m_figure_characters = FiguresSwitch::GetSkylanderCharacters(game);
+                         Push(PageId::FigureCharacters);
+                       }});
+  }
+
+  return rows;
+}
+
+std::vector<PauseMenu::Row> PauseMenu::BuildFigureCharacters()
+{
+  std::vector<Row> rows;
+  const FigureTarget target = m_figure_target;
+
+  for (const FiguresSwitch::Character& character : m_figure_characters)
+  {
+    rows.push_back(
+        Row{.label = character.name, .activate = [this, target, character] {
+              Defer(fmt::format("Creating {}...", character.name), [this, target, character] {
+                const std::string error = target.infinity ?
+                                              m_figures.CreateInfinity(target.slot, character) :
+                                              m_figures.CreateSkylander(target.slot, character);
+                FinishPlacingFigure(error, fmt::format("Created and placed {}.", character.name));
+              });
+            }});
+  }
+
+  if (rows.empty())
+    rows.push_back(Row{.label = "No figures fit this slot.", .enabled = false});
+
+  return rows;
+}
+
 std::vector<PauseMenu::Row> PauseMenu::BuildConfirm()
 {
   if (!m_confirmation)
@@ -1157,6 +1375,14 @@ void PauseMenu::Publish()
       view.message = "Profiles are created and edited from the game list.";
     else if (page == PageId::Cheats)
       view.message = "Changes take effect when you leave this page.";
+    else if (page == PageId::Figures)
+      view.message = "Figures stay in place until you remove them or quit the game.";
+    else if (page == PageId::FigureFiles)
+      view.message = fmt::format("Figure files are read from {}.",
+                                 m_figure_target.infinity ? FiguresSwitch::GetInfinityDirectory() :
+                                                            FiguresSwitch::GetSkylanderDirectory());
+    else if (page == PageId::FigureCharacters)
+      view.message = "Creates a new, blank figure file.";
 
     view.rows.reserve(m_rows.size());
     for (const Row& row : m_rows)

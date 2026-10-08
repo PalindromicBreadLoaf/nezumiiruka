@@ -4,6 +4,8 @@ add_executable(nezumiiruka
   ControllerProfilesSwitch.cpp
   ControllerProfilesSwitch.h
   CrashHandlerSwitch.cpp
+  FiguresSwitch.cpp
+  FiguresSwitch.h
   HorizonCompatSwitch.cpp
   HorizonExceptionEntry.h
   HorizonExceptionEntry.S

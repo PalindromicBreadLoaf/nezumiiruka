@@ -13,6 +13,7 @@ namespace Shell
 struct BootRequest
 {
   std::string path;
+  std::string other_disc;
   u64 nand_title_id = 0;
   bool riivolution = false;
 

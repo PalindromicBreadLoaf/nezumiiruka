@@ -5,8 +5,13 @@
 #include "DolphinSwitch/ShellSettingsSwitch.h"
 
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <functional>
+#include <initializer_list>
+#include <limits>
 #include <optional>
 #include <string>
 #include <thread>
@@ -28,6 +33,7 @@
 #include "Common/Config/Layer.h"
 #include "Common/FileUtil.h"
 #include "Common/HorizonBuildId.h"
+#include "Common/Logging/LogManager.h"
 #include "Common/StringUtil.h"
 #include "Common/Version.h"
 #ifdef USE_RETRO_ACHIEVEMENTS
@@ -45,6 +51,7 @@
 #include "Core/PowerPC/PowerPC.h"
 #include "DiscIO/Enums.h"
 #include "DolphinSwitch/ControllerProfilesSwitch.h"
+#include "DolphinSwitch/FiguresSwitch.h"
 #include "DolphinSwitch/RiivolutionSwitch.h"
 #include "DolphinSwitch/SettingsSwitch.h"
 #ifdef USE_RETRO_ACHIEVEMENTS
@@ -64,6 +71,9 @@
 #ifdef HAS_FRAME_GENERATION
 #include "VideoBackends/Deko3D/DKFrameGenerationShaders.h"
 #endif
+#include "VideoCommon/GraphicsModSystem/Config/GraphicsMod.h"
+#include "VideoCommon/GraphicsModSystem/Config/GraphicsModGroup.h"
+#include "VideoCommon/PostProcessing.h"
 #include "VideoCommon/VideoBackendBase.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -202,7 +212,7 @@ public:
   bool IsPerGame() const { return m_context->IsPerGame(); }
   const ContextPtr& GetContext() const { return m_context; }
 
-  void Header(const std::string& title, const std::string& subtitle = {})
+  brls::View* Header(const std::string& title, const std::string& subtitle = {})
   {
     auto* header = new brls::Header();
     header->setTitle(title);
@@ -210,9 +220,10 @@ public:
       header->setSubtitle(subtitle);
     header->setMarginTop(m_box->getChildren().empty() ? 0 : 24);
     m_box->addView(header);
+    return header;
   }
 
-  void Note(const std::string& text)
+  brls::View* Note(const std::string& text)
   {
     auto* label = new brls::Label();
     label->setText(text);
@@ -221,25 +232,29 @@ public:
     label->setVerticalAlign(brls::VerticalAlign::TOP);
     label->setMargins(8, 16, 16, 16);
     m_box->addView(label);
+    return label;
   }
 
-  void Toggle(const std::string& title, const Config::Info<bool>& info, bool inverted = false)
+  brls::View* Toggle(const std::string& title, const Config::Info<bool>& info,
+                     bool inverted = false, std::function<void()> on_changed = {})
   {
     if (IsPerGame())
-    {
-      Choice(title, info, {{"Off", inverted}, {"On", !inverted}});
-      return;
-    }
+      return Choice(title, info, {{"Off", inverted}, {"On", !inverted}}, std::move(on_changed));
 
     auto* cell = new brls::BooleanCell();
-    cell->init(
-        title, m_context->Read(info) != inverted,
-        [context = m_context, &info, inverted](bool on) { context->Write(info, on != inverted); });
+    cell->init(title, m_context->Read(info) != inverted,
+               [context = m_context, &info, inverted, on_changed = std::move(on_changed)](bool on) {
+                 context->Write(info, on != inverted);
+                 if (on_changed)
+                   on_changed();
+               });
     m_box->addView(cell);
+    return cell;
   }
 
   template <typename T>
-  void Choice(const std::string& title, const Config::Info<T>& info, std::vector<Option<T>> options)
+  brls::View* Choice(const std::string& title, const Config::Info<T>& info,
+                     std::vector<Option<T>> options, std::function<void()> on_changed = {})
   {
     std::vector<std::string> labels;
     for (const Option<T>& option : options)
@@ -261,10 +276,11 @@ public:
     };
     binding.clear = [context = m_context, location] { context->Clear(location); };
 
-    Custom(title, std::move(labels), std::move(binding));
+    return Custom(title, std::move(labels), std::move(binding), std::move(on_changed));
   }
 
-  void Custom(const std::string& title, std::vector<std::string> labels, Binding binding)
+  brls::View* Custom(const std::string& title, std::vector<std::string> labels, Binding binding,
+                     std::function<void()> on_changed = {})
   {
     auto* cell = new brls::SelectorCell();
     const int option_count = static_cast<int>(labels.size());
@@ -278,12 +294,14 @@ public:
         selected = option_count;
       }
 
-      cell->init(title, labels, selected, [binding, option_count](int index) {
+      cell->init(title, labels, selected, [binding, option_count, on_changed](int index) {
         if (index < option_count)
           binding.write(index);
+        if (on_changed)
+          on_changed();
       });
       m_box->addView(cell);
-      return;
+      return cell;
     }
 
     const int inherited = binding.inherited();
@@ -313,19 +331,23 @@ public:
                                             theme["brls/text_disabled"]);
     };
 
-    cell->init(title, choices, selected, [binding, option_count, colour_detail](int index) {
-      if (index == 0)
-        binding.clear();
-      else if (index <= option_count)
-        binding.write(index - 1);
-      colour_detail(index != 0);
-    });
+    cell->init(title, choices, selected,
+               [binding, option_count, colour_detail, on_changed](int index) {
+                 if (index == 0)
+                   binding.clear();
+                 else if (index <= option_count)
+                   binding.write(index - 1);
+                 colour_detail(index != 0);
+                 if (on_changed)
+                   on_changed();
+               });
     colour_detail(selected != 0);
     m_box->addView(cell);
+    return cell;
   }
 
-  void Text(const std::string& title, const Config::Info<std::string>& info,
-            const std::string& placeholder)
+  brls::View* Text(const std::string& title, const Config::Info<std::string>& info,
+                   const std::string& placeholder)
   {
     auto* cell = new brls::InputCell();
     cell->init(
@@ -333,6 +355,7 @@ public:
         [context = m_context, &info](std::string value) { context->Write(info, value); },
         placeholder, title, 256);
     m_box->addView(cell);
+    return cell;
   }
 
   brls::DetailCell* Action(const std::string& title, const std::string& detail,
@@ -368,6 +391,45 @@ private:
   brls::Box* m_box;
 };
 
+class Dependents
+{
+public:
+  explicit Dependents(std::function<bool()> condition) : m_condition(std::move(condition)) {}
+
+  void Add(brls::View* view)
+  {
+    m_views.push_back(view);
+    view->setVisibility(m_condition() ? brls::Visibility::VISIBLE : brls::Visibility::GONE);
+  }
+
+  void Refresh() const
+  {
+    const brls::Visibility visibility =
+        m_condition() ? brls::Visibility::VISIBLE : brls::Visibility::GONE;
+    for (brls::View* view : m_views)
+      view->setVisibility(visibility);
+  }
+
+private:
+  std::function<bool()> m_condition;
+  std::vector<brls::View*> m_views;
+};
+
+using DependentsPtr = std::shared_ptr<Dependents>;
+
+DependentsPtr ShowWhen(std::function<bool()> condition)
+{
+  return std::make_shared<Dependents>(std::move(condition));
+}
+
+std::function<void()> RefreshOf(std::initializer_list<DependentsPtr> dependents)
+{
+  return [dependents = std::vector<DependentsPtr>(dependents)] {
+    for (const DependentsPtr& entry : dependents)
+      entry->Refresh();
+  };
+}
+
 using PageFn = std::function<void(PageBuilder&)>;
 
 brls::View* CreatePage(const ContextPtr& context, const PageFn& build, bool is_settings = true)
@@ -396,7 +458,8 @@ void AddPage(brls::TabFrame* tabs, const ContextPtr& context, const std::string&
   tabs->addTab(label, [context, build] { return CreatePage(context, build); });
 }
 
-Binding OverclockBinding(const ContextPtr& context, const std::vector<float>& factors)
+Binding OverclockBinding(const ContextPtr& context, const Config::Info<bool>& enable_info,
+                         const Config::Info<float>& factor_info, const std::vector<float>& factors)
 {
   const auto index_of = [factors](bool enabled, float factor) {
     if (!enabled)
@@ -410,28 +473,166 @@ Binding OverclockBinding(const ContextPtr& context, const std::vector<float>& fa
   };
 
   Binding binding;
-  binding.current = [context, index_of] {
-    return index_of(context->Read(Config::MAIN_OVERCLOCK_ENABLE),
-                    context->Read(Config::MAIN_OVERCLOCK));
+  binding.current = [context, index_of, &enable_info, &factor_info] {
+    return index_of(context->Read(enable_info), context->Read(factor_info));
   };
-  binding.inherited = [context, index_of] {
-    return index_of(context->ReadInherited(Config::MAIN_OVERCLOCK_ENABLE),
-                    context->ReadInherited(Config::MAIN_OVERCLOCK));
+  binding.inherited = [context, index_of, &enable_info, &factor_info] {
+    return index_of(context->ReadInherited(enable_info), context->ReadInherited(factor_info));
   };
-  binding.write = [context, factors](int index) {
-    context->Write(Config::MAIN_OVERCLOCK_ENABLE, index != 0);
+  binding.write = [context, factors, &enable_info, &factor_info](int index) {
+    context->Write(enable_info, index != 0);
     if (index != 0)
-      context->Write(Config::MAIN_OVERCLOCK, factors[index - 1]);
+      context->Write(factor_info, factors[index - 1]);
   };
-  binding.overridden = [context] {
-    return context->IsOverridden(Config::MAIN_OVERCLOCK_ENABLE.GetLocation()) ||
-           context->IsOverridden(Config::MAIN_OVERCLOCK.GetLocation());
+  binding.overridden = [context, &enable_info, &factor_info] {
+    return context->IsOverridden(enable_info.GetLocation()) ||
+           context->IsOverridden(factor_info.GetLocation());
   };
-  binding.clear = [context] {
-    context->Clear(Config::MAIN_OVERCLOCK_ENABLE.GetLocation());
-    context->Clear(Config::MAIN_OVERCLOCK.GetLocation());
+  binding.clear = [context, &enable_info, &factor_info] {
+    context->Clear(enable_info.GetLocation());
+    context->Clear(factor_info.GetLocation());
   };
   return binding;
+}
+
+Binding AntiAliasingBinding(const ContextPtr& context)
+{
+  const auto index_of = [](u32 samples, bool ssaa) {
+    if (samples <= 1)
+      return 0;
+    const int base = ssaa ? 3 : 1;
+    if (samples == 2)
+      return base;
+    if (samples == 4)
+      return base + 1;
+    return -1;
+  };
+
+  Binding binding;
+  binding.current = [context, index_of] {
+    return index_of(context->Read(Config::GFX_MSAA), context->Read(Config::GFX_SSAA));
+  };
+  binding.inherited = [context, index_of] {
+    return index_of(context->ReadInherited(Config::GFX_MSAA),
+                    context->ReadInherited(Config::GFX_SSAA));
+  };
+  binding.write = [context](int index) {
+    static constexpr std::array<u32, 5> samples = {1, 2, 4, 2, 4};
+    context->Write(Config::GFX_MSAA, samples[index]);
+    context->Write(Config::GFX_SSAA, index >= 3);
+  };
+  binding.overridden = [context] {
+    return context->IsOverridden(Config::GFX_MSAA.GetLocation()) ||
+           context->IsOverridden(Config::GFX_SSAA.GetLocation());
+  };
+  binding.clear = [context] {
+    context->Clear(Config::GFX_MSAA.GetLocation());
+    context->Clear(Config::GFX_SSAA.GetLocation());
+  };
+  return binding;
+}
+
+Binding CropBinding(const ContextPtr& context, const Config::Info<int>& first,
+                    const Config::Info<int>& second, const std::vector<int>& amounts)
+{
+  const auto index_of = [amounts](bool enabled, int a, int b) {
+    if (!enabled)
+      return 0;
+    if (a != b)
+      return -1;
+    for (size_t i = 0; i < amounts.size(); ++i)
+    {
+      if (amounts[i] == a)
+        return static_cast<int>(i);
+    }
+    return -1;
+  };
+
+  Binding binding;
+  binding.current = [context, index_of, &first, &second] {
+    return index_of(context->Read(Config::GFX_CROP_CUSTOM), context->Read(first),
+                    context->Read(second));
+  };
+  binding.inherited = [context, index_of, &first, &second] {
+    return index_of(context->ReadInherited(Config::GFX_CROP_CUSTOM), context->ReadInherited(first),
+                    context->ReadInherited(second));
+  };
+  binding.write = [context, amounts, &first, &second](int index) {
+    context->Write(Config::GFX_CROP_CUSTOM, true);
+    context->Write(first, amounts[index]);
+    context->Write(second, amounts[index]);
+  };
+  binding.overridden = [context, &first, &second] {
+    return context->IsOverridden(first.GetLocation()) ||
+           context->IsOverridden(second.GetLocation());
+  };
+  binding.clear = [context, &first, &second] {
+    context->Clear(first.GetLocation());
+    context->Clear(second.GetLocation());
+    if (!context->IsOverridden(Config::GFX_CROP_CUSTOM_LEFT.GetLocation()) &&
+        !context->IsOverridden(Config::GFX_CROP_CUSTOM_TOP.GetLocation()))
+    {
+      context->Clear(Config::GFX_CROP_CUSTOM.GetLocation());
+    }
+  };
+  return binding;
+}
+
+std::string FormatRtc(u32 value)
+{
+  using namespace std::chrono;
+  const sys_seconds time{seconds(value)};
+  const sys_days day = floor<days>(time);
+  const year_month_day date{day};
+  const hh_mm_ss<seconds> clock{time - day};
+  return fmt::format("{:04}-{:02}-{:02} {:02}:{:02}", static_cast<int>(date.year()),
+                     static_cast<unsigned>(date.month()), static_cast<unsigned>(date.day()),
+                     clock.hours().count(), clock.minutes().count());
+}
+
+std::optional<u32> ParseRtc(const std::string& text)
+{
+  using namespace std::chrono;
+  int year = 0;
+  unsigned month = 0, day = 0, hour = 0, minute = 0;
+  const int fields =
+      std::sscanf(text.c_str(), "%d-%u-%u %u:%u", &year, &month, &day, &hour, &minute);
+  if (fields != 3 && fields != 5)
+    return std::nullopt;
+
+  const year_month_day date{std::chrono::year(year), std::chrono::month(month),
+                            std::chrono::day(day)};
+  if (!date.ok() || hour > 23 || minute > 59)
+    return std::nullopt;
+
+  const sys_seconds time = sys_days(date) + hours(hour) + minutes(minute);
+  const s64 value = time.time_since_epoch().count();
+  if (value < 0 || value > std::numeric_limits<u32>::max())
+    return std::nullopt;
+  return static_cast<u32>(value);
+}
+
+brls::View* AddRtcCell(PageBuilder& page)
+{
+  const ContextPtr context = page.GetContext();
+
+  auto* cell = new brls::InputCell();
+  cell->init(
+      "Date and time", FormatRtc(context->Read(Config::MAIN_CUSTOM_RTC_VALUE)),
+      [context, cell](std::string text) {
+        const std::optional<u32> value = ParseRtc(text);
+        if (!value)
+        {
+          brls::Application::notify("Enter the date as YYYY-MM-DD HH:MM.");
+          cell->setValue(FormatRtc(context->Read(Config::MAIN_CUSTOM_RTC_VALUE)));
+          return;
+        }
+        context->Write(Config::MAIN_CUSTOM_RTC_VALUE, *value);
+        cell->setValue(FormatRtc(*value));
+      },
+      "YYYY-MM-DD HH:MM", "Date and time (YYYY-MM-DD HH:MM)", 16);
+  page.Add(cell);
+  return cell;
 }
 
 void BuildGeneral(PageBuilder& page)
@@ -462,9 +663,17 @@ void BuildGeneral(PageBuilder& page)
 
   page.Header("Interface");
   page.Toggle("Show on-screen messages", Config::MAIN_OSD_MESSAGES);
+  if (!page.IsPerGame())
+  {
+    page.Choice("On-screen text size", Config::MAIN_OSD_FONT_SIZE,
+                {{"Small", 13}, {"Medium", 16}, {"Large", 20}, {"Extra large", 24}});
+  }
   page.Toggle("Enable cheats", Config::MAIN_ENABLE_CHEATS);
   if (!page.IsPerGame())
     page.Toggle("Track time played", Config::MAIN_TIME_TRACKING);
+
+  page.Header("Discs");
+  page.Toggle("Change discs automatically", Config::MAIN_AUTO_DISC_CHANGE);
 }
 
 void BuildGraphics(PageBuilder& page)
@@ -490,6 +699,27 @@ void BuildGraphics(PageBuilder& page)
                {"Stretch to screen", AspectMode::Stretch}});
   page.Toggle("Widescreen hack", Config::GFX_WIDESCREEN_HACK);
   page.Toggle("Crop to aspect ratio", Config::GFX_CROP_TO_ASPECT_RATIO);
+
+  const std::vector<int> crop_amounts = {0, 4, 8, 12, 16, 24, 32};
+  std::vector<std::string> crop_labels = {"Off"};
+  for (size_t i = 1; i < crop_amounts.size(); ++i)
+    crop_labels.push_back(fmt::format("{} px", crop_amounts[i]));
+  page.Custom("Crop left and right", crop_labels,
+              CropBinding(page.GetContext(), Config::GFX_CROP_CUSTOM_LEFT,
+                          Config::GFX_CROP_CUSTOM_RIGHT, crop_amounts));
+  page.Custom("Crop top and bottom", crop_labels,
+              CropBinding(page.GetContext(), Config::GFX_CROP_CUSTOM_TOP,
+                          Config::GFX_CROP_CUSTOM_BOTTOM, crop_amounts));
+  page.Note("Hides the black borders some games leave around the picture.");
+
+  page.Choice("Output resampling", Config::GFX_ENHANCE_OUTPUT_RESAMPLING,
+              {{"Default", OutputResamplingMode::Default},
+               {"Bilinear", OutputResamplingMode::Bilinear},
+               {"Bicubic: B-spline", OutputResamplingMode::BSpline},
+               {"Bicubic: Mitchell-Netravali", OutputResamplingMode::MitchellNetravali},
+               {"Bicubic: Catmull-Rom", OutputResamplingMode::CatmullRom},
+               {"Sharp bilinear", OutputResamplingMode::SharpBilinear},
+               {"Area sampling", OutputResamplingMode::AreaSampling}});
 
   page.Header("Shaders");
   page.Choice("Shader compilation", Config::GFX_SHADER_COMPILATION_MODE,
@@ -524,12 +754,50 @@ void BuildEnhancements(PageBuilder& page)
                         File::GetUserPath(D_HIRESTEXTURES_IDX)));
 
   page.Header("Image quality");
-  page.Choice("Anti-aliasing", Config::GFX_MSAA, {{"Off", 1u}, {"2× MSAA", 2u}, {"4× MSAA", 4u}});
+  page.Custom("Anti-aliasing", {"Off", "2× MSAA", "4× MSAA", "2× SSAA", "4× SSAA"},
+              AntiAliasingBinding(page.GetContext()));
   page.Toggle("Scaled EFB copy", Config::GFX_HACK_COPY_EFB_SCALED);
   page.Toggle("Per-pixel lighting", Config::GFX_ENABLE_PIXEL_LIGHTING);
   page.Toggle("Force 24-bit colour", Config::GFX_ENHANCE_FORCE_TRUE_COLOR);
   page.Toggle("Disable fog", Config::GFX_DISABLE_FOG);
   page.Toggle("Disable copy filter", Config::GFX_ENHANCE_DISABLE_COPY_FILTER);
+  page.Note("SSAA shades every sample rather than every pixel, which smooths textures, but "
+            "costs far more GPU time than MSAA.");
+
+  std::vector<Option<std::string>> shaders = {{"Off", ""}};
+  for (const std::string& shader : VideoCommon::PostProcessing::GetShaderList())
+    shaders.push_back({shader, shader});
+
+  page.Header("Post-processing");
+  page.Choice("Shader", Config::GFX_ENHANCE_POST_SHADER, std::move(shaders));
+  page.Note(fmt::format("Put your own shaders in {}. The shader can also be changed from the "
+                        "pause menu while playing.",
+                        File::GetUserPath(D_SHADERS_IDX)));
+
+  const ContextPtr context = page.GetContext();
+  const DependentsPtr colour_space =
+      ShowWhen([context] { return context->Read(Config::GFX_CC_CORRECT_COLOR_SPACE); });
+  const DependentsPtr gamma =
+      ShowWhen([context] { return context->Read(Config::GFX_CC_CORRECT_GAMMA); });
+
+  page.Header("Colour correction");
+  page.Toggle("Correct colour space", Config::GFX_CC_CORRECT_COLOR_SPACE, false,
+              RefreshOf({colour_space}));
+  colour_space->Add(page.Choice("Game colour space", Config::GFX_CC_GAME_COLOR_SPACE,
+                                {{"NTSC-M (SMPTE 170M)", ColorCorrectionRegion::SMPTE_NTSCM},
+                                 {"NTSC-J (ARIB TR-B9)", ColorCorrectionRegion::SYSTEMJ_NTSCJ},
+                                 {"PAL (EBU)", ColorCorrectionRegion::EBU_PAL}}));
+  page.Toggle("Correct gamma", Config::GFX_CC_CORRECT_GAMMA, false, RefreshOf({gamma}));
+  gamma->Add(page.Choice(
+      "Game gamma", Config::GFX_CC_GAME_GAMMA,
+      {{"2.20", 2.2f}, {"2.35 (default)", 2.35f}, {"2.50", 2.5f}, {"2.60", 2.6f}, {"2.80", 2.8f}}));
+
+  page.Header("Graphics mods");
+  page.Toggle("Enable graphics mods", Config::GFX_MODS_ENABLE);
+  page.Note(page.IsPerGame() ? std::string("Choose this game's mods from its Graphics mods tab.") :
+                               fmt::format("Choose mods for each game from its Graphics mods tab. "
+                                           "Put your own in {}.",
+                                           File::GetUserPath(D_GRAPHICSMOD_IDX)));
 }
 
 void BuildHacks(PageBuilder& page)
@@ -540,6 +808,7 @@ void BuildHacks(PageBuilder& page)
   page.Toggle("Store EFB copies to texture only", Config::GFX_HACK_SKIP_EFB_COPY_TO_RAM);
   page.Toggle("Defer EFB copies to RAM", Config::GFX_HACK_DEFER_EFB_COPIES);
   page.Toggle("Defer EFB cache invalidation", Config::GFX_HACK_EFB_DEFER_INVALIDATION);
+  page.Toggle("Disable EFB VRAM copies", Config::GFX_HACK_DISABLE_COPY_TO_VRAM);
   page.Note("May result in a significant performance boost in some cases, but also may result in "
             "crashes.");
 
@@ -548,6 +817,9 @@ void BuildHacks(PageBuilder& page)
               {{"Fast", 128}, {"Balanced", 512}, {"Safe", 0}});
   page.Toggle("GPU texture decoding", Config::GFX_ENABLE_GPU_TEXTURE_DECODING);
   page.Toggle("Fast texture sampling", Config::GFX_HACK_FAST_TEXTURE_SAMPLING);
+  page.Toggle("Save texture cache to state", Config::GFX_SAVE_TEXTURE_CACHE_TO_STATE);
+  page.Note("Saving the texture cache makes save states larger, but keeps some games from "
+            "drawing stale textures after loading one.");
 
   page.Header("External frame buffer");
   page.Toggle("Store XFB copies to texture only", Config::GFX_HACK_SKIP_XFB_COPY_TO_RAM);
@@ -559,6 +831,9 @@ void BuildHacks(PageBuilder& page)
   page.Toggle("Disable bounding box", Config::GFX_HACK_BBOX_ENABLE, true);
   page.Toggle("Vertex rounding", Config::GFX_HACK_VERTEX_ROUNDING);
   page.Toggle("VBI skip", Config::GFX_HACK_VI_SKIP);
+  page.Toggle("Cull vertices on the CPU", Config::GFX_CPU_CULL);
+  page.Toggle("Expand points and lines in the vertex shader",
+              Config::GFX_PREFER_VS_FOR_LINE_POINT_EXPANSION);
 }
 
 #ifdef HAS_FRAME_GENERATION
@@ -663,13 +938,25 @@ void BuildEmulation(PageBuilder& page)
   page.Toggle("Dual core", Config::MAIN_CPU_THREAD);
   page.Note("Runs the emulated GPU on its own core. Turning it off is much slower, but can fix "
             "some crashes.");
-  page.Custom("CPU clock override", {"Off", "50%", "75%", "90%", "110%", "125%", "150%", "200%"},
-              OverclockBinding(page.GetContext(), {0.5f, 0.75f, 0.9f, 1.1f, 1.25f, 1.5f, 2.0f}));
+  const std::vector<std::string> clock_labels = {"Off",  "50%",  "75%",  "90%",
+                                                 "110%", "125%", "150%", "200%"};
+  const std::vector<float> clock_factors = {0.5f, 0.75f, 0.9f, 1.1f, 1.25f, 1.5f, 2.0f};
+  page.Custom("CPU clock override", clock_labels,
+              OverclockBinding(page.GetContext(), Config::MAIN_OVERCLOCK_ENABLE,
+                               Config::MAIN_OVERCLOCK, clock_factors));
   page.Note("Underclocking the emulated CPU can make demanding games reach full speed, at the "
             "risk of slowdown inside the game itself.");
+  page.Custom("VBI frequency override", clock_labels,
+              OverclockBinding(page.GetContext(), Config::MAIN_VI_OVERCLOCK_ENABLE,
+                               Config::MAIN_VI_OVERCLOCK, clock_factors));
+  page.Note(
+      "Changes how often the console refreshes the screen, with the emulated CPU scaled to "
+      "match. Games whose frame rate is tied to it run at a different frame rate, so lowering "
+      "it makes them less demanding and raising it makes them smoother. Can cause crashes.");
 
   page.Header("Accuracy");
   page.Toggle("Enable MMU", Config::MAIN_MMU);
+  page.Toggle("Accurate CPU cache", Config::MAIN_ACCURATE_CPU_CACHE);
   page.Toggle("Enable FPRF", Config::MAIN_FPRF);
   page.Toggle("Accurate NaNs", Config::MAIN_ACCURATE_NANS);
   page.Toggle("Synchronise GPU thread", Config::MAIN_SYNC_GPU);
@@ -680,6 +967,30 @@ void BuildEmulation(PageBuilder& page)
   page.Toggle("Correct time drift", Config::MAIN_CORRECT_TIME_DRIFT);
   page.Toggle("Rush frame presentation", Config::MAIN_RUSH_FRAME_PRESENTATION);
   page.Toggle("Smooth early presentation", Config::MAIN_SMOOTH_EARLY_PRESENTATION);
+
+  page.Header("Region");
+  if (!page.IsPerGame())
+  {
+    page.Choice("Fallback region", Config::MAIN_FALLBACK_REGION,
+                {{"NTSC-J", DiscIO::Region::NTSC_J},
+                 {"NTSC-U", DiscIO::Region::NTSC_U},
+                 {"PAL", DiscIO::Region::PAL},
+                 {"NTSC-K", DiscIO::Region::NTSC_K}});
+  }
+  page.Toggle("Allow mismatched region settings", Config::MAIN_OVERRIDE_REGION_SETTINGS);
+  page.Note("Lets the system language and other settings stay as chosen even when they do not "
+            "match the game's region.");
+
+  const ContextPtr context = page.GetContext();
+  const DependentsPtr custom_rtc =
+      ShowWhen([context] { return context->Read(Config::MAIN_CUSTOM_RTC_ENABLE); });
+
+  page.Header("Clock");
+  page.Toggle("Use a custom date and time", Config::MAIN_CUSTOM_RTC_ENABLE, false,
+              RefreshOf({custom_rtc}));
+  custom_rtc->Add(AddRtcCell(page));
+  page.Note("Otherwise the console clock follows the Switch's. The custom clock starts from the "
+            "chosen time each boot.");
 }
 
 void BuildAudio(PageBuilder& page)
@@ -734,6 +1045,38 @@ void BuildGameCube(PageBuilder& page, const std::shared_ptr<const UICommon::Game
     page.Action("Manage memory cards", "",
                 [] { brls::Application::pushActivity(CreateMemoryCardsActivity()); });
   }
+
+  const ContextPtr context = page.GetContext();
+  const auto port_is = [context](std::initializer_list<EXIDeviceType> types) {
+    return ShowWhen([context, types = std::vector<EXIDeviceType>(types)] {
+      return std::ranges::find(types, context->Read(Config::MAIN_SERIAL_PORT_1)) != types.end();
+    });
+  };
+  const DependentsPtr built_in = port_is({EXIDeviceType::EthernetBuiltIn});
+  const DependentsPtr xlink = port_is({EXIDeviceType::EthernetXLink});
+  const DependentsPtr tap_server = port_is({EXIDeviceType::EthernetTapServer});
+  const DependentsPtr modem = port_is({EXIDeviceType::ModemTapServer});
+
+  page.Header("Network adapter");
+  page.Choice("Serial port 1", Config::MAIN_SERIAL_PORT_1,
+              {{"Nothing", EXIDeviceType::None},
+               {"Broadband Adapter (built in)", EXIDeviceType::EthernetBuiltIn},
+               {"Broadband Adapter (XLink Kai)", EXIDeviceType::EthernetXLink},
+               {"Broadband Adapter (tapserver)", EXIDeviceType::EthernetTapServer},
+               {"Modem Adapter (tapserver)", EXIDeviceType::ModemTapServer}},
+              RefreshOf({built_in, xlink, tap_server, modem}));
+  built_in->Add(page.Text("DNS server", Config::MAIN_BBA_BUILTIN_DNS, "3.18.217.27"));
+  built_in->Add(page.Note("The built in adapter connects games straight to the internet through "
+                          "the Switch's connection."));
+  xlink->Add(page.Text("XLink Kai address", Config::MAIN_BBA_XLINK_IP, "127.0.0.1"));
+  xlink->Add(page.Note("The address of a computer on your network running XLink Kai."));
+  tap_server->Add(
+      page.Text("tapserver address", Config::MAIN_BBA_TAPSERVER_DESTINATION, "192.168.1.2:7777"));
+  modem->Add(
+      page.Text("tapserver address", Config::MAIN_MODEM_TAPSERVER_DESTINATION, "192.168.1.2:7778"));
+  tap_server->Add(page.Note("The address and port of a computer on your network running "
+                            "tapserver."));
+  modem->Add(page.Note("The address and port of a computer on your network running tapserver."));
 }
 
 void BuildWii(PageBuilder& page)
@@ -766,10 +1109,36 @@ void BuildWii(PageBuilder& page)
               {{"Muted", 0u}, {"Low", 32u}, {"Medium", 64u}, {"Default", 88u}, {"Maximum", 127u}});
   page.Toggle("Rumble", Config::SYSCONF_WIIMOTE_MOTOR);
 
-  page.Header("Peripherals");
+  page.Header("SD card");
   page.Toggle("Insert SD card", Config::MAIN_WII_SD_CARD);
   page.Toggle("Allow writes to the SD card", Config::MAIN_ALLOW_SD_WRITES);
+  page.Toggle("Sync with a folder", Config::MAIN_WII_SD_CARD_ENABLE_FOLDER_SYNC);
+  page.Note(fmt::format("Packs {} into the SD card image when a game starts, and unpacks it back "
+                        "when the game ends.",
+                        File::GetUserPath(D_WIISDCARDSYNCFOLDER_IDX)));
+  if (!page.IsPerGame())
+  {
+    page.Choice("Size of a new SD card", Config::MAIN_WII_SD_CARD_FILESIZE,
+                {{"Auto", 0ull},
+                 {"64 MiB", 64ull << 20},
+                 {"128 MiB", 128ull << 20},
+                 {"256 MiB", 256ull << 20},
+                 {"512 MiB", 512ull << 20},
+                 {"1 GiB", 1ull << 30},
+                 {"2 GiB", 2ull << 30}});
+    page.Action("Pack the folder into the SD card", "", PackSDCard);
+    page.Action("Unpack the SD card into the folder", "", UnpackSDCard);
+    page.Info("SD card image", File::GetUserPath(F_WIISDCARDIMAGE_IDX));
+  }
+
+  page.Header("Peripherals");
   page.Toggle("Connect USB keyboard", Config::MAIN_WII_KEYBOARD);
+  page.Toggle("Emulate Skylanders portal", Config::MAIN_EMULATE_SKYLANDER_PORTAL);
+  page.Toggle("Emulate Disney Infinity base", Config::MAIN_EMULATE_INFINITY_BASE);
+  page.Note(fmt::format("Place and remove figures from the pause menu while playing. Figure files "
+                        "live in {} and {}.",
+                        FiguresSwitch::GetSkylanderDirectory(),
+                        FiguresSwitch::GetInfinityDirectory()));
 
   if (!page.IsPerGame())
   {
@@ -899,8 +1268,8 @@ void BuildGBA(PageBuilder& page)
                                                      File::GetUserPath(D_GBAUSER_IDX) + GBA_BIOS :
                                                      path);
               });
-  page.Note(fmt::format("The default location is {}{}.",
-                        File::GetUserPath(D_GBAUSER_IDX), GBA_BIOS));
+  page.Note(
+      fmt::format("The default location is {}{}.", File::GetUserPath(D_GBAUSER_IDX), GBA_BIOS));
 
   for (int port = 0; port < ControllerProfiles::SLOT_COUNT; ++port)
   {
@@ -929,6 +1298,8 @@ void BuildControls(PageBuilder& page, bool wii)
       {"Nothing", SerialInterface::SIDEVICE_NONE},
       {"Standard controller", SerialInterface::SIDEVICE_GC_CONTROLLER},
       {"GameCube adapter", SerialInterface::SIDEVICE_WIIU_ADAPTER},
+      {"Steering wheel", SerialInterface::SIDEVICE_GC_STEERING},
+      {"DK Bongos", SerialInterface::SIDEVICE_GC_TARUKONGA},
   };
 #ifdef HAS_LIBMGBA
   port_devices.push_back({"Game Boy Advance", SerialInterface::SIDEVICE_GC_GBA_EMULATED});
@@ -938,7 +1309,17 @@ void BuildControls(PageBuilder& page, bool wii)
   for (int port = 0; port < ControllerProfiles::SLOT_COUNT; ++port)
   {
     if (!page.IsPerGame())
-      page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port), port_devices);
+    {
+      const ContextPtr context = page.GetContext();
+      const DependentsPtr adapter = ShowWhen([context, port] {
+        return context->Read(Config::GetInfoForSIDevice(port)) ==
+               SerialInterface::SIDEVICE_WIIU_ADAPTER;
+      });
+      page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port), port_devices,
+                  RefreshOf({adapter}));
+      adapter->Add(page.Toggle(fmt::format("Port {}: treat as DK Bongos", port + 1),
+                               Config::GetInfoForSimulateKonga(port)));
+    }
     AddProfileCell(page, fmt::format("Port {} profile", port + 1), Kind::GCPad, port);
   }
 
@@ -1088,6 +1469,110 @@ void AddSystemMemoryActions(PageBuilder& page, const UICommon::GameFile& game)
   });
 }
 
+void BuildDebugging(PageBuilder& page)
+{
+  using Common::Log::LogLevel;
+  using Common::Log::LogListener;
+  using Common::Log::LogManager;
+
+  page.Header("Logging");
+  std::vector<Option<LogLevel>> levels = {{"Notice", LogLevel::LNOTICE},
+                                          {"Error", LogLevel::LERROR},
+                                          {"Warning", LogLevel::LWARNING},
+                                          {"Info", LogLevel::LINFO}};
+  if constexpr (Common::Log::MAX_EFFECTIVE_LOGLEVEL >= LogLevel::LDEBUG)
+    levels.push_back({"Debug", LogLevel::LDEBUG});
+  page.Choice("Verbosity", Common::Log::LOGGER_VERBOSITY, std::move(levels));
+
+  auto* write_to_file = new brls::BooleanCell();
+  write_to_file->init("Write the log to a file",
+                      LogManager::GetInstance()->IsListenerEnabled(LogListener::FILE_LISTENER),
+                      [](bool on) {
+                        LogManager* manager = LogManager::GetInstance();
+                        manager->EnableListener(LogListener::FILE_LISTENER, on);
+                        manager->SaveSettings();
+                      });
+  page.Add(write_to_file);
+  page.Info("Log file", File::GetUserPath(F_MAINLOG_IDX));
+
+  page.Header("Overlays");
+  page.Toggle("Show rendering statistics", Config::GFX_OVERLAY_STATS);
+  page.Toggle("Show projection statistics", Config::GFX_OVERLAY_PROJ_STATS);
+  page.Toggle("Show texture formats", Config::GFX_TEXFMT_OVERLAY_ENABLE);
+
+  const ContextPtr context = page.GetContext();
+  const DependentsPtr texture_dumping =
+      ShowWhen([context] { return context->Read(Config::GFX_DUMP_TEXTURES); });
+
+  page.Header("Dumping");
+  page.Toggle("Dump textures", Config::GFX_DUMP_TEXTURES, false, RefreshOf({texture_dumping}));
+  texture_dumping->Add(page.Toggle("Dump base textures", Config::GFX_DUMP_BASE_TEXTURES));
+  texture_dumping->Add(page.Toggle("Dump mipmaps", Config::GFX_DUMP_MIP_TEXTURES));
+  page.Toggle("Dump EFB targets", Config::GFX_DUMP_EFB_TARGET);
+  page.Toggle("Dump XFB targets", Config::GFX_DUMP_XFB_TARGET);
+  page.Note(fmt::format("Dumps go to {}. Dumping is slow and really should be done on PC.",
+                        File::GetUserPath(D_DUMP_IDX)));
+
+  page.Header("CPU");
+  page.Toggle("Fastmem", Config::MAIN_FASTMEM);
+  page.Note("Turning fastmem off is much slower, but may fix a crash.");
+
+  page.Toggle("Interpret everything", Config::MAIN_DEBUG_JIT_OFF);
+  page.Toggle("Interpret loads and stores", Config::MAIN_DEBUG_JIT_LOAD_STORE_OFF);
+  page.Toggle("Interpret lbzx", Config::MAIN_DEBUG_JIT_LOAD_STORE_LBZX_OFF);
+  page.Toggle("Interpret lXz", Config::MAIN_DEBUG_JIT_LOAD_STORE_LXZ_OFF);
+  page.Toggle("Interpret lwz", Config::MAIN_DEBUG_JIT_LOAD_STORE_LWZ_OFF);
+  page.Toggle("Interpret floating-point loads and stores",
+              Config::MAIN_DEBUG_JIT_LOAD_STORE_FLOATING_OFF);
+  page.Toggle("Interpret paired loads and stores", Config::MAIN_DEBUG_JIT_LOAD_STORE_PAIRED_OFF);
+  page.Toggle("Interpret floating point", Config::MAIN_DEBUG_JIT_FLOATING_POINT_OFF);
+  page.Toggle("Interpret integer", Config::MAIN_DEBUG_JIT_INTEGER_OFF);
+  page.Toggle("Interpret paired singles", Config::MAIN_DEBUG_JIT_PAIRED_OFF);
+  page.Toggle("Interpret system registers", Config::MAIN_DEBUG_JIT_SYSTEM_REGISTERS_OFF);
+  page.Toggle("Interpret branches", Config::MAIN_DEBUG_JIT_BRANCH_OFF);
+  page.Toggle("Disable the register cache", Config::MAIN_DEBUG_JIT_REGISTER_CACHE_OFF);
+  page.Note("Don't mess with these if you don't know what you are doing.");
+}
+
+void BuildGameGraphicsMods(PageBuilder& page, const UICommon::GameFile& game)
+{
+  page.Header("Graphics mods");
+  if (!Config::Get(Config::GFX_MODS_ENABLE))
+  {
+    page.Note("Graphics mods are switched off. Turn them on under Enhancements.");
+  }
+
+  auto group = std::make_shared<GraphicsModGroupConfig>(game.GetGameID());
+  group->Load();
+
+  if (group->GetMods().empty())
+  {
+    page.Note(fmt::format("No mods are available for this game. Put mods in {}.",
+                          File::GetUserPath(D_GRAPHICSMOD_IDX)));
+    return;
+  }
+
+  for (GraphicsModConfig& mod : group->GetMods())
+  {
+    auto* cell = new brls::BooleanCell();
+    cell->init(mod.m_title, mod.m_enabled, [group, &mod](bool on) {
+      mod.m_enabled = on;
+      group->SetChangeCount(group->GetChangeCount() + 1);
+      group->Save();
+    });
+    page.Add(cell);
+
+    if (!mod.m_description.empty() || !mod.m_author.empty())
+    {
+      page.Note(mod.m_author.empty() ?
+                    mod.m_description :
+                    fmt::format("{}{}By {}.", mod.m_description,
+                                mod.m_description.empty() ? "" : " ", mod.m_author));
+    }
+  }
+  page.Note("Changes take effect the next time the game starts.");
+}
+
 void BuildAbout(PageBuilder& page)
 {
   page.Header("Nezumiiruka");
@@ -1100,9 +1585,9 @@ void BuildAbout(PageBuilder& page)
   page.Action("Check for updates", "", [] { CheckForUpdates(); });
   page.Action("Release notes", UpdaterSwitch::GetCurrentVersion(), [] { ShowReleaseNotes(); });
   page.Toggle("Check for updates on startup", Config::SWITCH_CHECK_FOR_UPDATES);
-  page.Choice("Update channel", Config::SWITCH_UPDATE_CHANNEL,
-              {{"Stable", Config::UpdateChannel::Stable},
-               {"Beta", Config::UpdateChannel::Prerelease}});
+  page.Choice(
+      "Update channel", Config::SWITCH_UPDATE_CHANNEL,
+      {{"Stable", Config::UpdateChannel::Stable}, {"Beta", Config::UpdateChannel::Prerelease}});
 
   page.Header("System");
   SetSysFirmwareVersion firmware;
@@ -1126,8 +1611,11 @@ void BuildAbout(PageBuilder& page)
   page.Info("Riivolution", File::GetUserPath(D_RIIVOLUTION_IDX));
 
   page.Header("Licence");
-  page.Note("Nezumiiruka is a port of the Dolphin emulator, licensed under the GNU GPL version 2 or "
-            "later. The menus use borealis, licensed under the Apache License 2.0.");
+  page.Note(
+      "Nezumiiruka is a port of the Dolphin emulator, licensed under the GNU GPL version 2 or "
+      "later. The menus use borealis, licensed under the Apache License 2.0. USB loading support "
+      "is provided by libusbhsfs, licensed under the GNU GPL version 2 or later. Frame generation "
+      "support is provided by LSFG-NX, which is licensed under the GNU GPL version 3 or later.");
 }
 
 void BuildLibrary(PageBuilder& page, const std::function<void()>& clear_cache)
@@ -1143,6 +1631,9 @@ void BuildLibrary(PageBuilder& page, const std::function<void()>& clear_cache)
               {{"Title", Config::GameListSort::Title},
                {"Time played", Config::GameListSort::TimePlayed},
                {"File name", Config::GameListSort::FileName}});
+  page.Toggle("Use the built-in list of game names", Config::MAIN_USE_BUILT_IN_TITLE_DATABASE);
+  page.Note("Shows each game's full name from Dolphin's database, rather than the shortened "
+            "name stored on the disc.");
 
   page.Header("Covers");
   page.Toggle("Download covers from GameTDB", Config::MAIN_USE_GAME_COVERS);
@@ -1312,6 +1803,7 @@ brls::Activity* CreateSettingsActivity(std::function<void()> on_closed,
     return CreatePage(context,
                       [&clear_cache](PageBuilder& page) { BuildLibrary(page, clear_cache); });
   });
+  AddPage(tabs, context, "Debugging", BuildDebugging);
   AddPage(tabs, context, "About", BuildAbout);
 
   auto* frame = new brls::AppletFrame(tabs);
@@ -1351,8 +1843,14 @@ brls::Activity* CreateGamePropertiesActivity(std::shared_ptr<const UICommon::Gam
   if (!game->GetGameID().empty())
   {
     tabs->addTab("Cheats", [context, game] {
+      return CreatePage(context, [&](PageBuilder& page) { BuildGameCheats(page, game); }, false);
+    });
+  }
+  if (!game->GetGameID().empty())
+  {
+    tabs->addTab("Graphics mods", [context, game] {
       return CreatePage(
-          context, [&](PageBuilder& page) { BuildGameCheats(page, game); }, false);
+          context, [&](PageBuilder& page) { BuildGameGraphicsMods(page, *game); }, false);
     });
   }
 #ifdef USE_RETRO_ACHIEVEMENTS

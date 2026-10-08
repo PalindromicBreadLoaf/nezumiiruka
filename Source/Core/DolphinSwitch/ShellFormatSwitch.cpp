@@ -4,8 +4,11 @@
 
 #include "DolphinSwitch/ShellFormatSwitch.h"
 
+#include <mutex>
+
 #include <fmt/format.h>
 
+#include "Core/TitleDatabase.h"
 #include "DiscIO/Enums.h"
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
@@ -14,7 +17,11 @@ namespace Shell
 {
 std::string GetTitle(const UICommon::GameFile& game)
 {
-  const std::string& name = game.GetName(UICommon::GameFile::Variant::LongAndPossiblyCustom);
+  static std::mutex s_mutex;
+  static const Core::TitleDatabase s_title_database;
+
+  std::lock_guard lock(s_mutex);
+  const std::string& name = game.GetName(s_title_database);
   return name.empty() ? game.GetFileName() : name;
 }
 

@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 // struct in_addr for __nxlink_host.
 #include <netinet/in.h>
@@ -167,7 +168,11 @@ std::unique_ptr<BootParameters> CreateBootParameters(const Shell::BootRequest& r
   if (request.nand_title_id != 0)
     return std::make_unique<BootParameters>(BootParameters::NANDTitle{request.nand_title_id});
 
-  auto boot = BootParameters::GenerateFromFile(request.path, BootSessionData{});
+  std::vector<std::string> paths = {request.path};
+  if (!request.other_disc.empty())
+    paths.push_back(request.other_disc);
+
+  auto boot = BootParameters::GenerateFromFile(std::move(paths), BootSessionData{});
   if (boot && request.riivolution)
     RiivolutionSwitch::AddPatches(*boot);
   return boot;

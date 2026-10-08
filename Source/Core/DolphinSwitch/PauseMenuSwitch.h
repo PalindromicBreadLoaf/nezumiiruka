@@ -20,6 +20,7 @@
 #include "Common/Config/Config.h"
 #include "DolphinSwitch/CheatsSwitch.h"
 #include "DolphinSwitch/ControllerProfilesSwitch.h"
+#include "DolphinSwitch/FiguresSwitch.h"
 
 namespace Core
 {
@@ -61,6 +62,10 @@ private:
     Controls,
     Cheats,
     Discs,
+    Figures,
+    FigureFiles,
+    FigureGames,
+    FigureCharacters,
     Confirm,
   };
 
@@ -103,6 +108,13 @@ private:
     std::string file_name;
   };
 
+  struct FigureTarget
+  {
+    bool infinity = false;
+    size_t slot = 0;
+    size_t game = 0;
+  };
+
   struct ViewRow
   {
     RowKind kind;
@@ -130,6 +142,7 @@ private:
   void HandleInput(u64 buttons, u64 pressed);
   bool TakeRepeat(size_t direction, bool held, bool pressed);
   void MoveSelection(int delta);
+  void JumpSelection(int delta);
   void ChangeSelection(int delta);
   void Push(PageId id);
   void Back();
@@ -147,6 +160,10 @@ private:
   std::vector<Row> BuildControls();
   std::vector<Row> BuildCheats();
   std::vector<Row> BuildDiscs();
+  std::vector<Row> BuildFigures();
+  std::vector<Row> BuildFigureFiles();
+  std::vector<Row> BuildFigureGames();
+  std::vector<Row> BuildFigureCharacters();
   std::vector<Row> BuildConfirm();
 
   template <typename T>
@@ -158,6 +175,9 @@ private:
   Row ProfileRow(ControllerProfiles::Kind kind, int slot, std::string label);
   void ApplyProfile(ControllerProfiles::Kind kind, int slot, const std::string& name);
   void FindDiscs();
+  bool HasFigureDevices() const;
+  std::string DescribeFigureTarget() const;
+  void FinishPlacingFigure(const std::string& error, const std::string& success);
   void ApplyCheats();
 
   template <typename T>
@@ -190,6 +210,11 @@ private:
   std::string m_status;
   std::optional<Confirmation> m_confirmation;
   std::vector<Disc> m_discs;
+  std::vector<std::string> m_post_shaders;
+  FiguresSwitch::Figures m_figures;
+  FigureTarget m_figure_target;
+  std::vector<FiguresSwitch::FigureFile> m_figure_files;
+  std::vector<FiguresSwitch::Character> m_figure_characters;
   CheatsSwitch::GameCheats m_cheats;
   bool m_cheats_dirty = false;
   std::function<void()> m_deferred;

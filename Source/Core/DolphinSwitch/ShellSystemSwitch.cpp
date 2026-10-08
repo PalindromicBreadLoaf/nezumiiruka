@@ -20,6 +20,7 @@
 
 #include "Common/Align.h"
 #include "Common/CommonPaths.h"
+#include "Common/FatFsUtil.h"
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
@@ -597,6 +598,44 @@ void ExportWiiSaves()
                                fmt::format("Exported {} saves to {}", count, directory));
     });
   });
+}
+
+void PackSDCard()
+{
+  Confirm(fmt::format("Replace everything on the SD card image with the contents of {}?",
+                      File::GetUserPath(D_WIISDCARDSYNCFOLDER_IDX)),
+          "Pack", [] {
+            StartTask("Packing the SD card...", true, [](const TaskPtr& task) {
+              const bool good =
+                  Common::SyncSDFolderToSDImage([&task] { return task->cancelled.load(); }, false);
+              const bool cancelled = task->cancelled;
+              return std::function<void()>([good, cancelled] {
+                if (!good && !cancelled)
+                  ShowMessage(FailureText("Could not pack the SD card."));
+                else if (good)
+                  brls::Application::notify("The SD card has been packed.");
+              });
+            });
+          });
+}
+
+void UnpackSDCard()
+{
+  Confirm(fmt::format("Replace everything in {} with the contents of the SD card image?",
+                      File::GetUserPath(D_WIISDCARDSYNCFOLDER_IDX)),
+          "Unpack", [] {
+            StartTask("Unpacking the SD card...", true, [](const TaskPtr& task) {
+              const bool good =
+                  Common::SyncSDImageToSDFolder([&task] { return task->cancelled.load(); });
+              const bool cancelled = task->cancelled;
+              return std::function<void()>([good, cancelled] {
+                if (!good && !cancelled)
+                  ShowMessage(FailureText("Could not unpack the SD card."));
+                else if (good)
+                  brls::Application::notify("The SD card has been unpacked.");
+              });
+            });
+          });
 }
 
 void StopSystemTasks()

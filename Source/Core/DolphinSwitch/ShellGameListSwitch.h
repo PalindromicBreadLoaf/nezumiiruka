@@ -49,6 +49,7 @@ private:
   void ShowCover(const UICommon::GameFile& game);
   std::chrono::milliseconds GetTimePlayed(const UICommon::GameFile& game) const;
 
+  std::string FindOtherDisc(const UICommon::GameFile& game) const;
   void Launch(const GamePtr& game, bool riivolution = false);
   void LaunchSystemMenu();
   void OpenProperties();

@@ -31,5 +31,8 @@ void ExtractCertificates();
 void ImportWiiSave();
 void ExportWiiSaves();
 
+void PackSDCard();
+void UnpackSDCard();
+
 void StopSystemTasks();
 }  // namespace Shell
