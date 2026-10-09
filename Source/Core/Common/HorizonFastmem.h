@@ -6,8 +6,15 @@
 
 #ifdef __SWITCH__
 
+#include <cstddef>
+
 namespace Common::HorizonFastmem
 {
+constexpr std::size_t ARENA_GUARD_SIZE = 0x200000;
+constexpr std::size_t ARENA_SIZE = 2 * 0x1'0000'0000ull + 3 * ARENA_GUARD_SIZE;
+
+void ReserveArenaAddressSpace();
+
 // Whether one allocation can be aliased into several address ranges, which is all the fastmem
 // arena needs.
 bool IsArenaSupported();

@@ -237,6 +237,9 @@ const Support& GetSupport()
   static const Support support = DetectSupport();
   return support;
 }
+
+u8* s_arena_window = nullptr;
+bool s_arena_window_in_use = false;
 }  // namespace
 
 namespace HorizonFastmem
@@ -249,6 +252,16 @@ bool IsArenaSupported()
 bool AreReadOnlyMappingsSupported()
 {
   return GetSupport().read_only_mappings;
+}
+
+void ReserveArenaAddressSpace()
+{
+  if (s_arena_window)
+    return;
+
+  virtmemLock();
+  ReserveAligned(virtmemFindAslr, ARENA_SIZE, 0, &s_arena_window);
+  virtmemUnlock();
 }
 }  // namespace HorizonFastmem
 
@@ -335,24 +348,31 @@ u8* MemArena::ReserveMemoryRegion(size_t memory_size)
     return nullptr;
   }
 
-  // Libnx bookkeeping for data aborts to keep other allocations out of the window.
   const size_t aligned_size = AlignUp(memory_size, HORIZON_PAGE_SIZE);
   u8* base = nullptr;
-  virtmemLock();
-  ::VirtmemReservation* const reservation =
-      ReserveAligned(virtmemFindAslr, aligned_size, 0, &base);
-  virtmemUnlock();
-
-  if (!reservation)
+  if (s_arena_window && !s_arena_window_in_use && aligned_size <= HorizonFastmem::ARENA_SIZE)
   {
-    NOTICE_LOG_FMT(MEMMAP, "Fastmem arena is unavailable. No {} MiB of contiguous address space.",
-                   aligned_size / 0x100000);
-    return nullptr;
+    base = s_arena_window;
+    s_arena_window_in_use = true;
+  }
+  else
+  {
+    // Libnx bookkeeping for data aborts.
+    virtmemLock();
+    m_region_reservation = ReserveAligned(virtmemFindAslr, aligned_size, 0, &base);
+    virtmemUnlock();
+
+    if (!m_region_reservation)
+    {
+      NOTICE_LOG_FMT(MEMMAP,
+                     "Fastmem arena is unavailable. No {} MiB of contiguous address space.",
+                     aligned_size / 0x100000);
+      return nullptr;
+    }
   }
 
   m_reserved_region = base;
   m_reserved_region_size = aligned_size;
-  m_region_reservation = reservation;
   NOTICE_LOG_FMT(MEMMAP, "Fastmem arena: {} MiB at {}", aligned_size / 0x100000, fmt::ptr(base));
   return base;
 }
@@ -370,9 +390,16 @@ void MemArena::ReleaseMemoryRegion()
   }
   m_mappings.clear();
 
-  virtmemLock();
-  virtmemRemoveReservation(m_region_reservation);
-  virtmemUnlock();
+  if (m_region_reservation)
+  {
+    virtmemLock();
+    virtmemRemoveReservation(m_region_reservation);
+    virtmemUnlock();
+  }
+  else
+  {
+    s_arena_window_in_use = false;
+  }
 
   m_reserved_region = nullptr;
   m_reserved_region_size = 0;

@@ -254,6 +254,8 @@ void MigrateLegacyUserDirectory()
 
 int main(int argc, char* argv[])
 {
+  Common::HorizonFastmem::ReserveArenaAddressSpace();
+
   appletLockExit();
   appletHook(&s_exit_hook, OnAppletHook, nullptr);
   Common::ScopeGuard exit_lock_guard([] {
