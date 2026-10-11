@@ -38,6 +38,16 @@ static void UpdateWatermarkFlags(SCPFifoStruct& fifo)
     fifo.bFF_LoWatermark.store(lo, std::memory_order_relaxed);
 }
 
+static MMIO::WriteHandlingMethod<u16>* RepositioningWrite(u16* ptr, u16 wmask)
+{
+  return MMIO::ComplexWrite<u16>([ptr, wmask](Core::System& system, u32, u16 val) {
+    auto& fifo = system.GetCommandProcessor().GetFifo();
+    fifo.CPRepositionCount.fetch_add(1, std::memory_order_seq_cst);
+    *ptr = val & wmask;
+    fifo.CPRepositionCount.fetch_add(1, std::memory_order_seq_cst);
+  });
+}
+
 static void UpdateInterrupts_Wrapper(Core::System& system, u64 userdata, s64 cyclesLate)
 {
   system.GetCommandProcessor().UpdateInterrupts(userdata);
@@ -149,11 +159,12 @@ void CommandProcessorManager::RegisterMMIO(MMIO::Mapping* mmio, u32 base)
     // For _LO registers in this range, only bits 0xffe0 can be set
     // For _HI registers in this range, only bits 0x03ff can be set on GCN and 0x1fff on Wii
     u16 wmask;
+    bool repositions = false;
   } directly_mapped_vars[] = {
-      {FIFO_BASE_LO, MMIO::Utils::LowPart(&m_fifo.CPBase), WMASK_LO_ALIGN_32BIT},
-      {FIFO_BASE_HI, MMIO::Utils::HighPart(&m_fifo.CPBase), WMASK_HI_RESTRICT},
-      {FIFO_END_LO, MMIO::Utils::LowPart(&m_fifo.CPEnd), WMASK_LO_ALIGN_32BIT},
-      {FIFO_END_HI, MMIO::Utils::HighPart(&m_fifo.CPEnd), WMASK_HI_RESTRICT},
+      {FIFO_BASE_LO, MMIO::Utils::LowPart(&m_fifo.CPBase), WMASK_LO_ALIGN_32BIT, true},
+      {FIFO_BASE_HI, MMIO::Utils::HighPart(&m_fifo.CPBase), WMASK_HI_RESTRICT, true},
+      {FIFO_END_LO, MMIO::Utils::LowPart(&m_fifo.CPEnd), WMASK_LO_ALIGN_32BIT, true},
+      {FIFO_END_HI, MMIO::Utils::HighPart(&m_fifo.CPEnd), WMASK_HI_RESTRICT, true},
       {FIFO_HI_WATERMARK_LO, MMIO::Utils::LowPart(&m_fifo.CPHiWatermark), WMASK_LO_ALIGN_32BIT},
       {FIFO_HI_WATERMARK_HI, MMIO::Utils::HighPart(&m_fifo.CPHiWatermark), WMASK_HI_RESTRICT},
       {FIFO_LO_WATERMARK_LO, MMIO::Utils::LowPart(&m_fifo.CPLoWatermark), WMASK_LO_ALIGN_32BIT},
@@ -170,7 +181,9 @@ void CommandProcessorManager::RegisterMMIO(MMIO::Mapping* mmio, u32 base)
   for (auto& mapped_var : directly_mapped_vars)
   {
     mmio->Register(base | mapped_var.addr, MMIO::DirectRead<u16>(mapped_var.ptr),
-                   MMIO::DirectWrite<u16>(mapped_var.ptr, mapped_var.wmask));
+                   mapped_var.repositions ?
+                       RepositioningWrite(mapped_var.ptr, mapped_var.wmask) :
+                       MMIO::DirectWrite<u16>(mapped_var.ptr, mapped_var.wmask));
   }
 
   // Timing and metrics MMIOs are stubbed with fixed values.
@@ -263,9 +276,9 @@ void CommandProcessorManager::RegisterMMIO(MMIO::Mapping* mmio, u32 base)
     fifo_rw_distance_lo_r =
         MMIO::DirectRead<u16>(MMIO::Utils::LowPart(&m_fifo.CPReadWriteDistance));
   }
-  mmio->Register(base | FIFO_RW_DISTANCE_LO, fifo_rw_distance_lo_r,
-                 MMIO::DirectWrite<u16>(MMIO::Utils::LowPart(&m_fifo.CPReadWriteDistance),
-                                        WMASK_LO_ALIGN_32BIT));
+  mmio->Register(
+      base | FIFO_RW_DISTANCE_LO, fifo_rw_distance_lo_r,
+      RepositioningWrite(MMIO::Utils::LowPart(&m_fifo.CPReadWriteDistance), WMASK_LO_ALIGN_32BIT));
 
   MMIO::ReadHandlingMethod<u16>* fifo_rw_distance_hi_r;
   if (is_on_thread)
@@ -302,7 +315,9 @@ void CommandProcessorManager::RegisterMMIO(MMIO::Mapping* mmio, u32 base)
                  MMIO::ComplexWrite<u16>([WMASK_HI_RESTRICT](Core::System& system_, u32, u16 val) {
                    auto& fifo_ = system_.GetCommandProcessor().GetFifo();
                    system_.GetFifo().SyncGPUForRegisterAccess();
+                   fifo_.CPRepositionCount.fetch_add(1, std::memory_order_seq_cst);
                    WriteHigh(fifo_.CPReadWriteDistance, val & WMASK_HI_RESTRICT);
+                   fifo_.CPRepositionCount.fetch_add(1, std::memory_order_seq_cst);
                    system_.GetFifo().RunGpu();
                  }));
 
@@ -310,7 +325,7 @@ void CommandProcessorManager::RegisterMMIO(MMIO::Mapping* mmio, u32 base)
       base | FIFO_READ_POINTER_LO,
       is_on_thread ? MMIO::DirectRead<u16>(MMIO::Utils::LowPart(&m_fifo.SafeCPReadPointer)) :
                      MMIO::DirectRead<u16>(MMIO::Utils::LowPart(&m_fifo.CPReadPointer)),
-      MMIO::DirectWrite<u16>(MMIO::Utils::LowPart(&m_fifo.CPReadPointer), WMASK_LO_ALIGN_32BIT));
+      RepositioningWrite(MMIO::Utils::LowPart(&m_fifo.CPReadPointer), WMASK_LO_ALIGN_32BIT));
 
   MMIO::ReadHandlingMethod<u16>* fifo_read_hi_r;
   MMIO::WriteHandlingMethod<u16>* fifo_read_hi_w;
@@ -325,9 +340,11 @@ void CommandProcessorManager::RegisterMMIO(MMIO::Mapping* mmio, u32 base)
         MMIO::ComplexWrite<u16>([WMASK_HI_RESTRICT](Core::System& system_, u32, u16 val) {
           auto& fifo_ = system_.GetCommandProcessor().GetFifo();
           system_.GetFifo().SyncGPUForRegisterAccess();
+          fifo_.CPRepositionCount.fetch_add(1, std::memory_order_seq_cst);
           WriteHigh(fifo_.CPReadPointer, val & WMASK_HI_RESTRICT);
           fifo_.SafeCPReadPointer.store(fifo_.CPReadPointer.load(std::memory_order_relaxed),
                                         std::memory_order_relaxed);
+          fifo_.CPRepositionCount.fetch_add(1, std::memory_order_seq_cst);
         });
   }
   else
@@ -341,7 +358,9 @@ void CommandProcessorManager::RegisterMMIO(MMIO::Mapping* mmio, u32 base)
         MMIO::ComplexWrite<u16>([WMASK_HI_RESTRICT](Core::System& system_, u32, u16 val) {
           auto& fifo_ = system_.GetCommandProcessor().GetFifo();
           system_.GetFifo().SyncGPUForRegisterAccess();
+          fifo_.CPRepositionCount.fetch_add(1, std::memory_order_seq_cst);
           WriteHigh(fifo_.CPReadPointer, val & WMASK_HI_RESTRICT);
+          fifo_.CPRepositionCount.fetch_add(1, std::memory_order_seq_cst);
         });
   }
   mmio->Register(base | FIFO_READ_POINTER_HI, fifo_read_hi_r, fifo_read_hi_w);

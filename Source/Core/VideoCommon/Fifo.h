@@ -132,6 +132,7 @@ private:
 
   std::optional<Config::ConfigChangedCallbackID> m_config_callback_id = std::nullopt;
   bool m_config_sync_gpu = false;
+  bool m_batch_fifo_reads = true;
   int m_config_sync_gpu_max_distance = 0;
   int m_config_sync_gpu_min_distance = 0;
   float m_config_sync_gpu_overclock = 0.0f;

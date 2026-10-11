@@ -104,6 +104,7 @@ void FifoManager::Init()
   if (m_system.IsDualCoreMode())
     m_gpu_mainloop.Prepare();
   m_sync_ticks.store(0);
+  m_batch_fifo_reads = true;
 }
 
 void FifoManager::Shutdown()
@@ -291,7 +292,7 @@ u32 FifoManager::GetBatchLength(const CommandProcessor::SCPFifoStruct& fifo, u32
 {
   constexpr u32 burst = GPFifo::GATHER_PIPE_SIZE;
 
-  if (m_config_sync_gpu)
+  if (m_config_sync_gpu || !m_batch_fifo_reads)
     return burst;
 
   const u32 distance = fifo.CPReadWriteDistance.load(std::memory_order_relaxed);
@@ -356,8 +357,18 @@ void FifoManager::RunGpuLoop()
               break;
 
             u32 cyclesExecuted = 0;
+            const bool batching = m_batch_fifo_reads && !m_config_sync_gpu;
+            const u32 reposition_count = fifo.CPRepositionCount.load(std::memory_order_seq_cst);
+            if (batching && reposition_count % 2 != 0)
+              continue;
+
             u32 readPtr = fifo.CPReadPointer.load(std::memory_order_relaxed);
             const u32 len = GetBatchLength(fifo, readPtr);
+            if (batching &&
+                fifo.CPRepositionCount.load(std::memory_order_seq_cst) != reposition_count)
+            {
+              continue;
+            }
             ReadDataFromFifo(readPtr, len);
 
             readPtr += len;
@@ -375,8 +386,18 @@ void FifoManager::RunGpuLoop()
             m_video_buffer_read_ptr = OpcodeDecoder::RunFifo(
                 DataReader(m_video_buffer_read_ptr, write_ptr), &cyclesExecuted);
 
-            fifo.CPReadPointer.store(readPtr, std::memory_order_relaxed);
-            fifo.CPReadWriteDistance.fetch_sub(len, std::memory_order_seq_cst);
+            if (batching &&
+                fifo.CPRepositionCount.load(std::memory_order_seq_cst) != reposition_count)
+            {
+              m_batch_fifo_reads = false;
+              NOTICE_LOG_FMT(COMMANDPROCESSOR,
+                             "FIFO moved during a {}-byte batch. Reverting to upstream behaviour.", len);
+            }
+            else
+            {
+              fifo.CPReadPointer.store(readPtr, std::memory_order_relaxed);
+              fifo.CPReadWriteDistance.fetch_sub(len, std::memory_order_seq_cst);
+            }
             if ((write_ptr - m_video_buffer_read_ptr) == 0)
             {
               fifo.SafeCPReadPointer.store(fifo.CPReadPointer.load(std::memory_order_relaxed),
