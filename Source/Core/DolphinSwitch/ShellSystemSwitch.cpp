@@ -61,11 +61,15 @@ TaskPtr s_task;
 
 std::mutex s_alert_mutex;
 std::string s_last_alert;
+std::atomic_bool s_task_running = false;
 
 bool CaptureAlert(const char* caption, const char* text, bool yes_no, Common::MsgType style)
 {
   std::fprintf(stderr, "%s\n", text);
   std::fflush(stderr);
+
+  if (!s_task_running)
+    return true;
 
   if (style == Common::MsgType::Warning || style == Common::MsgType::Critical)
   {
@@ -146,7 +150,9 @@ void StartTask(const std::string& text, bool cancellable, TaskFn work)
   s_task = task;
   s_thread = std::thread([task, work = std::move(work)] {
     Common::SetCurrentThreadName("Wii system task");
+    s_task_running = true;
     std::function<void()> done = work(task);
+    s_task_running = false;
 
     brls::sync([task, done = std::move(done)] {
       task->label = nullptr;
