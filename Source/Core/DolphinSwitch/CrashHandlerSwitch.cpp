@@ -159,7 +159,7 @@ void DumpSavedFrame(DumpWriter& out, u64 frame_pointer, u64 module_base, u64 mod
 
 void DumpStack(DumpWriter& out, u64 stack_pointer, u64 module_base, u64 module_end)
 {
-  constexpr size_t maximum_words = 32;
+  constexpr size_t maximum_words = 64;
   const size_t word_count = GetReadableWordCount(stack_pointer, maximum_words);
   if (word_count == 0)
   {
