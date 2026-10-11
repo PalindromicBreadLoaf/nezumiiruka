@@ -48,6 +48,12 @@ enum class UpdateChannel : int
   Prerelease,
 };
 
+enum class UpdateBuild : int
+{
+  Standard,
+  Vulkan,
+};
+
 enum class GBAScreens : int
 {
   Hidden,
@@ -74,6 +80,7 @@ extern const std::array<Info<std::string>, 4> SWITCH_PAD_PROFILES;
 extern const std::array<Info<std::string>, 4> SWITCH_WIIMOTE_PROFILES;
 extern const Info<bool> SWITCH_CHECK_FOR_UPDATES;
 extern const Info<UpdateChannel> SWITCH_UPDATE_CHANNEL;
+extern const Info<UpdateBuild> SWITCH_UPDATE_BUILD;
 extern const Info<std::string> SWITCH_SKIPPED_UPDATE;
 extern const Info<std::string> SWITCH_LAST_RUN_VERSION;
 extern const Info<GBAScreens> SWITCH_GBA_SCREENS;

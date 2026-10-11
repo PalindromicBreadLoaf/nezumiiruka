@@ -45,6 +45,23 @@ bool s_installing = false;
 CheckKind s_check_kind = CheckKind::Silent;
 bool s_launched = false;
 
+const char* BuildSuffix(bool vulkan)
+{
+  if (vulkan)
+    return " (Vulkan)";
+  return UpdaterSwitch::IsVulkanBuild() ? " (standard)" : "";
+}
+
+std::string Describe(const UpdaterSwitch::Release& release)
+{
+  return fmt::format("Nezumiiruka {}{}", release.tag, BuildSuffix(release.vulkan));
+}
+
+std::string SkipKey(const UpdaterSwitch::Release& release)
+{
+  return release.vulkan == UpdaterSwitch::IsVulkanBuild() ? release.tag : Describe(release);
+}
+
 void JoinWorker()
 {
   if (s_thread.joinable())
@@ -148,13 +165,12 @@ void OnInstalled(const UpdaterSwitch::Release& release)
 
   if (!UpdaterSwitch::CanRelaunch())
   {
-    ShowMessage(fmt::format("Nezumiiruka {} is installed and will be used from the next launch.",
-                            release.tag));
+    ShowMessage(
+        fmt::format("{} is installed and will be used from the next launch.", Describe(release)));
     return;
   }
 
-  auto* dialog = new brls::Dialog(
-      fmt::format("Nezumiiruka {} is installed. Restart now?", release.tag));
+  auto* dialog = new brls::Dialog(fmt::format("{} is installed. Restart now?", Describe(release)));
   dialog->addButton("Later", [] {});
   dialog->addButton("Restart", [] {
     brls::sync([] {
@@ -183,7 +199,7 @@ void StartInstall(const UpdaterSwitch::Release& release)
   s_cancelled = false;
 
   auto state = std::make_shared<InstallState>();
-  const std::string heading = fmt::format("Downloading Nezumiiruka {}...", release.tag);
+  const std::string heading = fmt::format("Downloading {}...", Describe(release));
 
   state->label = new brls::Label();
   state->label->setText(heading + "\n\nPress B to cancel.");
@@ -241,11 +257,11 @@ void StartInstall(const UpdaterSwitch::Release& release)
 void OfferUpdate(const UpdaterSwitch::Release& release)
 {
   const std::string kind = release.prerelease ? "pre-release" : "release";
-  auto* dialog = new brls::Dialog(fmt::format(
-      "Nezumiiruka {} is available as a {}. You have {}.",
-      release.tag, kind, UpdaterSwitch::GetCurrentVersion()));
-  dialog->addButton("Skip",
-                    [tag = release.tag] { Config::SetBase(Config::SWITCH_SKIPPED_UPDATE, tag); });
+  auto* dialog = new brls::Dialog(
+      fmt::format("{} is available as a {}. You have {}{}.", Describe(release), kind,
+                  UpdaterSwitch::GetCurrentVersion(), BuildSuffix(UpdaterSwitch::IsVulkanBuild())));
+  dialog->addButton(
+      "Skip", [key = SkipKey(release)] { Config::SetBase(Config::SWITCH_SKIPPED_UPDATE, key); });
   dialog->addButton("Later", [] {});
   dialog->addButton("Update", [release] { brls::sync([release] { StartInstall(release); }); });
   dialog->open();
@@ -281,7 +297,7 @@ void OnChecked(CheckKind kind, const UpdaterSwitch::CheckResult& result)
       ShowMessage(fmt::format("Nezumiiruka {} is up to date.", current));
     break;
   case CheckStatus::Available:
-    if (manual || result.release.tag != Config::Get(Config::SWITCH_SKIPPED_UPDATE))
+    if (manual || SkipKey(result.release) != Config::Get(Config::SWITCH_SKIPPED_UPDATE))
       OfferUpdate(result.release);
     break;
   }
@@ -312,10 +328,11 @@ void StartCheck(CheckKind kind)
 
   const bool include_prereleases =
       Config::Get(Config::SWITCH_UPDATE_CHANNEL) == Config::UpdateChannel::Prerelease;
-  s_thread = std::thread([include_prereleases] {
+  const bool vulkan = Config::Get(Config::SWITCH_UPDATE_BUILD) == Config::UpdateBuild::Vulkan;
+  s_thread = std::thread([include_prereleases, vulkan] {
     Common::SetCurrentThreadName("Nezumiiruka update check");
     UpdaterSwitch::CheckResult result =
-        UpdaterSwitch::CheckForUpdate(include_prereleases, s_cancelled);
+        UpdaterSwitch::CheckForUpdate(include_prereleases, vulkan, s_cancelled);
 
     brls::sync([result = std::move(result)] {
       s_checking = false;
@@ -326,8 +343,8 @@ void StartCheck(CheckKind kind)
 
 void ShowUpdatedFrom(const std::string& previous)
 {
-  auto* dialog = new brls::Dialog(fmt::format("Nezumiiruka has been updated from {} to {}.", previous,
-                                              UpdaterSwitch::GetCurrentVersion()));
+  auto* dialog = new brls::Dialog(fmt::format("Nezumiiruka has been updated from {} to {}.",
+                                              previous, UpdaterSwitch::GetCurrentVersion()));
   dialog->addButton("OK", [] {});
   dialog->addButton("Release notes", [] { brls::sync(ShowReleaseNotes); });
   dialog->open();

@@ -271,10 +271,18 @@ int main(int argc, char* argv[])
       socketExit();
   });
 
+  UpdaterSwitch::SetExecutablePath(argc > 0 && argv[0] != nullptr ? argv[0] : "");
+  if (UpdaterSwitch::ApplyPendingUpdate() && UpdaterSwitch::CanRelaunch())
+  {
+    UpdaterSwitch::QueueRelaunch();
+    return 0;
+  }
+
   const bool have_romfs = R_SUCCEEDED(romfsInit());
   Common::ScopeGuard romfs_guard([have_romfs] {
     if (have_romfs)
       romfsExit();
+    UpdaterSwitch::ApplyPendingUpdate();
   });
 
   PadState pad;
@@ -315,8 +323,6 @@ int main(int argc, char* argv[])
   // Reserved once for the whole session. Both JitArm64 and VertexLoaderARM64 carve out of this.
   Common::HostCodeMemory::Init();
   Common::ScopeGuard host_code_guard([] { Common::HostCodeMemory::Shutdown(); });
-
-  UpdaterSwitch::SetExecutablePath(argc > 0 && argv[0] != nullptr ? argv[0] : "");
 
   Shell::BootRequest pending;
   if (argc > 1 && argv[1] != nullptr)

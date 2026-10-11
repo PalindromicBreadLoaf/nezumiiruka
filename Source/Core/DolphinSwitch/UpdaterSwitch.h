@@ -22,6 +22,7 @@ struct Release
   std::string sha256;
   u64 size = 0;
   bool prerelease = false;
+  bool vulkan = false;
 };
 
 enum class CheckStatus
@@ -48,16 +49,20 @@ struct ReleaseNotes
 using ProgressFn = std::function<void(u64 downloaded, u64 total)>;
 
 const char* GetCurrentVersion();
+bool IsVulkanBuild();
 
 void SetExecutablePath(std::string path);
 const std::string& GetExecutablePath();
 
 int CompareVersions(std::string_view lhs, std::string_view rhs);
 
-CheckResult CheckForUpdate(bool include_prereleases, const std::atomic_bool& cancelled);
+CheckResult CheckForUpdate(bool include_prereleases, bool vulkan,
+                           const std::atomic_bool& cancelled);
 
 std::expected<void, std::string> Install(const Release& release, const std::atomic_bool& cancelled,
                                          const ProgressFn& progress);
+
+bool ApplyPendingUpdate();
 
 bool CanRelaunch();
 void QueueRelaunch();

@@ -35,11 +35,14 @@ constexpr const char* RELEASES_URL =
     "https://api.github.com/repos/PalindromicBreadLoaf/nezumiiruka/releases?per_page=20";
 constexpr const char* USER_AGENT = "Nezumiiruka-Updater/" NEZUMIIRUKA_VERSION;
 constexpr std::string_view ASSET_NAME = "nezumiiruka.nro";
+constexpr std::string_view VULKAN_ASSET_NAME = "nezumiiruka-vulkan.nro";
+constexpr std::string_view INSTALLED_NAME = "nezumiiruka.nro";
 constexpr std::string_view DIGEST_PREFIX = "sha256:";
 constexpr size_t NRO_MAGIC_OFFSET = 0x10;
 constexpr std::string_view NRO_MAGIC = "NRO0";
 
 std::string s_executable_path;
+bool s_relaunch_queued = false;
 
 using VersionPart = std::variant<u64, std::string>;
 
@@ -162,7 +165,7 @@ u64 GetSize(const picojson::object& object, const std::string& key)
   return static_cast<u64>(it->second.get<double>());
 }
 
-std::optional<Release> ParseRelease(const picojson::value& value)
+std::optional<Release> ParseRelease(const picojson::value& value, bool vulkan)
 {
   if (!value.is<picojson::object>())
     return std::nullopt;
@@ -175,12 +178,13 @@ std::optional<Release> ParseRelease(const picojson::value& value)
   release.tag = GetString(object, "tag_name");
   release.notes = GetString(object, "body");
   release.prerelease = GetBool(object, "prerelease", false);
+  release.vulkan = vulkan;
   if (release.tag.empty())
     return std::nullopt;
 
   const auto assets = object.find("assets");
   if (assets == object.end() || !assets->second.is<picojson::array>())
-    return std::nullopt;
+    return release;
 
   for (const picojson::value& asset_value : assets->second.get<picojson::array>())
   {
@@ -188,7 +192,7 @@ std::optional<Release> ParseRelease(const picojson::value& value)
       continue;
 
     const picojson::object& asset = asset_value.get<picojson::object>();
-    if (GetString(asset, "name") != ASSET_NAME)
+    if (GetString(asset, "name") != (vulkan ? VULKAN_ASSET_NAME : ASSET_NAME))
       continue;
 
     release.download_url = GetString(asset, "browser_download_url");
@@ -202,9 +206,12 @@ std::optional<Release> ParseRelease(const picojson::value& value)
     break;
   }
 
-  if (release.download_url.empty() || release.size == 0 || release.sha256.size() != 64)
-    return std::nullopt;
   return release;
+}
+
+bool IsInstallable(const Release& release)
+{
+  return !release.download_url.empty() && release.size != 0 && release.sha256.size() == 64;
 }
 
 Common::HttpRequest::Headers GetHeaders()
@@ -235,6 +242,24 @@ bool IsNro(const std::vector<u8>& data)
          std::memcmp(data.data() + NRO_MAGIC_OFFSET, NRO_MAGIC.data(), NRO_MAGIC.size()) == 0;
 }
 
+bool SamePath(std::string lhs, std::string rhs)
+{
+  Common::ToLower(&lhs);
+  Common::ToLower(&rhs);
+  return lhs == rhs;
+}
+
+std::string GetInstalledPath()
+{
+  return s_executable_path.substr(0, s_executable_path.find_last_of('/') + 1)
+      .append(INSTALLED_NAME);
+}
+
+std::string GetPendingPath()
+{
+  return GetInstalledPath() + ".update";
+}
+
 std::string GetNotesPath()
 {
   return File::GetUserPath(D_CACHE_IDX) + "ReleaseNotes.txt";
@@ -244,6 +269,15 @@ std::string GetNotesPath()
 const char* GetCurrentVersion()
 {
   return NEZUMIIRUKA_VERSION;
+}
+
+bool IsVulkanBuild()
+{
+#ifdef HAS_VULKAN
+  return true;
+#else
+  return false;
+#endif
 }
 
 void SetExecutablePath(std::string path)
@@ -270,7 +304,7 @@ int CompareVersions(std::string_view lhs, std::string_view rhs)
   return normalised_a < normalised_b ? -1 : 1;
 }
 
-CheckResult CheckForUpdate(bool include_prereleases, const std::atomic_bool& cancelled)
+CheckResult CheckForUpdate(bool include_prereleases, bool vulkan, const std::atomic_bool& cancelled)
 {
   CheckResult result;
 
@@ -302,14 +336,14 @@ CheckResult CheckForUpdate(bool include_prereleases, const std::atomic_bool& can
   std::optional<Release> newest;
   for (const picojson::value& value : releases.get<picojson::array>())
   {
-    std::optional<Release> release = ParseRelease(value);
+    std::optional<Release> release = ParseRelease(value, vulkan);
     if (!release)
       continue;
 
     if (result.current_notes.empty() && CompareVersions(release->tag, GetCurrentVersion()) == 0)
       result.current_notes = release->notes;
 
-    if (release->prerelease && !include_prereleases)
+    if (!IsInstallable(*release) || (release->prerelease && !include_prereleases))
       continue;
 
     if (!newest || CompareVersions(release->tag, newest->tag) > 0)
@@ -318,12 +352,15 @@ CheckResult CheckForUpdate(bool include_prereleases, const std::atomic_bool& can
 
   if (!newest)
   {
-    result.error = "GitHub lists no release of Nezumiiruka that can be installed.";
+    result.error = vulkan ? "GitHub lists no Vulkan build of Nezumiiruka that can be installed." :
+                            "GitHub lists no release of Nezumiiruka that can be installed.";
     return result;
   }
 
-  result.status = CompareVersions(newest->tag, GetCurrentVersion()) > 0 ? CheckStatus::Available :
-                                                                          CheckStatus::UpToDate;
+  const int comparison = CompareVersions(newest->tag, GetCurrentVersion());
+  const bool switching = vulkan != IsVulkanBuild();
+  result.status = comparison > 0 || (switching && comparison == 0) ? CheckStatus::Available :
+                                                                     CheckStatus::UpToDate;
   result.release = std::move(*newest);
   return result;
 }
@@ -331,8 +368,8 @@ CheckResult CheckForUpdate(bool include_prereleases, const std::atomic_bool& can
 std::expected<void, std::string> Install(const Release& release, const std::atomic_bool& cancelled,
                                          const ProgressFn& progress)
 {
-  const std::string& path = s_executable_path;
-  if (!path.ends_with(".nro") || !File::IsFile(path))
+  const std::string& running = s_executable_path;
+  if (!running.ends_with(".nro") || !File::IsFile(running))
     return std::unexpected("Could not find the running copy of Nezumiiruka.");
 
   Common::HttpRequest request(std::chrono::seconds(30), CancelWith(cancelled, progress));
@@ -350,8 +387,8 @@ std::expected<void, std::string> Install(const Release& release, const std::atom
   if (!IsNro(*data))
     return std::unexpected("The download is not a Switch homebrew application.");
 
-  const std::string temporary = path + ".update";
-  const std::string backup = path + ".backup";
+  const std::string pending = GetPendingPath();
+  const std::string temporary = pending + ".part";
 
   {
     File::IOFile file(temporary, "wb");
@@ -362,22 +399,63 @@ std::expected<void, std::string> Install(const Release& release, const std::atom
     }
   }
 
-  File::Delete(backup);
-  if (!File::Rename(path, backup))
+  File::Delete(pending);
+  if (!File::Rename(temporary, pending))
   {
     File::Delete(temporary);
-    return std::unexpected("Could not back up the current version.");
+    return std::unexpected("Could not write the update to the SD card.");
   }
 
-  if (!File::Rename(temporary, path))
-  {
-    if (File::Rename(backup, path))
-      return std::unexpected("Could not install the update. The current version was restored.");
-    return std::unexpected("Could not install the update.");
-  }
-
-  NOTICE_LOG_FMT(COMMON, "Updated Nezumiiruka {} to {}", GetCurrentVersion(), release.tag);
+  NOTICE_LOG_FMT(COMMON, "Downloaded Nezumiiruka {}{}, replacing {} at exit", release.tag,
+                 release.vulkan ? " (Vulkan)" : "", GetInstalledPath());
   return {};
+}
+
+bool ApplyPendingUpdate()
+{
+  if (s_executable_path.empty())
+    return false;
+
+  const std::string pending = GetPendingPath();
+  if (!File::IsFile(pending))
+    return false;
+
+  const std::string running = s_executable_path;
+  const std::string path = GetInstalledPath();
+  const std::string backup = path + ".backup";
+
+  const bool replacing = File::Exists(path);
+  if (replacing)
+  {
+    File::Delete(backup);
+    if (!File::Rename(path, backup))
+    {
+      ERROR_LOG_FMT(COMMON, "Could not back up {}.", path);
+      return false;
+    }
+  }
+
+  if (!File::Rename(pending, path))
+  {
+    ERROR_LOG_FMT(COMMON, "Could not move the update into place.");
+    if (replacing)
+      File::Rename(backup, path);
+    return false;
+  }
+
+  if (!SamePath(running, path))
+  {
+    const std::string running_backup = running + ".backup";
+    File::Delete(running_backup);
+    if (!File::Rename(running, running_backup))
+      WARN_LOG_FMT(COMMON, "Could not move aside {} after updating", running);
+  }
+
+  s_executable_path = path;
+  if (s_relaunch_queued)
+    QueueRelaunch();
+  NOTICE_LOG_FMT(COMMON, "Installed the pending update over {}", path);
+  return true;
 }
 
 bool CanRelaunch()
@@ -389,6 +467,7 @@ void QueueRelaunch()
 {
   const std::string argv = fmt::format("\"{}\"", s_executable_path);
   envSetNextLoad(s_executable_path.c_str(), argv.c_str());
+  s_relaunch_queued = true;
 }
 
 ReleaseNotes LoadCachedNotes()

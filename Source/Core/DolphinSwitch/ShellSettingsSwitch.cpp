@@ -1578,6 +1578,7 @@ void BuildAbout(PageBuilder& page)
 {
   page.Header("Nezumiiruka");
   page.Info("Version", UpdaterSwitch::GetCurrentVersion());
+  page.Info("Build", UpdaterSwitch::IsVulkanBuild() ? "Vulkan" : "Standard");
   page.Info("Revision", Common::GetScmDescStr());
   page.Info("Branch", Common::GetScmBranchStr());
   page.Info("Build ID", Common::HorizonBuildId::GetHex().data());
@@ -1589,6 +1590,11 @@ void BuildAbout(PageBuilder& page)
   page.Choice(
       "Update channel", Config::SWITCH_UPDATE_CHANNEL,
       {{"Stable", Config::UpdateChannel::Stable}, {"Beta", Config::UpdateChannel::Prerelease}});
+  page.Choice(
+      "Update build", Config::SWITCH_UPDATE_BUILD,
+      {{"Standard", Config::UpdateBuild::Standard}, {"Vulkan", Config::UpdateBuild::Vulkan}});
+  page.Note("The Vulkan build adds the Vulkan video backend alongside deko3d. Deko3d is more "
+            " performant and is what should be used unless an issue is found.");
 
   page.Header("System");
   SetSysFirmwareVersion firmware;

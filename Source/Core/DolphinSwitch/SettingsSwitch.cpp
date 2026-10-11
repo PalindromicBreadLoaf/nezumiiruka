@@ -42,6 +42,13 @@ const std::array<Info<std::string>, 4> SWITCH_WIIMOTE_PROFILES{
 const Info<bool> SWITCH_CHECK_FOR_UPDATES{{System::Main, "Switch", "CheckForUpdates"}, true};
 const Info<UpdateChannel> SWITCH_UPDATE_CHANNEL{{System::Main, "Switch", "UpdateChannel"},
                                                 UpdateChannel::Stable};
+#ifdef HAS_VULKAN
+const Info<UpdateBuild> SWITCH_UPDATE_BUILD{{System::Main, "Switch", "UpdateBuild"},
+                                            UpdateBuild::Vulkan};
+#else
+const Info<UpdateBuild> SWITCH_UPDATE_BUILD{{System::Main, "Switch", "UpdateBuild"},
+                                            UpdateBuild::Standard};
+#endif
 const Info<std::string> SWITCH_SKIPPED_UPDATE{{System::Main, "Switch", "SkippedUpdate"}, ""};
 const Info<std::string> SWITCH_LAST_RUN_VERSION{{System::Main, "Switch", "LastRunVersion"}, ""};
 const Info<GBAScreens> SWITCH_GBA_SCREENS{{System::Main, "Switch", "GBAScreens"},
