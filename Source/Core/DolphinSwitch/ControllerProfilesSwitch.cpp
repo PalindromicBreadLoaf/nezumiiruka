@@ -27,6 +27,7 @@
 #include "DolphinSwitch/SettingsSwitch.h"
 #include "InputCommon/ControllerEmu/ControlGroup/Attachments.h"
 #include "InputCommon/ControllerEmu/ControlGroup/ControlGroup.h"
+#include "InputCommon/ControllerEmu/ControlGroup/Cursor.h"
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
 
 namespace ControllerProfiles
@@ -115,11 +116,29 @@ void BindShake(ControllerEmu::ControlGroup* group, const char* expression)
   Bind(group, {expression, expression, expression});
 }
 
-void BindCommon(WiimoteEmu::Wiimote& wiimote)
+void BindPoint(WiimoteEmu::Wiimote& wiimote, bool right_stick)
 {
-  Bind(wiimote.GetWiimoteGroup(WiimoteGroup::Point),
-       {"`Horizon/0/Touchscreen:Touch Y-`", "`Horizon/0/Touchscreen:Touch Y+`",
-        "`Horizon/0/Touchscreen:Touch X-`", "`Horizon/0/Touchscreen:Touch X+`"});
+  auto* const group =
+      static_cast<ControllerEmu::Cursor*>(wiimote.GetWiimoteGroup(WiimoteGroup::Point));
+  if (right_stick)
+  {
+    group->SetRelativeInput(true);
+    Bind(group, {"`Horizon/0/Touchscreen:Touch Y-` | `Right Y+`",
+                 "`Horizon/0/Touchscreen:Touch Y+` | `Right Y-`",
+                 "`Horizon/0/Touchscreen:Touch X-` | `Right X-`",
+                 "`Horizon/0/Touchscreen:Touch X+` | `Right X+`", "", "`Stick L`",
+                 "`Horizon/0/Touchscreen:Touch`"});
+  }
+  else
+  {
+    Bind(group, {"`Horizon/0/Touchscreen:Touch Y-`", "`Horizon/0/Touchscreen:Touch Y+`",
+                 "`Horizon/0/Touchscreen:Touch X-`", "`Horizon/0/Touchscreen:Touch X+`"});
+  }
+}
+
+void BindCommon(WiimoteEmu::Wiimote& wiimote, WiimoteLayout layout)
+{
+  BindPoint(wiimote, layout == WiimoteLayout::Vertical || layout == WiimoteLayout::Sideways);
 
   Bind(wiimote.GetWiimoteGroup(WiimoteGroup::Rumble), {"`Motor`"});
 }
@@ -206,6 +225,9 @@ void BindNunchuk(WiimoteEmu::Wiimote& wiimote)
        {"`Left Y+`", "`Left Y-`", "`Left X-`", "`Left X+`"});
   BindShake(wiimote.GetNunchukGroup(NunchukGroup::Shake),
             "`Right X-` | `Right X+` | `Right Y-` | `Right Y+`");
+  Bind(wiimote.GetNunchukGroup(NunchukGroup::IMUAccelerometer),
+       {"`Left Accel Up`", "`Left Accel Down`", "`Left Accel Left`", "`Left Accel Right`",
+        "`Left Accel Forward`", "`Left Accel Backward`"});
 }
 
 void BindClassic(WiimoteEmu::Wiimote& wiimote)
@@ -240,7 +262,7 @@ void SaveWiimoteLayout(WiimoteLayout layout, Common::IniFile::Section* section)
 {
   WiimoteEmu::Wiimote wiimote(0);
 
-  BindCommon(wiimote);
+  BindCommon(wiimote, layout);
   switch (layout)
   {
   case WiimoteLayout::Sideways:

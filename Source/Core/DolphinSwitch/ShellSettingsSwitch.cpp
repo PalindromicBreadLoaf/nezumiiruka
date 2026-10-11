@@ -1339,7 +1339,8 @@ void BuildControls(PageBuilder& page, bool wii)
       AddProfileCell(page, fmt::format("Wii Remote {} profile", index + 1), Kind::Wiimote, index);
     }
     page.Note("Wii Remote 1 is player 1's controller, and so on. By default, HOME is right stick "
-              "click and recentre pointer is on left stick click.");
+              "click and recentre pointer is on left stick click. The right stick also aims the "
+              "pointer in the Wii Remote presets.");
   }
 
   if (page.IsPerGame())
