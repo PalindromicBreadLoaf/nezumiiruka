@@ -56,16 +56,19 @@ Do note that frame generation is very resource intensive and will necessitate an
 results out of. Also, currently only the Deko3D backend has a frame generation implementation.
 
 ## Controls
-- In-game menu: `+` and `−` 
+- In-game menu: `+` and `−`
 - Statistics overlay: `L3` and `R3`
 - Everything else is mapped as you would expect
 - (Wii only) `L3` resets pointer
 - (Wii only) `R3` HOME button
+- (Wii only) The touchscreen can be used as input for the Wii pointer.
+- Depending on the configuration, the right stick is either shake or pointer.
+  - Custom configurations can be made if you wish to change this.
 
 ## Notes
 Shaders are not compatible with upstream. You cannot generate them on PC and transfer them over.
 
-Savestates are likely to break across releases, and are also not compatible with upstream. 
+Savestates are likely to break across releases, and are also not compatible with upstream.
 
 ## Reporting Bugs
 Please report any bugs that you find to the [Github Issues](https://github.com/PalindromicBreadLoaf/nezumiiruka/issues).
@@ -101,7 +104,7 @@ cmake -S . -B build/switch \
 cmake --build build/switch --target nezumiiruka_nro -j$(nproc)
 ```
 
-Only the deko3d renderer is built by default. This should be the renderer you use as it is more 
+Only the deko3d renderer is built by default. This should be the renderer you use as it is more
 performant than Vulkan in every case that I saw.
 
 If you want, pass `-DNEZUMIIRUKA_VULKAN=ON` to also build the Vulkan renderer (requires NXVK).
