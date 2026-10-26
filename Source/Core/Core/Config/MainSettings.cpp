@@ -73,6 +73,9 @@ const Info<int> MAIN_GC_LANGUAGE{{System::Main, "Core", "SelectedLanguage"},
 #else
 const Info<int> MAIN_GC_LANGUAGE{{System::Main, "Core", "SelectedLanguage"}, 0};
 #endif
+#ifdef __SWITCH__
+const Info<bool> MAIN_GC_PAL60{{System::Main, "Core", "GCPAL60"}, false};
+#endif
 const Info<bool> MAIN_OVERRIDE_REGION_SETTINGS{{System::Main, "Core", "OverrideRegionSettings"},
                                                false};
 const Info<bool> MAIN_DPL2_DECODER{{System::Main, "Core", "DPL2Decoder"}, false};

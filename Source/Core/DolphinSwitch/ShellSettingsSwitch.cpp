@@ -1031,6 +1031,11 @@ void BuildGameCube(PageBuilder& page, const std::shared_ptr<const UICommon::Game
       {{"English", 0}, {"German", 1}, {"French", 2}, {"Spanish", 3}, {"Italian", 4}, {"Dutch", 5}});
   page.Toggle("Skip main menu", Config::MAIN_SKIP_IPL);
 
+  page.Header("Video mode");
+  page.Toggle("60 Hz in PAL games", Config::MAIN_GC_PAL60);
+  page.Toggle("Progressive scan (480p)", Config::SYSCONF_PROGRESSIVE_SCAN);
+  page.Note("Only affects games with their own 60 Hz or progressive scan mode.");
+
   using ExpansionInterface::EXIDeviceType;
   const std::vector<Option<EXIDeviceType>> slot_devices = {
       {"Nothing", EXIDeviceType::None},

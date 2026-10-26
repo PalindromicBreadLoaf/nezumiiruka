@@ -19,6 +19,7 @@
 #include "Common/Timer.h"
 
 #include "Core/Config/MainSettings.h"
+#include "Core/Config/SYSCONFSettings.h"
 #include "Core/Config/SessionSettings.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
@@ -138,6 +139,15 @@ CEXIIPL::CEXIIPL(Core::System& system) : IEXIDevice(system)
   // We Overwrite language selection here since it's possible on the GC to change the language as
   // you please
   sram.settings.language = Config::Get(Config::MAIN_GC_LANGUAGE);
+#ifdef __SWITCH__
+  if (!system.IsWii())
+  {
+    constexpr u8 NTD_EURGB60 = 0x40;
+    sram.settings.ntd = Config::Get(Config::MAIN_GC_PAL60) ? (sram.settings.ntd | NTD_EURGB60) :
+                                                             (sram.settings.ntd & ~NTD_EURGB60);
+    sram.settings.flags.progressive_scan(Config::Get(Config::SYSCONF_PROGRESSIVE_SCAN));
+  }
+#endif
   sram.settings.rtc_bias = 0;
   FixSRAMChecksums(&sram);
 }

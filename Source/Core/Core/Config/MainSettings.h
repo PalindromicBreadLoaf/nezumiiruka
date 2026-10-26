@@ -75,6 +75,9 @@ extern const Info<bool> MAIN_SYNC_ON_SKIP_IDLE;
 extern const Info<std::string> MAIN_DEFAULT_ISO;
 extern const Info<bool> MAIN_ENABLE_CHEATS;
 extern const Info<int> MAIN_GC_LANGUAGE;
+#ifdef __SWITCH__
+extern const Info<bool> MAIN_GC_PAL60;
+#endif
 extern const Info<bool> MAIN_OVERRIDE_REGION_SETTINGS;
 extern const Info<bool> MAIN_DPL2_DECODER;
 extern const Info<AudioCommon::DPL2Quality> MAIN_DPL2_QUALITY;
