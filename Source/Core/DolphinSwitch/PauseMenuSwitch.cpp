@@ -849,7 +849,8 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
   rows.push_back(Row{.kind = RowKind::Header, .label = "This game"});
 
   AddChoice<int>(rows, "Internal resolution",
-                 {{"Native (640×528)", 1},
+                 {{"Auto (window size)", 0},
+                  {"Native (640×528)", 1},
                   {"2× (1280×1056)", 2},
                   {"3× (1920×1584)", 3},
                   {"4× (2560×2112)", 4}},
