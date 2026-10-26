@@ -947,10 +947,17 @@ void BuildEmulation(PageBuilder& page)
   const std::vector<std::string> clock_labels = {"Off",  "50%",  "75%",  "90%",
                                                  "110%", "125%", "150%", "200%"};
   const std::vector<float> clock_factors = {0.5f, 0.75f, 0.9f, 1.1f, 1.25f, 1.5f, 2.0f};
-  page.Custom("CPU clock override", clock_labels,
+  std::vector<std::string> cpu_clock_labels = {"Off"};
+  std::vector<float> cpu_clock_factors;
+  for (const int percentage : SwitchSettings::CPU_CLOCK_PERCENTAGES)
+  {
+    cpu_clock_labels.push_back(fmt::format("{}%", percentage));
+    cpu_clock_factors.push_back(static_cast<float>(percentage / 100.0));
+  }
+  page.Custom("CPU clock override", cpu_clock_labels,
               OverclockBinding(page.GetContext(), Config::MAIN_OVERCLOCK_ENABLE,
-                               Config::MAIN_OVERCLOCK, clock_factors));
-  page.Note("Underclocking the emulated CPU can make demanding games reach full speed, at the "
+                               Config::MAIN_OVERCLOCK, cpu_clock_factors));
+  page.Note("Underclocking the emulated CPU can make demanding games reach full speed at the "
             "risk of slowdown inside the game itself.");
   page.Custom("VBI frequency override", clock_labels,
               OverclockBinding(page.GetContext(), Config::MAIN_VI_OVERCLOCK_ENABLE,

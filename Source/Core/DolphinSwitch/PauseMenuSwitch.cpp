@@ -891,6 +891,18 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
                      WriteForGame(Config::MAIN_EMULATION_SPEED, value);
                    });
 
+  Options<float> clocks = {{"Off", 0.0f}};
+  for (const int percentage : SwitchSettings::CPU_CLOCK_PERCENTAGES)
+    clocks.emplace_back(fmt::format("{}%", percentage), static_cast<float>(percentage / 100.0));
+  AddChoice<float>(rows, "CPU clock override", std::move(clocks),
+                   Config::Get(Config::MAIN_OVERCLOCK_ENABLE) ? Config::Get(Config::MAIN_OVERCLOCK) :
+                                                                0.0f,
+                   [this](const float& value) {
+                     WriteForGame(Config::MAIN_OVERCLOCK_ENABLE, value != 0.0f);
+                     if (value != 0.0f)
+                       WriteForGame(Config::MAIN_OVERCLOCK, value);
+                   });
+
 #ifdef HAS_FRAME_GENERATION
   if (Config::Get(Config::MAIN_GFX_BACKEND) == "Deko3D")
   {
