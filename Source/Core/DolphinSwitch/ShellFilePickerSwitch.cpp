@@ -53,9 +53,9 @@ class FilePickerView : public brls::Box
 {
 public:
   FilePickerView(const std::string& directory, std::vector<std::string> extensions,
-                 FileChosenFn on_chosen)
+                 bool pick_folder, FileChosenFn on_chosen)
       : brls::Box(brls::Axis::COLUMN), m_extensions(std::move(extensions)),
-        m_on_chosen(std::move(on_chosen))
+        m_pick_folder(pick_folder), m_on_chosen(std::move(on_chosen))
   {
     setGrow(1);
 
@@ -119,7 +119,7 @@ private:
         continue;
       if (entry.isDirectory)
         folders.push_back(std::move(entry));
-      else if (Matches(entry.virtualName))
+      else if (!m_pick_folder && Matches(entry.virtualName))
         files.push_back(std::move(entry));
     }
 
@@ -132,14 +132,20 @@ private:
     brls::View* focus = nullptr;
     brls::View* first_drive = nullptr;
 
+    if (m_pick_folder)
+      focus = AddCell("Use this folder", directory, [this, directory] { Choose(directory); });
+
     const std::string parent_directory = GetParent(directory);
     if (!parent_directory.empty())
     {
       std::string name = directory.substr(parent_directory.size());
       if (!name.empty() && name.back() == '/')
         name.pop_back();
-      focus = AddCell("..", "Parent folder",
-                      [this, parent_directory, name] { Populate(parent_directory, name); });
+      brls::View* parent =
+          AddCell("..", "Parent folder",
+                  [this, parent_directory, name] { Populate(parent_directory, name); });
+      if (focus == nullptr)
+        focus = parent;
     }
     else
     {
@@ -197,6 +203,7 @@ private:
   }
 
   std::vector<std::string> m_extensions;
+  bool m_pick_folder = false;
   FileChosenFn m_on_chosen;
 
   brls::Label* m_path = nullptr;
@@ -210,7 +217,16 @@ brls::Activity* CreateFilePickerActivity(const std::string& title, const std::st
                                          FileChosenFn on_chosen)
 {
   auto* frame = new brls::AppletFrame(
-      new FilePickerView(directory, std::move(extensions), std::move(on_chosen)));
+      new FilePickerView(directory, std::move(extensions), false, std::move(on_chosen)));
+  frame->setTitle(title);
+  return new brls::Activity(frame);
+}
+
+brls::Activity* CreateFolderPickerActivity(const std::string& title, const std::string& directory,
+                                           FileChosenFn on_chosen)
+{
+  auto* frame =
+      new brls::AppletFrame(new FilePickerView(directory, {}, true, std::move(on_chosen)));
   frame->setTitle(title);
   return new brls::Activity(frame);
 }

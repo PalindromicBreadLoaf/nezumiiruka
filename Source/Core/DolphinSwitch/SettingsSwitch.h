@@ -6,6 +6,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
@@ -40,6 +41,8 @@ enum class WiimoteLayout : int
   Nunchuk,
   Classic,
   SidewaysJoyCon,
+  RealSideways,
+  RealNunchuk,
 };
 
 enum class UpdateChannel : int
@@ -72,6 +75,9 @@ enum class GBAScreenCorner : int
 extern const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE;
 extern const Info<int> SWITCH_PERFORMANCE_OVERLAY;
 extern const Info<std::string> SWITCH_GAME_DIRECTORY;
+extern const Info<bool> SWITCH_SEPARATE_GAME_DIRECTORIES;
+extern const Info<std::string> SWITCH_GAMECUBE_GAME_DIRECTORY;
+extern const Info<std::string> SWITCH_WII_GAME_DIRECTORY;
 extern const Info<std::string> SWITCH_USB_GAME_DIRECTORY;
 extern const Info<GameListSort> SWITCH_GAME_LIST_SORT;
 extern const Info<GameListFilter> SWITCH_GAME_LIST_FILTER;
@@ -89,9 +95,16 @@ extern const Info<GBAScreenCorner> SWITCH_GBA_SCREEN_CORNER;
 
 namespace SwitchSettings
 {
+constexpr std::array<int, 22> CPU_CLOCK_PERCENTAGES = {50,  55,  60,  65,  70,  75,  80,  85,
+                                                       90,  95,  105, 110, 115, 120, 125, 130,
+                                                       135, 140, 145, 150, 175, 200};
+
 void ApplyDefaults();
 
+std::string GetDefaultGameDirectory(const Config::Info<std::string>& info);
+std::string GetGameDirectory(const Config::Info<std::string>& info);
 std::string GetGameDirectory();
+std::vector<std::string> GetGameDirectories();
 
 u32 GetPerformanceConfiguration();
 }  // namespace SwitchSettings

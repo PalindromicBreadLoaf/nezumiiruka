@@ -66,7 +66,7 @@ private:
   Library& m_library;
   BootRequest& m_chosen;
   std::string m_focused_path;
-  std::string m_game_directory;
+  std::vector<std::string> m_game_directories;
   std::string m_usb_game_directory;
   std::vector<UsbStorage::Volume> m_usb_volumes;
 

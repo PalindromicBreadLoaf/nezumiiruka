@@ -13,8 +13,10 @@
 #include <borealis/views/dropdown.hpp>
 #include <borealis/views/hint.hpp>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <nanovg.h>
 
+#include "Common/FileUtil.h"
 #include "Common/StringUtil.h"
 #include "Core/CommonTitles.h"
 #include "Core/Config/UISettings.h"
@@ -93,7 +95,7 @@ private:
 
 GameListView::GameListView(Library& library, BootRequest& chosen, const std::string& focus_path)
     : brls::Box(brls::Axis::ROW), m_library(library), m_chosen(chosen), m_focused_path(focus_path),
-      m_game_directory(SwitchSettings::GetGameDirectory()),
+      m_game_directories(SwitchSettings::GetGameDirectories()),
       m_usb_game_directory(Config::Get(Config::SWITCH_USB_GAME_DIRECTORY)),
       m_usb_volumes(UsbStorage::GetVolumes()),
       m_filter(Config::Get(Config::SWITCH_GAME_LIST_FILTER)),
@@ -379,7 +381,8 @@ void GameListView::Rebuild()
   {
     auto* empty = new brls::DetailCell();
     empty->setText(m_games.empty() ? "No games found" : "No games match this filter");
-    empty->setDetailText(m_games.empty() ? m_game_directory : "ZL / ZR to change");
+    empty->setDetailText(m_games.empty() ? fmt::to_string(fmt::join(m_game_directories, ", ")) :
+                                           "ZL / ZR to change");
     empty->registerClickAction([this](brls::View*) {
       OpenSettings();
       return true;
@@ -618,13 +621,15 @@ void GameListView::OnSettingsClosed()
   m_cover_path.clear();
   m_rebuild_pending = true;
 
-  const std::string directory = SwitchSettings::GetGameDirectory();
+  std::vector<std::string> directories = SwitchSettings::GetGameDirectories();
   const std::string usb_directory = Config::Get(Config::SWITCH_USB_GAME_DIRECTORY);
   const bool use_covers = Config::Get(Config::MAIN_USE_GAME_COVERS);
-  if (directory != m_game_directory || usb_directory != m_usb_game_directory ||
+  if (directories != m_game_directories || usb_directory != m_usb_game_directory ||
       use_covers != m_use_covers)
   {
-    m_game_directory = directory;
+    for (const std::string& directory : directories)
+      File::CreateFullPath(directory);
+    m_game_directories = std::move(directories);
     m_usb_game_directory = usb_directory;
     m_use_covers = use_covers;
     StartRefresh();

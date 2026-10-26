@@ -16,6 +16,11 @@ const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE{
     {System::Main, "Switch", "PerformanceProfile"}, PerformanceProfile::FasterMemory};
 const Info<int> SWITCH_PERFORMANCE_OVERLAY{{System::Main, "Switch", "PerformanceOverlay"}, 1};
 const Info<std::string> SWITCH_GAME_DIRECTORY{{System::Main, "Switch", "GameDirectory"}, ""};
+const Info<bool> SWITCH_SEPARATE_GAME_DIRECTORIES{
+    {System::Main, "Switch", "SeparateGameDirectories"}, false};
+const Info<std::string> SWITCH_GAMECUBE_GAME_DIRECTORY{
+    {System::Main, "Switch", "GameCubeGameDirectory"}, ""};
+const Info<std::string> SWITCH_WII_GAME_DIRECTORY{{System::Main, "Switch", "WiiGameDirectory"}, ""};
 const Info<std::string> SWITCH_USB_GAME_DIRECTORY{{System::Main, "Switch", "UsbGameDirectory"}, ""};
 const Info<GameListSort> SWITCH_GAME_LIST_SORT{{System::Main, "Switch", "GameListSort"},
                                                GameListSort::Title};
@@ -79,15 +84,39 @@ void ApplyDefaults()
   SetBaseIfUnset(Config::GFX_ENABLE_GPU_TEXTURE_DECODING, true);
 }
 
-std::string GetGameDirectory()
+std::string GetDefaultGameDirectory(const Config::Info<std::string>& info)
 {
-  std::string directory = Config::Get(Config::SWITCH_GAME_DIRECTORY);
+  const std::string roms = File::GetUserPath(D_USER_IDX) + "roms" DIR_SEP;
+  if (&info == &Config::SWITCH_GAMECUBE_GAME_DIRECTORY)
+    return roms + "GameCube" DIR_SEP;
+  if (&info == &Config::SWITCH_WII_GAME_DIRECTORY)
+    return roms + "Wii" DIR_SEP;
+  return roms;
+}
+
+std::string GetGameDirectory(const Config::Info<std::string>& info)
+{
+  std::string directory = Config::Get(info);
   if (directory.empty())
-    return File::GetUserPath(D_USER_IDX) + "roms" DIR_SEP;
+    return GetDefaultGameDirectory(info);
 
   if (directory.back() != DIR_SEP_CHR)
     directory += DIR_SEP_CHR;
   return directory;
+}
+
+std::string GetGameDirectory()
+{
+  return GetGameDirectory(Config::SWITCH_GAME_DIRECTORY);
+}
+
+std::vector<std::string> GetGameDirectories()
+{
+  if (!Config::Get(Config::SWITCH_SEPARATE_GAME_DIRECTORIES))
+    return {GetGameDirectory()};
+
+  return {GetGameDirectory(Config::SWITCH_GAMECUBE_GAME_DIRECTORY),
+          GetGameDirectory(Config::SWITCH_WII_GAME_DIRECTORY)};
 }
 
 u32 GetPerformanceConfiguration()

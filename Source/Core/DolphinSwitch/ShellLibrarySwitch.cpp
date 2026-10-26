@@ -43,8 +43,9 @@ void Library::Refresh(ListChangedFn list_changed, GameUpdatedFn game_updated)
 {
   Stop();
 
-  std::vector<std::string> directories = UsbStorage::GetGameDirectories();
-  directories.insert(directories.begin(), SwitchSettings::GetGameDirectory());
+  std::vector<std::string> directories = SwitchSettings::GetGameDirectories();
+  const std::vector<std::string> usb_directories = UsbStorage::GetGameDirectories();
+  directories.insert(directories.end(), usb_directories.begin(), usb_directories.end());
 
   m_thread = std::thread([this, directories = std::move(directories),
                           list_changed = std::move(list_changed),

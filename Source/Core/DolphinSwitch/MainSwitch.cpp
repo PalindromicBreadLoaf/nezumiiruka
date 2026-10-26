@@ -300,7 +300,8 @@ int main(int argc, char* argv[])
 #ifdef HAS_LIBMGBA
   VideoCommon::OnScreenUI::SetHostUIReleaseCallback(GBAOverlay::ReleaseTextures);
 #endif
-  File::CreateFullPath(SwitchSettings::GetGameDirectory());
+  for (const std::string& directory : SwitchSettings::GetGameDirectories())
+    File::CreateFullPath(directory);
   File::CreateFullPath(RiivolutionSwitch::GetPatchDirectory());
 
   LogHostEnvironment();

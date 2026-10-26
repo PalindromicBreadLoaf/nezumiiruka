@@ -1621,7 +1621,17 @@ void BuildAbout(PageBuilder& page)
 
   page.Header("Folders");
   page.Info("User folder", File::GetUserPath(D_USER_IDX));
-  page.Info("Game folder", SwitchSettings::GetGameDirectory());
+  if (Config::Get(Config::SWITCH_SEPARATE_GAME_DIRECTORIES))
+  {
+    page.Info("GC game folder",
+              SwitchSettings::GetGameDirectory(Config::SWITCH_GAMECUBE_GAME_DIRECTORY));
+    page.Info("Wii game folder",
+              SwitchSettings::GetGameDirectory(Config::SWITCH_WII_GAME_DIRECTORY));
+  }
+  else
+  {
+    page.Info("Game folder", SwitchSettings::GetGameDirectory());
+  }
   for (const UsbStorage::Volume& volume : UsbStorage::GetVolumes())
     page.Info("USB drive", fmt::format("{} ({})", volume.root, volume.label));
   page.Info("Custom covers", File::GetUserPath(D_COVERCACHE_IDX));
@@ -1636,12 +1646,67 @@ void BuildAbout(PageBuilder& page)
       "support is provided by LSFG-NX, which is licensed under the GNU GPL version 3 or later.");
 }
 
+brls::View* AddGameFolderCell(PageBuilder& page, const std::string& title,
+                              const Config::Info<std::string>& info)
+{
+  const ContextPtr context = page.GetContext();
+  const std::string default_directory = SwitchSettings::GetDefaultGameDirectory(info);
+  const auto describe = [default_directory](const std::string& directory) {
+    return directory.empty() ? fmt::format("Default ({})", default_directory) : directory;
+  };
+
+  auto* cell = new brls::DetailCell();
+  cell->setText(title);
+  cell->setDetailText(describe(context->Read(info)));
+
+  const auto set = [context, &info, cell, describe](const std::string& directory) {
+    context->Write(info, directory);
+    cell->setDetailText(describe(directory));
+  };
+
+  cell->registerClickAction([context, title, &info, default_directory, set](brls::View*) {
+    const std::string current = context->Read(info);
+    const auto pick = [title, current, default_directory, set] {
+      std::string picker_title = "Choose the " + title;
+      picker_title[11] = Common::ToLower(picker_title[11]);
+      File::CreateFullPath(default_directory);
+      brls::Application::pushActivity(CreateFolderPickerActivity(
+          picker_title, current.empty() ? default_directory : current, set));
+    };
+
+    if (current.empty())
+    {
+      pick();
+      return true;
+    }
+
+    auto* dialog = new brls::Dialog(fmt::format("{}: {}", title, current));
+    dialog->addButton("Cancel", [] {});
+    dialog->addButton("Use default", [set] { set({}); });
+    dialog->addButton("Change", pick);
+    dialog->open();
+    return true;
+  });
+
+  page.Add(cell);
+  return cell;
+}
+
 void BuildLibrary(PageBuilder& page, const std::function<void()>& clear_cache)
 {
+  const ContextPtr context = page.GetContext();
+  const DependentsPtr combined =
+      ShowWhen([context] { return !context->Read(Config::SWITCH_SEPARATE_GAME_DIRECTORIES); });
+  const DependentsPtr separate =
+      ShowWhen([context] { return context->Read(Config::SWITCH_SEPARATE_GAME_DIRECTORIES); });
+
   page.Header("Games");
-  page.Text("Game folder", Config::SWITCH_GAME_DIRECTORY,
-            File::GetUserPath(D_USER_IDX) + "roms" DIR_SEP);
-  page.Note("Leave empty for the default folder. Subfolders are searched too.");
+  page.Toggle("Separate GameCube and Wii folders", Config::SWITCH_SEPARATE_GAME_DIRECTORIES, false,
+              RefreshOf({combined, separate}));
+  combined->Add(AddGameFolderCell(page, "Game folder", Config::SWITCH_GAME_DIRECTORY));
+  separate->Add(AddGameFolderCell(page, "GC game folder", Config::SWITCH_GAMECUBE_GAME_DIRECTORY));
+  separate->Add(AddGameFolderCell(page, "Wii game folder", Config::SWITCH_WII_GAME_DIRECTORY));
+  page.Note("Folders are searched recursively.");
   page.Text("USB game folder", Config::SWITCH_USB_GAME_DIRECTORY, "Whole drive");
   page.Note("The folder(s) searched on every USB drive. Leave empty to search "
             "the whole drive.");
