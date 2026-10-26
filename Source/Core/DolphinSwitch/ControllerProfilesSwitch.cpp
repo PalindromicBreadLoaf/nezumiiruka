@@ -42,9 +42,10 @@ using WiimoteEmu::WiimoteGroup;
 constexpr std::string_view PRESET_PREFIX = "Switch - ";
 const std::string GC_PRESET = "Switch - GameCube controller";
 
-constexpr std::array WIIMOTE_LAYOUTS{WiimoteLayout::Vertical, WiimoteLayout::Sideways,
+constexpr std::array WIIMOTE_LAYOUTS{WiimoteLayout::Vertical,       WiimoteLayout::Sideways,
                                      WiimoteLayout::SidewaysJoyCon, WiimoteLayout::Nunchuk,
-                                     WiimoteLayout::Classic};
+                                     WiimoteLayout::Classic,        WiimoteLayout::RealSideways,
+                                     WiimoteLayout::RealNunchuk};
 
 const std::array<Config::Info<std::string>, SLOT_COUNT> GAME_PAD_PROFILE_INFOS{
     Config::Info<std::string>{{Config::System::GameSettingsOnly, "Controls", "PadProfile1"}, ""},
@@ -93,6 +94,10 @@ std::string GetLayoutLabel(WiimoteLayout layout)
     return "Wii Remote and Nunchuk";
   case WiimoteLayout::Classic:
     return "Classic Controller";
+  case WiimoteLayout::RealSideways:
+    return "Real Wii Remote";
+  case WiimoteLayout::RealNunchuk:
+    return "Real Wii Remote and Nunchuk";
   case WiimoteLayout::Vertical:
   default:
     return "Wii Remote";
@@ -216,10 +221,8 @@ void BindSidewaysJoyCon(WiimoteEmu::Wiimote& wiimote)
   BindSidewaysMotion(wiimote);
 }
 
-void BindNunchuk(WiimoteEmu::Wiimote& wiimote)
+void BindNunchukExtension(WiimoteEmu::Wiimote& wiimote)
 {
-  BindVertical(wiimote, false);
-
   Bind(wiimote.GetNunchukGroup(NunchukGroup::Buttons), {"`L`", "`ZL`"});
   Bind(wiimote.GetNunchukGroup(NunchukGroup::Stick),
        {"`Left Y+`", "`Left Y-`", "`Left X-`", "`Left X+`"});
@@ -228,6 +231,39 @@ void BindNunchuk(WiimoteEmu::Wiimote& wiimote)
   Bind(wiimote.GetNunchukGroup(NunchukGroup::IMUAccelerometer),
        {"`Left Accel Up`", "`Left Accel Down`", "`Left Accel Left`", "`Left Accel Right`",
         "`Left Accel Forward`", "`Left Accel Backward`"});
+}
+
+void BindNunchuk(WiimoteEmu::Wiimote& wiimote)
+{
+  BindVertical(wiimote, false);
+  BindNunchukExtension(wiimote);
+}
+
+void BindRealSideways(WiimoteEmu::Wiimote& wiimote)
+{
+  Bind(wiimote.GetWiimoteGroup(WiimoteGroup::Buttons),
+       {"`R`", "`L`", "`B`", "`A`", "`Minus`", "`Plus`", "`Stick R`"});
+  Bind(wiimote.GetWiimoteGroup(WiimoteGroup::DPad),
+       {"`Left X-`", "`Left X+`", "`Left Y-`", "`Left Y+`"});
+  Bind(wiimote.GetWiimoteGroup(WiimoteGroup::Point),
+       {"", "", "", "", "", "`Stick L`", "`Horizon/0/Touchscreen:Touch`"});
+
+  BindShake(wiimote.GetWiimoteGroup(WiimoteGroup::Shake), "`ZL`");
+  BindSidewaysMotion(wiimote);
+  BindRecenter(wiimote);
+}
+
+void BindRealNunchuk(WiimoteEmu::Wiimote& wiimote)
+{
+  Bind(wiimote.GetWiimoteGroup(WiimoteGroup::Buttons),
+       {"`A`", "`B`", "`R`", "`ZR`", "`Minus`", "`Plus`", "`Stick R`"});
+  Bind(wiimote.GetWiimoteGroup(WiimoteGroup::DPad),
+       {"`Pad Up`", "`Pad Down`", "`Pad Left`", "`Pad Right`"});
+
+  BindShake(wiimote.GetWiimoteGroup(WiimoteGroup::Shake), "`R`");
+  BindVerticalMotion(wiimote);
+  BindRecenter(wiimote);
+  BindNunchukExtension(wiimote);
 }
 
 void BindClassic(WiimoteEmu::Wiimote& wiimote)
@@ -250,6 +286,7 @@ WiimoteEmu::ExtensionNumber GetExtension(WiimoteLayout layout)
   switch (layout)
   {
   case WiimoteLayout::Nunchuk:
+  case WiimoteLayout::RealNunchuk:
     return WiimoteEmu::ExtensionNumber::NUNCHUK;
   case WiimoteLayout::Classic:
     return WiimoteEmu::ExtensionNumber::CLASSIC;
@@ -276,6 +313,12 @@ void SaveWiimoteLayout(WiimoteLayout layout, Common::IniFile::Section* section)
     break;
   case WiimoteLayout::Classic:
     BindClassic(wiimote);
+    break;
+  case WiimoteLayout::RealSideways:
+    BindRealSideways(wiimote);
+    break;
+  case WiimoteLayout::RealNunchuk:
+    BindRealNunchuk(wiimote);
     break;
   case WiimoteLayout::Vertical:
   default:
