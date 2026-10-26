@@ -19,6 +19,23 @@ namespace
 {
 constexpr u64 HOST_POLL_INTERVAL_NS = 16'000'000;
 constexpr u64 MENU_POLL_INTERVAL_NS = 4'000'000;
+
+u64 ReadGcButtons()
+{
+  u64 buttons = 0;
+  for (int i = HidNpadIdType_No1; i <= HidNpadIdType_No8; ++i)
+  {
+    const auto id = static_cast<HidNpadIdType>(i);
+    if (!(hidGetNpadStyleSet(id) & HidNpadStyleTag_NpadGc))
+      continue;
+
+    HidNpadGcState state{};
+    if (hidGetNpadStatesGc(id, &state, 1) != 0 &&
+        (state.attributes & HidNpadAttribute_IsConnected))
+      buttons |= state.buttons;
+  }
+  return buttons;
+}
 }  // namespace
 
 PlatformSwitch::PlatformSwitch(PadState& pad, std::string disc_path)
@@ -79,7 +96,7 @@ void PlatformSwitch::PollHostInput(Core::System& system)
   padUpdate(&m_pad);
   const u64 buttons = padGetButtons(&m_pad);
 
-  m_menu.Update(buttons);
+  m_menu.Update(buttons, ReadGcButtons());
 
   // Stick clicks are free currently.
   constexpr u64 overlay_chord = HidNpadButton_StickL | HidNpadButton_StickR;

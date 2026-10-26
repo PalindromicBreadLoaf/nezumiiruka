@@ -64,6 +64,7 @@ constexpr u64 BUTTON_RIGHT = HidNpadButton_Right | HidNpadButton_StickLRight;
 constexpr std::array<u64, 4> DIRECTIONS = {BUTTON_UP, BUTTON_DOWN, BUTTON_LEFT, BUTTON_RIGHT};
 
 constexpr u64 OPEN_CHORD = HidNpadButton_Plus | HidNpadButton_Minus;
+constexpr u64 GC_OPEN_CHORD = HidNpadButton_R | HidNpadButton_Plus;
 constexpr u64 CLOSE_BUTTONS = HidNpadButton_Plus | HidNpadButton_Minus;
 
 constexpr u64 STICK_DIRECTIONS = HidNpadButton_StickLLeft | HidNpadButton_StickLUp |
@@ -289,8 +290,9 @@ PauseMenu::~PauseMenu()
     plExit();
 }
 
-void PauseMenu::Update(u64 buttons)
+void PauseMenu::Update(u64 buttons, u64 gc_buttons)
 {
+  buttons |= gc_buttons;
   const u64 pressed = buttons & ~m_previous_buttons;
   m_previous_buttons = buttons;
 
@@ -303,6 +305,7 @@ void PauseMenu::Update(u64 buttons)
       m_minus_pressed_at = Clock::now();
 
     if (((buttons & OPEN_CHORD) == OPEN_CHORD && (pressed & OPEN_CHORD)) ||
+        ((gc_buttons & GC_OPEN_CHORD) == GC_OPEN_CHORD && (pressed & GC_OPEN_CHORD)) ||
         (m_minus_pressed_at && Clock::now() - *m_minus_pressed_at >= MINUS_HOLD_TO_OPEN))
     {
       m_minus_pressed_at.reset();

@@ -39,7 +39,7 @@ public:
   PauseMenu(const PauseMenu&) = delete;
   PauseMenu& operator=(const PauseMenu&) = delete;
 
-  void Update(u64 buttons);
+  void Update(u64 buttons, u64 gc_buttons);
 
   bool IsOpen() const { return m_state != State::Closed; }
 
