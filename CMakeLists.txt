@@ -474,8 +474,8 @@ if(ANDROID)
 endif()
 
 if(NEZUMIIRUKA)
-  # Version of the port itself, independent of the Dolphin version it tracks.
-  set(NEZUMIIRUKA_VERSION "1.0.0")
+  # Version of the port itself.
+  set(NEZUMIIRUKA_VERSION "1.1.0")
 
   # The CPU exception entry stub has to be assembly.
   enable_language(ASM)
