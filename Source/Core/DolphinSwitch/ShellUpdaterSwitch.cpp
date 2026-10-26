@@ -99,6 +99,8 @@ brls::Activity* CreateNotesActivity(const std::string& tag, const std::string& n
   brls::Style style = brls::Application::getStyle();
 
   auto* box = new brls::Box(brls::Axis::COLUMN);
+  box->setFocusable(true);
+  box->setHideHighlight(true);
   box->setPadding(style["brls/tab_frame/content_padding_top_bottom"],
                   style["brls/tab_frame/content_padding_sides"],
                   style["brls/tab_frame/content_padding_top_bottom"],
