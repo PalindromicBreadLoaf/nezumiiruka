@@ -30,6 +30,15 @@ enum class AspectMode : int
   Raw,            // Forced squared pixels
 };
 
+#ifdef __SWITCH__
+enum class ScreenAlignment : int
+{
+  Centre,
+  Left,
+  Right,
+};
+#endif
+
 enum class StereoMode : int
 {
   Off,
@@ -211,6 +220,9 @@ struct VideoConfig final
   int custom_aspect_width = 1;
   int custom_aspect_height = 1;
   AspectMode suggested_aspect_mode{};
+#ifdef __SWITCH__
+  ScreenAlignment screen_alignment{};
+#endif
   u32 widescreen_heuristic_transition_threshold = 0;
   float widescreen_heuristic_aspect_ratio_slop = 0.f;
   float widescreen_heuristic_standard_ratio = 0.f;

@@ -831,6 +831,17 @@ void PauseMenu::AddChoice(std::vector<Row>& rows, std::string label, Options<T> 
   rows.push_back(std::move(row));
 }
 
+void PauseMenu::AddScreenAlignment(std::vector<Row>& rows)
+{
+  AddChoice<ScreenAlignment>(
+      rows, "Screen position",
+      {{"Centre", ScreenAlignment::Centre},
+       {"Left", ScreenAlignment::Left},
+       {"Right", ScreenAlignment::Right}},
+      Config::Get(Config::GFX_SCREEN_ALIGNMENT),
+      [this](const ScreenAlignment& value) { WriteForGame(Config::GFX_SCREEN_ALIGNMENT, value); });
+}
+
 std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
 {
   std::vector<Row> rows;
@@ -853,6 +864,8 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
                         Config::Get(Config::GFX_ASPECT_RATIO), [this](const AspectMode& value) {
                           WriteForGame(Config::GFX_ASPECT_RATIO, value);
                         });
+
+  AddScreenAlignment(rows);
 
   AddChoice<bool>(rows, "Widescreen hack", {{"Off", false}, {"On", true}},
                   Config::Get(Config::GFX_WIDESCREEN_HACK),
@@ -1012,6 +1025,7 @@ std::vector<PauseMenu::Row> PauseMenu::BuildControls()
                                        [this](const Config::GBAScreenCorner& value) {
                                          WriteGlobal(Config::SWITCH_GBA_SCREEN_CORNER, value);
                                        });
+    AddScreenAlignment(rows);
     std::ranges::move(gbas, std::back_inserter(rows));
   }
 #endif

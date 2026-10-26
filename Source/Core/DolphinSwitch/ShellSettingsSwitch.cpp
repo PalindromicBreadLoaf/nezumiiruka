@@ -688,15 +688,21 @@ void BuildGraphics(PageBuilder& page)
 
   page.Header("Display");
   page.Choice("Internal resolution", Config::GFX_EFB_SCALE,
-              {{"Native (640×528)", 1},
+              {{"Auto (window size)", 0},
+               {"Native (640×528)", 1},
                {"2× (1280×1056) for 720p", 2},
                {"3× (1920×1584) for 1080p", 3},
                {"4× (2560×2112)", 4}});
+  page.Note("Auto sets 2× in handheld and 3× when docked");
   page.Choice("Aspect ratio", Config::GFX_ASPECT_RATIO,
               {{"Auto", AspectMode::Auto},
                {"Force 16:9", AspectMode::ForceWide},
                {"Force 4:3", AspectMode::ForceStandard},
                {"Stretch to screen", AspectMode::Stretch}});
+  page.Choice("Screen position", Config::GFX_SCREEN_ALIGNMENT,
+              {{"Centre", ScreenAlignment::Centre},
+               {"Left", ScreenAlignment::Left},
+               {"Right", ScreenAlignment::Right}});
   page.Toggle("Widescreen hack", Config::GFX_WIDESCREEN_HACK);
   page.Toggle("Crop to aspect ratio", Config::GFX_CROP_TO_ASPECT_RATIO);
 

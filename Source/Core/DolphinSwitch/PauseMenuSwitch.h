@@ -171,6 +171,7 @@ private:
   template <typename T>
   static void AddChoice(std::vector<Row>& rows, std::string label, Options<T> options,
                         const T& current, std::function<void(const T&)> write);
+  void AddScreenAlignment(std::vector<Row>& rows);
 
   Row ProfileRow(ControllerProfiles::Kind kind, int slot, std::string label);
   void ApplyProfile(ControllerProfiles::Kind kind, int slot, const std::string& name);

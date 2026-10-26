@@ -26,6 +26,10 @@ const Info<int> GFX_CUSTOM_ASPECT_RATIO_HEIGHT{{System::GFX, "Settings", "Custom
                                                1};
 const Info<AspectMode> GFX_SUGGESTED_ASPECT_RATIO{{System::GFX, "Settings", "SuggestedAspectRatio"},
                                                   AspectMode::Auto};
+#ifdef __SWITCH__
+const Info<ScreenAlignment> GFX_SCREEN_ALIGNMENT{{System::GFX, "Settings", "ScreenAlignment"},
+                                                 ScreenAlignment::Centre};
+#endif
 const Info<u32> GFX_WIDESCREEN_HEURISTIC_TRANSITION_THRESHOLD{
     {System::GFX, "Settings", "WidescreenHeuristicTransitionThreshold"}, 3};
 const Info<float> GFX_WIDESCREEN_HEURISTIC_ASPECT_RATIO_SLOP{

@@ -811,6 +811,12 @@ void Presenter::UpdateDrawRectangle()
   }
 
   m_target_rectangle.left = static_cast<int>(std::round(win_width / 2.0 - int_draw_width / 2.0));
+#ifdef __SWITCH__
+  if (g_ActiveConfig.screen_alignment == ScreenAlignment::Left)
+    m_target_rectangle.left = 0;
+  else if (g_ActiveConfig.screen_alignment == ScreenAlignment::Right)
+    m_target_rectangle.left = static_cast<int>(win_width) - int_draw_width;
+#endif
   m_target_rectangle.top = static_cast<int>(std::round(win_height / 2.0 - int_draw_height / 2.0));
   m_target_rectangle.right = m_target_rectangle.left + int_draw_width;
   m_target_rectangle.bottom = m_target_rectangle.top + int_draw_height;

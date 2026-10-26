@@ -18,6 +18,9 @@ enum class ColorCorrectionRegion : int;
 enum class TriState : int;
 enum class FrameDumpResolutionType : int;
 enum class VertexLoaderType : int;
+#ifdef __SWITCH__
+enum class ScreenAlignment : int;
+#endif
 
 namespace Config
 {
@@ -35,6 +38,9 @@ extern const Info<AspectMode> GFX_ASPECT_RATIO;
 extern const Info<int> GFX_CUSTOM_ASPECT_RATIO_WIDTH;
 extern const Info<int> GFX_CUSTOM_ASPECT_RATIO_HEIGHT;
 extern const Info<AspectMode> GFX_SUGGESTED_ASPECT_RATIO;
+#ifdef __SWITCH__
+extern const Info<ScreenAlignment> GFX_SCREEN_ALIGNMENT;
+#endif
 extern const Info<u32> GFX_WIDESCREEN_HEURISTIC_TRANSITION_THRESHOLD;
 extern const Info<float> GFX_WIDESCREEN_HEURISTIC_ASPECT_RATIO_SLOP;
 extern const Info<float> GFX_WIDESCREEN_HEURISTIC_STANDARD_RATIO;
