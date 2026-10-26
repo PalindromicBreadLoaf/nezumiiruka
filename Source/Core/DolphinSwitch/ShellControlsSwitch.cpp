@@ -428,18 +428,19 @@ private:
       title = "Motion pointer";
       break;
     default:
-      title = group.ui_name;
+      title = IsOrientationHotkeys(group) ? "Orientation hotkeys" : group.ui_name;
       break;
     }
     return prefix.empty() ? title : fmt::format("{}: {}", prefix, title);
   }
 
+  static bool IsOrientationHotkeys(const ControlGroup& group) { return group.name == "Hotkeys"; }
+
   static bool IsHidden(const ControlGroup& group)
   {
     if (group.type == GroupType::IRPassthrough || group.type == GroupType::IMUGyroscope)
       return true;
-    return group.name == "Hotkeys" || group.name == GCPad::TRIFORCE_GROUP ||
-           group.name == GCPad::MIC_GROUP;
+    return group.name == GCPad::MIC_GROUP;
   }
 
   void AddContainer(ControllerEmu::ControlGroupContainer& container, const std::string& prefix,
@@ -503,11 +504,47 @@ private:
     else
     {
       for (const auto& control : group.controls)
+      {
         AddBinding(control->ui_name, {control->control_ref.get()}, box);
+        if (!control->control_ref->IsInput())
+          AddStrength(*control->control_ref, box);
+      }
     }
 
     for (ControllerEmu::NumericSettingBase* setting : settings)
       AddSetting(*setting, box);
+
+    if (group.name == GCPad::TRIFORCE_GROUP)
+    {
+      AddNote(box, "Only for Triforce games.");
+    }
+
+    if (IsOrientationHotkeys(group))
+    {
+      AddNote(box, "Toggle flips the Wii Remote between sideways or upright and its usual "
+                   "orientation every press. Holds flip it only while the button is held.");
+    }
+  }
+
+  void AddStrength(ControlReference& reference, brls::Box* box)
+  {
+    const auto format = [](double range) { return fmt::format("{:.0f}%", range * 100); };
+
+    auto* cell = new brls::SliderCell();
+    cell->init("Strength", static_cast<float>(reference.range),
+               [this, cell, &reference, format](float progress) {
+                 if (IsRefreshing())
+                   return;
+                 reference.range = std::round(progress * 10) / 10;
+                 cell->setDetailText(format(reference.range));
+                 MarkDirty();
+               });
+    cell->setDetailText(format(reference.range));
+    m_refreshers.push_back([cell, &reference, format] {
+      cell->slider->setProgress(static_cast<float>(reference.range));
+      cell->setDetailText(format(reference.range));
+    });
+    box->addView(cell);
   }
 
   void AddBinding(const std::string& title, std::vector<ControlReference*> references,

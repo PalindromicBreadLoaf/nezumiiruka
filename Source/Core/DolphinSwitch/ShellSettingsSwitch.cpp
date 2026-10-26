@@ -1326,26 +1326,20 @@ void BuildControls(PageBuilder& page, bool wii)
   page.Header("GameCube controller ports");
   for (int port = 0; port < ControllerProfiles::SLOT_COUNT; ++port)
   {
-    if (!page.IsPerGame())
-    {
-      const ContextPtr context = page.GetContext();
-      const DependentsPtr adapter = ShowWhen([context, port] {
-        return context->Read(Config::GetInfoForSIDevice(port)) ==
-               SerialInterface::SIDEVICE_WIIU_ADAPTER;
-      });
-      page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port), port_devices,
-                  RefreshOf({adapter}));
-      adapter->Add(page.Toggle(fmt::format("Port {}: treat as DK Bongos", port + 1),
-                               Config::GetInfoForSimulateKonga(port)));
-    }
+    const ContextPtr context = page.GetContext();
+    const DependentsPtr adapter = ShowWhen([context, port] {
+      return context->Read(Config::GetInfoForSIDevice(port)) ==
+             SerialInterface::SIDEVICE_WIIU_ADAPTER;
+    });
+    page.Choice(fmt::format("Port {}", port + 1), Config::GetInfoForSIDevice(port), port_devices,
+                RefreshOf({adapter}));
+    adapter->Add(page.Toggle(fmt::format("Port {}: treat as DK Bongos", port + 1),
+                             Config::GetInfoForSimulateKonga(port)));
     AddProfileCell(page, fmt::format("Port {} profile", port + 1), Kind::GCPad, port);
   }
 
-  if (!page.IsPerGame())
-  {
-    page.Note("The GameCube adapter passes a controller on the official adapter straight through, "
-              "without a profile. Port N takes player N's GameCube controller.");
-  }
+  page.Note("The GameCube adapter passes a controller on the official adapter straight through, "
+            "without a profile. Port N takes player N's GameCube controller.");
 
   if (wii)
   {

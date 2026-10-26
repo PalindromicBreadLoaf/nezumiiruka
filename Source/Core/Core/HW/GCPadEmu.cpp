@@ -222,12 +222,12 @@ void GCPad::LoadDefaults(const ControllerInterface& ciface)
   m_c_stick->SetControlExpression(2, "`Right X-`");
   m_c_stick->SetControlExpression(3, "`Right X+`");
 
-  // A real GameCube controller on the official adapter reports its travel as an axis and the
-  // click at the bottom as ZL/ZR; every other controller only has the digital press to offer.
   m_triggers->SetControlExpression(0, "`ZL`");  // L
   m_triggers->SetControlExpression(1, "`ZR`");  // R
   m_triggers->SetControlExpression(2, "`Trigger L`");
   m_triggers->SetControlExpression(3, "`Trigger R`");
+
+  m_triforce->SetControlExpression(2, "`Minus`");
 
   m_rumble->SetControlExpression(0, "`Motor`");
 #else
