@@ -97,6 +97,8 @@ add_library(common
   JsonUtil.h
   JsonUtil.cpp
   Lazy.h
+  LazyMemoryRegionBitSet.cpp
+  LazyMemoryRegionBitSet.h
   LinearDiskCache.h
   UnixUtil.h
   LocaleUtil.cpp
@@ -245,6 +247,7 @@ if(NEZUMIIRUKA)
     HorizonFastmem.h
     HorizonJitStack.cpp
     HorizonJitStack.h
+    HorizonSparseBitSet.h
     HorizonThreadRegistry.cpp
     HorizonThreadRegistry.h
     HostCodeMemory.h

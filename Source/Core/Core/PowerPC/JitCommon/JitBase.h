@@ -6,9 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <iosfwd>
-#include <map>
 #include <string_view>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -16,11 +14,16 @@
 #include "Common/CommonTypes.h"
 #include "Common/Config/ConfigInfo.h"
 #include "Common/HorizonJitStack.h"
+#ifdef __SWITCH__
+#include "Common/HorizonSparseBitSet.h"
+#endif
+#include "Common/LazyMemoryRegionBitSet.h"
 #include "Common/x64Emitter.h"
 #include "Core/CPUThreadConfigCallback.h"
 #include "Core/ConfigManager.h"
 #include "Core/MachineContext.h"
 #include "Core/PowerPC/CPUCoreBase.h"
+#include "Core/PowerPC/Gekko.h"
 #include "Core/PowerPC/JitCommon/JitAsmCommon.h"
 #include "Core/PowerPC/JitCommon/JitCache.h"
 #include "Core/PowerPC/PPCAnalyst.h"
@@ -85,6 +88,17 @@ protected:
   static constexpr size_t JIT_STACK_SIZE = 1024 * 1024;
 #endif
 
+  static constexpr size_t INSTRUCTION_BIT_SET_SIZE = (1ULL << 32) / sizeof(UGeckoInstruction);
+
+public:
+#ifdef __SWITCH__
+  using InstructionBitSet = Common::HorizonSparseBitSet;
+#else
+  using InstructionBitSet = Common::LazyMemoryRegionBitSet;
+#endif
+
+protected:
+
   struct JitOptions
   {
     bool enableBlocklink;
@@ -104,8 +118,8 @@ protected:
     u32 downcountAmount;
     u32 numLoadStoreInst;
     u32 numFloatingPointInst;
-    // If this is set, we need to generate an exception handler for the fastmem load.
-    u8* fastmemLoadStore;
+    // If this is true, we need to generate an exception handler for the fastmem load.
+    bool fastmemLoadStore;
     // If this is set, a load or store already prepared a jump to the exception handler for us,
     // so just fixup that branch instead of testing for a DSI again.
     bool fixupExceptionHandler;
@@ -133,9 +147,9 @@ protected:
 
     JitBlock* curBlock;
 
-    std::unordered_set<u32> fifoWriteAddresses;
-    std::unordered_set<u32> pairedQuantizeAddresses;
-    std::unordered_set<u32> noSpeculativeConstantsAddresses;
+    InstructionBitSet fifoWriteAddresses{INSTRUCTION_BIT_SET_SIZE};
+    InstructionBitSet pairedQuantizeAddresses{INSTRUCTION_BIT_SET_SIZE};
+    InstructionBitSet noSpeculativeConstantsAddresses{INSTRUCTION_BIT_SET_SIZE};
   };
 
   PPCAnalyst::CodeBlock code_block;
@@ -177,6 +191,8 @@ protected:
 #endif
 
   static const std::array<std::pair<bool JitBase::*, const Config::Info<bool>*>, 25> JIT_SETTINGS;
+
+  [[nodiscard]] bool CheckValidity() const;
 
   bool DoesConfigNeedRefresh() const;
   void RefreshConfig();

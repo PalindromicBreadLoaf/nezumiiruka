@@ -116,6 +116,29 @@ JitBase::~JitBase()
 #endif
 }
 
+bool JitBase::CheckValidity() const
+{
+  if (!js.fifoWriteAddresses.IsValid())
+  {
+    ERROR_LOG_FMT(DYNA_REC, "Failed to create fifoWriteAddresses");
+    return false;
+  }
+
+  if (!js.pairedQuantizeAddresses.IsValid())
+  {
+    ERROR_LOG_FMT(DYNA_REC, "Failed to create pairedQuantizeAddresses");
+    return false;
+  }
+
+  if (!js.noSpeculativeConstantsAddresses.IsValid())
+  {
+    ERROR_LOG_FMT(DYNA_REC, "Failed to create noSpeculativeConstantsAddresses");
+    return false;
+  }
+
+  return true;
+}
+
 bool JitBase::DoesConfigNeedRefresh() const
 {
   return std::ranges::any_of(JIT_SETTINGS, [this](const auto& pair) {

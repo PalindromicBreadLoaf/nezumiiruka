@@ -30,7 +30,7 @@ include(CheckAndAddFlag)
 include(CheckCCompilerFlag)
 include(CheckSymbolExists)
 include(DolphinCompileDefinitions)
-include(DolphinDisableWarningsMSVC)
+include(DolphinDisableWarnings)
 include(DolphinLibraryTools)
 include(GNUInstallDirs)
 include(RemoveCompileFlag)
@@ -57,16 +57,16 @@ endif()
 
 # Minimum required versions
 # Toolsets
-set(Xcode_min_version 14.3)
+set(Xcode_min_version 26.0)
 set(MSVC_toolset_min_version 143)
 # Compilers
 set(GCC_min_version 12)
-set(Clang_min_version 15)
-set(AppleClang_min_version 14.0.3)
+set(Clang_min_version 18)
+set(AppleClang_min_version 21.0.0)
 set(MSVC_min_version 19.32)
 # Standard libraries
 set(libstdc++_min_version 12) # This should match GCC_min_version's major version.
-set(libc++_min_version 150000) # This should match Clang_min_version in the format "xxyyzz" instead of "xx.yy.zz"
+set(libc++_min_version 180000) # This should match Clang_min_version in the format "xxyyzz" instead of "xx.yy.zz"
 
 dolphin_check_toolset_version("Xcode" XCODE_VERSION ${Xcode_min_version})
 dolphin_check_toolset_version("MSVC Toolset" MSVC_TOOLSET_VERSION ${MSVC_toolset_min_version})
@@ -687,36 +687,36 @@ endif()
 #     Externals/zlib/CMakeLists.txt (that is: NOT in some Src/ subdirectory)
 #
 if (_M_X86_64)
-  add_subdirectory(Externals/Bochs_disasm)
+  dolphin_add_bundled_library(Bochs_disasm Externals/Bochs_disasm)
 endif()
-add_subdirectory(Externals/cpp-optparse)
+dolphin_add_bundled_library(cpp-optparse Externals/cpp-optparse)
 
 dolphin_find_optional_system_library_pkgconfig(FMT
   fmt>=10.1 fmt::fmt Externals/fmt
 )
 
-add_subdirectory(Externals/imgui)
-add_subdirectory(Externals/implot)
+dolphin_add_bundled_library(ImGui Externals/imgui)
+dolphin_add_bundled_library(ImPlot Externals/implot)
 
 dolphin_find_optional_system_library(glslang Externals/glslang DOLPHIN_TRY_VERSIONS 15 16)
 
 # SPIRV-Cross is used on Windows for GLSL to HLSL conversion for the Direct3D 11 and Direct3D 12
 # video backends, and on Apple devices for the Metal video backend.
 if(WIN32 OR APPLE)
-  add_subdirectory(Externals/spirv_cross)
+  dolphin_add_bundled_library(SPIRV-Cross Externals/spirv_cross)
 endif()
-add_subdirectory(Externals/tinygltf)
+dolphin_add_bundled_library(TinyGLTF Externals/tinygltf)
 
 if(ENABLE_VULKAN)
   add_definitions(-DHAS_VULKAN)
 
   if(APPLE AND USE_BUNDLED_MOLTENVK)
-    add_subdirectory(Externals/MoltenVK)
+    dolphin_add_bundled_library(MoltenVK Externals/MoltenVK)
   endif()
 
 
   if (ANDROID AND _M_ARM_64)
-    add_subdirectory(Externals/libadrenotools)
+    dolphin_add_bundled_library(libadrenotools Externals/libadrenotools)
   endif()
 
   if(NEZUMIIRUKA)
@@ -778,14 +778,12 @@ dolphin_find_optional_system_library_pkgconfig(lz4 liblz4>=1.8 LZ4::LZ4 External
 
 dolphin_find_optional_system_library_pkgconfig(SPNG spng spng::spng Externals/libspng)
 
-# Using static FreeSurround from Externals
 # There is no system FreeSurround library.
-message(STATUS "Using static FreeSurround from Externals")
-add_subdirectory(Externals/FreeSurround)
+dolphin_add_bundled_library(FreeSurround Externals/FreeSurround)
 
 if (APPLE OR WIN32)
   message(STATUS "Using ed25519 from Externals")
-  add_subdirectory(Externals/ed25519)
+  dolphin_add_bundled_library(ed25519 Externals/ed25519)
   include_directories(Externals/ed25519)
 endif()
 
@@ -820,8 +818,7 @@ if(NOT ANDROID AND NOT NEZUMIIRUKA)
 endif()
 
 if(USE_DISCORD_PRESENCE)
-  message(STATUS "Using static DiscordRPC from Externals")
-  add_subdirectory(Externals/discord-rpc EXCLUDE_FROM_ALL)
+  dolphin_add_bundled_library(DiscordRPC Externals/discord-rpc)
   include_directories(Externals/discord-rpc/include)
 endif()
 
@@ -846,22 +843,22 @@ endif()
 
 include_directories(Externals/picojson)
 
-add_subdirectory(Externals/expr)
+dolphin_add_bundled_library(expr Externals/expr)
 
-add_subdirectory(Externals/FatFs)
+dolphin_add_bundled_library(FatFs Externals/FatFs)
 
 if (USE_RETRO_ACHIEVEMENTS)
-  add_subdirectory(Externals/rcheevos)
+  dolphin_add_bundled_library(rcheevos Externals/rcheevos)
 endif()
 
 if(NOT NEZUMIIRUKA)
   # wtr::watcher has no Horizon backend.
-  add_subdirectory(Externals/watcher)
+  dolphin_add_bundled_library(watcher Externals/watcher)
 endif()
 
 # Any other platform or BSD is currently unsupported by cpp-ipc
 if(WIN32 OR LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME STREQUAL "QNX")
-  add_subdirectory(Externals/cpp-ipc)
+  dolphin_add_bundled_library(cpp-ipc Externals/cpp-ipc)
   add_definitions(-DHAVE_CPPIPC)
 endif()
 
