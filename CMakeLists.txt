@@ -475,7 +475,7 @@ endif()
 
 if(NEZUMIIRUKA)
   # Version of the port itself.
-  set(NEZUMIIRUKA_VERSION "1.1.0")
+  set(NEZUMIIRUKA_VERSION "1.1.1")
 
   # The CPU exception entry stub has to be assembly.
   enable_language(ASM)
