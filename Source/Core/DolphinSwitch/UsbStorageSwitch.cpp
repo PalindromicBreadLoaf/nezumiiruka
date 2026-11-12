@@ -64,6 +64,11 @@ void Init()
   if (s_initialised)
     return;
 
+#ifdef __SWITCH2__
+  // TODO: USB storage on Switch 2 needs another route to usb:hs.
+  return;
+#endif
+
   usbHsFsSetFileSystemMountFlags(UsbHsFsMountFlags_ReplayJournal);
 
   const Result rc = usbHsFsInitialize(0);

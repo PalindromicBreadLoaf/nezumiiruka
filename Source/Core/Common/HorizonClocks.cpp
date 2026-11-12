@@ -31,6 +31,11 @@ void ApplyPerformanceConfiguration(u32 configuration)
   if (!IsApplication())
     return;
 
+#ifdef __SWITCH2__
+  // TODO: Switch 2 apm
+  return;
+#endif
+
   std::lock_guard lock(s_mutex);
   if (!s_original_configuration)
   {

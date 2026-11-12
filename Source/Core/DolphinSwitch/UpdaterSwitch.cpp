@@ -34,8 +34,13 @@ namespace
 constexpr const char* RELEASES_URL =
     "https://api.github.com/repos/PalindromicBreadLoaf/nezumiiruka/releases?per_page=20";
 constexpr const char* USER_AGENT = "Nezumiiruka-Updater/" NEZUMIIRUKA_VERSION;
+#ifdef __SWITCH2__
+constexpr std::string_view ASSET_NAME = "nezumiiruka-ounce.nro";
+constexpr std::string_view VULKAN_ASSET_NAME = ASSET_NAME;
+#else
 constexpr std::string_view ASSET_NAME = "nezumiiruka.nro";
 constexpr std::string_view VULKAN_ASSET_NAME = "nezumiiruka-vulkan.nro";
+#endif
 constexpr std::string_view INSTALLED_NAME = "nezumiiruka.nro";
 constexpr std::string_view DIGEST_PREFIX = "sha256:";
 constexpr size_t NRO_MAGIC_OFFSET = 0x10;
