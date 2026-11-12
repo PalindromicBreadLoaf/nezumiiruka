@@ -41,7 +41,11 @@ set_property(DIRECTORY ${PROJECT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT dolphin
 # Nezumiiruka is the target for Nintendo Switch.
 if (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
   set(NEZUMIIRUKA TRUE)
-  message(STATUS "Building for Nintendo Switch")
+  if(NEZUMIIRUKA_OUNCE)
+    message(STATUS "Building for Nintendo Switch 2 (libounce)")
+  else()
+    message(STATUS "Building for Nintendo Switch")
+  endif()
 endif()
 
 if (MSVC)
@@ -499,12 +503,21 @@ if(NEZUMIIRUKA)
   # Input goes through Horizon HID.
   set(ENABLE_SDL 0)
 
-  # Vulkan via NXVK. Off by default.
-  option(NEZUMIIRUKA_VULKAN "Build the NXVK-backed Vulkan video backend alongside deko3d" OFF)
-  set(ENABLE_VULKAN ${NEZUMIIRUKA_VULKAN})
+  if(NEZUMIIRUKA_OUNCE)
+    add_compile_definitions(__SWITCH2__)
 
-  # Deko3d
-  set(ENABLE_DEKO3D 1)
+    # Sadly no deko3d on S2(yet)
+    set(ENABLE_VULKAN 1)
+    set(ENABLE_DEKO3D 0)
+    set(ENABLE_FRAME_GENERATION 0)
+  else()
+    # Vulkan via NXVK. Off by default.
+    option(NEZUMIIRUKA_VULKAN "Build the NXVK-backed Vulkan video backend alongside deko3d" OFF)
+    set(ENABLE_VULKAN ${NEZUMIIRUKA_VULKAN})
+
+    # Deko3d
+    set(ENABLE_DEKO3D 1)
+  endif()
 
   set(ENABLE_LLVM 0)
   set(ENABLE_ANALYTICS 0)
@@ -719,7 +732,9 @@ if(ENABLE_VULKAN)
     dolphin_add_bundled_library(libadrenotools Externals/libadrenotools)
   endif()
 
-  if(NEZUMIIRUKA)
+  if(NEZUMIIRUKA_OUNCE)
+    include(OunceVK)
+  elseif(NEZUMIIRUKA)
     include(NXVK)
   endif()
 endif()

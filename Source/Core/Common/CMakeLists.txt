@@ -255,6 +255,14 @@ if(NEZUMIIRUKA)
     Logging/ConsoleListenerNix.cpp
     MemArenaHorizon.cpp
   )
+  if(NEZUMIIRUKA_OUNCE)
+    set(_ouncehen_jit "${NX_PORTLIBS_SWITCH2}/lib/ouncehen-jit.o")
+    if(NOT EXISTS "${_ouncehen_jit}")
+      message(FATAL_ERROR "OunceHEN not found at ${_ouncehen_jit}. Install the ounce SDK portlibs.")
+    endif()
+    target_include_directories(common SYSTEM PRIVATE "${NX_PORTLIBS_SWITCH2}/include")
+    target_link_libraries(common PRIVATE "${_ouncehen_jit}")
+  endif()
 elseif(ANDROID)
   target_sources(common PRIVATE
     Logging/ConsoleListenerDroid.cpp

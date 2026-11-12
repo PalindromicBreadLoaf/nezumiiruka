@@ -9,7 +9,12 @@
 #include <dlfcn.h>
 #endif
 
-#if defined(__SWITCH__)
+#if defined(__SWITCH2__)
+// This is the OunceVK entry point.
+extern "C" VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
+ouncevk_vkGetInstanceProcAddr(VkInstance instance, const char* name);
+#define vk_icdGetInstanceProcAddr ouncevk_vkGetInstanceProcAddr
+#elif defined(__SWITCH__)
 #include <cstdlib>
 
 // NXVK is whole-archive linked into the NRO. There is no loader and no library to open.
@@ -50,12 +55,14 @@ static void ResetVulkanLibraryFunctionPointers()
 #if defined(__SWITCH__)
 static bool BindNXVKEntryPoints()
 {
+#ifndef __SWITCH2__
   // NVK refuses to create a device without this.
   setenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER", "1", 1);
 
   // TODO: Point MESA_SHADER_CACHE_DIR at the user directory once the disk cache is
   // measured rather than assumed.
   setenv("MESA_SHADER_CACHE_DISABLE", "1", 1);
+#endif
 
   bool required_functions_missing = false;
   auto Bind = [&](auto& function, const char* name, bool is_required) {
