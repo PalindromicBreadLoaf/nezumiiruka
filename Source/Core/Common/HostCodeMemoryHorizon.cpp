@@ -10,6 +10,12 @@
 
 #include <switch.h>
 
+#ifdef __SWITCH2__
+extern "C" {
+#include <ouncehen.h>
+}
+#endif
+
 #include "Common/Align.h"
 #include "Common/Logging/Log.h"
 
@@ -38,6 +44,9 @@ Jit s_jit{};
 u8* s_rx = nullptr;
 std::vector<Block> s_blocks;
 
+// For kaiHEN
+bool s_publish = false;
+
 }  // namespace
 
 bool Init()
@@ -57,11 +66,19 @@ bool Init()
   u8* const rw = static_cast<u8*>(jitGetRwAddr(&s_jit));
   u8* const rx = static_cast<u8*>(jitGetRxAddr(&s_jit));
 
-  // JitType_SetProcessMemoryPermission gives one mapping whose permissions flip between W and X
+  // JitType_SetProcessMemoryPermission gives one buffer whose permissions flip between W and X
   // for the whole process. Dolphin emits vertex loaders on the video thread while the CPU thread
   // is running JIT code, so flipping the arena to writable would pull the ground out from under
-  // another thread.
-  if (rw == rx)
+  // another thread. rw and rx differ even in that mode (rw is the heap source, unmapped while the
+  // buffer is executable), so the type is what tells the two apart.
+#ifdef __SWITCH2__
+  const bool persistent_alias =
+      s_jit.type == JitType_SetProcessMemoryPermission && s_jit.rw_addr != s_jit.src_addr;
+#else
+  constexpr bool persistent_alias = false;
+#endif
+
+  if (s_jit.type != JitType_CodeMemory && !persistent_alias)
   {
     ERROR_LOG_FMT(COMMON, "Host code memory is permission-toggled. "
                           "This cannot be used safely from more than one thread.");
@@ -69,7 +86,7 @@ bool Init()
     return false;
   }
 
-  if (R_FAILED(jitTransitionToExecutable(&s_jit)))
+  if (!persistent_alias && R_FAILED(jitTransitionToExecutable(&s_jit)))
   {
     ERROR_LOG_FMT(COMMON, "jitTransitionToExecutable failed.");
     jitClose(&s_jit);
@@ -78,10 +95,12 @@ bool Init()
 
   s_rx = rx;
   g_rw_delta = rw - rx;
+  s_publish = persistent_alias;
   s_blocks.assign(1, Block{0, ARENA_SIZE, true});
 
-  NOTICE_LOG_FMT(COMMON, "Host code memory: {} MiB at {} (rw {}), delta {:#x}",
-                 ARENA_SIZE / 0x100000, fmt::ptr(rx), fmt::ptr(rw), g_rw_delta);
+  NOTICE_LOG_FMT(COMMON, "Host code memory: {} MiB at {} (rw {}), delta {:#x}{}",
+                 ARENA_SIZE / 0x100000, fmt::ptr(rx), fmt::ptr(rw), g_rw_delta,
+                 s_publish ? ", published through OunceHEN" : "");
   return true;
 }
 
@@ -91,9 +110,11 @@ void Shutdown()
   if (!s_rx)
     return;
 
-  jitClose(&s_jit);
+  if (const Result result = jitClose(&s_jit); R_FAILED(result))
+    ERROR_LOG_FMT(COMMON, "jitClose failed: {:#010x}", result);
   s_rx = nullptr;
   g_rw_delta = 0;
+  s_publish = false;
   s_blocks.clear();
 }
 
@@ -185,6 +206,20 @@ void FlushCode(const u8* rx_start, std::size_t size)
 {
   if (size == 0)
     return;
+
+#ifdef __SWITCH2__
+  if (s_publish)
+  {
+    const OuncehenJitRange range{static_cast<u64>(rx_start - s_rx), size};
+    const Result result = ouncehenJitPublishRanges(&s_jit, &range, 1);
+    if (R_FAILED(result))
+    {
+      ERROR_LOG_FMT(COMMON, "Publishing {} bytes of host code at {} failed: {:#010x}", size,
+                    fmt::ptr(rx_start), result);
+    }
+    return;
+  }
+#endif
 
   u64 ctr_el0;
   __asm__ volatile("mrs %0, ctr_el0" : "=r"(ctr_el0));

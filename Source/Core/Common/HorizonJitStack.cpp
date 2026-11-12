@@ -135,6 +135,11 @@ bool ProbeCodeMemory()
 
 GuardSource Probe()
 {
+#ifdef __SWITCH2__
+  WARN_LOG_FMT(COMMON, "JIT stack guard: exceptions do not reach this process.");
+  return GuardSource::None;
+#endif
+
   NOTICE_LOG_FMT(COMMON, "JIT stack guard: probing for memory a guard page can be armed on.");
 
   if (ProbeHeap())
