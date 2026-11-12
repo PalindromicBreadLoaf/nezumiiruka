@@ -6,11 +6,16 @@
 
 #include <switch.h>
 
+#include <cstdio>
+
 #include <borealis.hpp>
 #include <yoga/event/event.h>
 
+#include "Common/CommonPaths.h"
 #include "Common/Config/Config.h"
+#include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
+#include "Common/ScopeGuard.h"
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinSwitch/ShellAchievementsSwitch.h"
 #endif
@@ -84,6 +89,31 @@ void RestoreAppletState()
 BootRequest Run(const std::string& notice)
 {
   Services services;
+
+  // Redirect borealis output to sd file
+  std::FILE* const log_file =
+      std::fopen((File::GetUserPath(D_LOGS_IDX) + "borealis.log").c_str(), "w");
+  if (log_file)
+  {
+    std::setvbuf(log_file, nullptr, _IOLBF, 0);
+    brls::Logger::setLogOutput(log_file);
+  }
+  Common::ScopeGuard log_file_guard([&] {
+    if (!log_file)
+      return;
+    brls::Logger::setLogOutput(stdout);
+    std::fclose(log_file);
+  });
+
+  auto* const log_event = brls::Logger::getLogEvent();
+  const auto log_subscription = log_event->subscribe(
+      [](brls::Logger::TimePoint, brls::LogLevel level, std::string message) {
+        if (level == brls::LogLevel::LOG_ERROR)
+          ERROR_LOG_FMT(COMMON, "borealis: {}", message);
+        else if (level == brls::LogLevel::LOG_WARNING)
+          WARN_LOG_FMT(COMMON, "borealis: {}", message);
+      });
+  Common::ScopeGuard log_guard([&] { log_event->unsubscribe(log_subscription); });
 
   if (!brls::Application::init())
   {
