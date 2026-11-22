@@ -531,7 +531,7 @@ void DKFramebuffer::Unbind() const
     state_tracker->UnbindTexture(static_cast<const DKTexture*>(attachment));
 }
 
-void DKFramebuffer::Bind(DkCmdBuf cmdbuf) const
+void DKFramebuffer::Bind(DkCmdBuf cmdbuf, bool with_depth) const
 {
   std::vector<DkImageView> color_views;
   std::vector<const DkImageView*> color_target_ptrs;
@@ -550,12 +550,13 @@ void DKFramebuffer::Bind(DkCmdBuf cmdbuf) const
   for (const DkImageView& view : color_views)
     color_target_ptrs.push_back(&view);
 
+  const bool bind_depth = with_depth && m_depth_attachment;
   DkImageView depth_view;
-  if (m_depth_attachment)
+  if (bind_depth)
     depth_view = static_cast<DKTexture*>(m_depth_attachment)->MakeView(0, 0, GetLayers());
 
   dkCmdBufBindRenderTargets(cmdbuf, color_target_ptrs.data(),
                             static_cast<u32>(color_target_ptrs.size()),
-                            m_depth_attachment ? &depth_view : nullptr);
+                            bind_depth ? &depth_view : nullptr);
 }
 }  // namespace Deko3D

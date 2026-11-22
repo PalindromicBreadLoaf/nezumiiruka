@@ -2,14 +2,21 @@
 # Copyright 2026 PalindromicBreadLoaf (palindromicbreadloaf@tuta.com)
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# borealis's own CMake bundles a second fmt and builds for every platform it supports. This builds
-# only the Switch configuration, against Dolphin's fmt.
+find_path(GLM_INCLUDE_DIR glm/vec2.hpp)
+if(NOT GLM_INCLUDE_DIR)
+  message(FATAL_ERROR "glm not found. Install it with dkp-pacman -S switch-glm.")
+endif()
 
-if(NOT NEZUMIIRUKA_OUNCE)
-  find_path(GLM_INCLUDE_DIR glm/vec2.hpp)
-  if(NOT GLM_INCLUDE_DIR)
-    message(FATAL_ERROR "glm not found. Install it with dkp-pacman -S switch-glm.")
+if(NEZUMIIRUKA_OUNCE)
+  find_program(UAM2_HOST_EXECUTABLE uam2 HINTS "${DEVKITPRO}/tools/bin" NO_CMAKE_FIND_ROOT_PATH)
+  if(NOT UAM2_HOST_EXECUTABLE)
+    message(FATAL_ERROR "uam2 not found.")
   endif()
+  set(_nvg_shader_compiler "${UAM2_HOST_EXECUTABLE}")
+  set(_nvg_shader_compiler_target)
+else()
+  set(_nvg_shader_compiler "${UAM_HOST_EXECUTABLE}")
+  set(_nvg_shader_compiler_target uam_host)
 endif()
 
 set(_brls "${CMAKE_CURRENT_SOURCE_DIR}/borealis/library")
@@ -38,20 +45,13 @@ file(GLOB _brls_sources CONFIGURE_DEPENDS
   "${_brls_extern}/libretro-common/features/*.c"
   "${_brls_extern}/switch-libpulsar/src/*/*.c"
 )
-if(NEZUMIIRUKA_OUNCE)
-  list(REMOVE_ITEM _brls_sources "${_brls}/lib/platforms/switch/switch_video.cpp")
-  list(APPEND _brls_sources "${CMAKE_CURRENT_SOURCE_DIR}/switch2/switch_egl_video.cpp")
-else()
-  file(GLOB _brls_deko3d_sources CONFIGURE_DEPENDS
-    "${_brls_extern}/nanovg/deko3d/*.cpp"
-    "${_brls_extern}/nanovg/deko3d/framework/*.cpp"
-  )
-  list(APPEND _brls_sources ${_brls_deko3d_sources})
-endif()
-# switch_wrapper.c is left out on purpose: it defines userAppInit/userAppExit, which would take
-# over process start-up. The shell brings up the services it needs itself.
+file(GLOB _brls_deko3d_sources CONFIGURE_DEPENDS
+  "${_brls_extern}/nanovg/deko3d/*.cpp"
+  "${_brls_extern}/nanovg/deko3d/framework/*.cpp"
+)
+list(APPEND _brls_sources ${_brls_deko3d_sources})
 list(APPEND _brls_sources "${_brls_extern}/nanovg/nanovg.c")
-# tinygltf also carries an stb_image implementation, and nanovg.c is the only user of this one.
+# tinygltf also carries an stb_image implementation
 set_source_files_properties("${_brls_extern}/nanovg/nanovg.c" PROPERTIES
   COMPILE_DEFINITIONS STB_IMAGE_STATIC)
 
@@ -69,22 +69,12 @@ target_compile_definitions(borealis PUBLIC
   SWITCH
   STBI_NO_THREAD_LOCALS
 )
-target_link_libraries(borealis PUBLIC brls_yoga brls_tinyxml2 fmt::fmt)
-if(NEZUMIIRUKA_OUNCE)
-  target_include_directories(borealis PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/switch2")
-  # OunceVK's EGL/GLES headers
-  target_include_directories(borealis BEFORE PRIVATE "${NX_PORTLIBS_SWITCH2}/include")
-  target_compile_definitions(borealis PUBLIC BOREALIS_USE_EGL)
-  target_link_libraries(borealis PUBLIC ouncevk)
-else()
-  target_include_directories(borealis PUBLIC "${GLM_INCLUDE_DIR}")
-  target_compile_definitions(borealis PUBLIC BOREALIS_USE_DEKO3D)
-  target_link_libraries(borealis PUBLIC deko3d)
-endif()
+target_include_directories(borealis PUBLIC "${GLM_INCLUDE_DIR}")
+target_compile_definitions(borealis PUBLIC BOREALIS_USE_DEKO3D)
+target_link_libraries(borealis PUBLIC brls_yoga brls_tinyxml2 fmt::fmt deko3d)
 set_target_properties(borealis PROPERTIES CXX_STANDARD 17)
 dolphin_disable_warnings(borealis)
-# Dolphin builds without exceptions, but borealis's headers catch them (nlohmann::json, its
-# logger). Any source that includes them needs BOREALIS_EXCEPTIONS as well.
+# Dolphin builds without exceptions, but borealis's headers catch them.
 set(BOREALIS_EXCEPTIONS -fexceptions PARENT_SCOPE)
 target_compile_options(borealis PRIVATE -fexceptions)
 
@@ -94,11 +84,7 @@ set(_romfs "${CMAKE_BINARY_DIR}/romfs")
 set(_romfs_files)
 
 set(_shader_dir "${_brls_extern}/nanovg/deko3d/shaders")
-set(_deko3d_shaders)
-if(NOT NEZUMIIRUKA_OUNCE)
-  set(_deko3d_shaders fill_vsh:vert fill_fsh:frag fill_aa_fsh:frag)
-endif()
-foreach(_shader ${_deko3d_shaders})
+foreach(_shader fill_vsh:vert fill_fsh:frag fill_aa_fsh:frag)
   string(REPLACE ":" ";" _shader "${_shader}")
   list(GET _shader 0 _name)
   list(GET _shader 1 _stage)
@@ -106,8 +92,8 @@ foreach(_shader ${_deko3d_shaders})
   add_custom_command(
     OUTPUT "${_out}"
     COMMAND "${CMAKE_COMMAND}" -E make_directory "${_romfs}/shaders"
-    COMMAND "${UAM_HOST_EXECUTABLE}" -s ${_stage} -o "${_out}" "${_shader_dir}/${_name}.glsl"
-    DEPENDS uam_host "${_shader_dir}/${_name}.glsl"
+    COMMAND "${_nvg_shader_compiler}" -s ${_stage} -o "${_out}" "${_shader_dir}/${_name}.glsl"
+    DEPENDS ${_nvg_shader_compiler_target} "${_nvg_shader_compiler}" "${_shader_dir}/${_name}.glsl"
     COMMENT "Compiling NanoVG shader ${_name}"
     VERBATIM)
   list(APPEND _romfs_files "${_out}")

@@ -20,7 +20,11 @@ namespace
 {
 constexpr u32 DKSH_MAGIC = 0x48534B44;        // 'DKSH'
 constexpr u32 DKSH_CACHE_MAGIC = 0x434B4444;  // 'DDKC'
+#ifdef __SWITCH2__
+constexpr u32 DKSH_CACHE_VERSION = 0x200 | 2;
+#else
 constexpr u32 DKSH_CACHE_VERSION = 1;
+#endif
 
 // Header at the start of every DKSH blob.
 struct DkshHeader

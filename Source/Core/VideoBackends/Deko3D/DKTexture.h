@@ -106,7 +106,7 @@ public:
   }
 
   // Binds this framebuffer's attachments as the queue's render targets.
-  void Bind(DkCmdBuf cmdbuf) const;
+  void Bind(DkCmdBuf cmdbuf, bool with_depth = true) const;
 
   // Drops every attachment from the sampler bindings,
   // since nothing may be sampled while it is being rendered into.
