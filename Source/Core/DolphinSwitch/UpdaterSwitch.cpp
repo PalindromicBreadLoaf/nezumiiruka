@@ -36,7 +36,7 @@ constexpr const char* RELEASES_URL =
 constexpr const char* USER_AGENT = "Nezumiiruka-Updater/" NEZUMIIRUKA_VERSION;
 #ifdef __SWITCH2__
 constexpr std::string_view ASSET_NAME = "nezumiiruka-ounce.nro";
-constexpr std::string_view VULKAN_ASSET_NAME = ASSET_NAME;
+constexpr std::string_view VULKAN_ASSET_NAME = "nezumiiruka-ounce-vulkan.nro";
 #else
 constexpr std::string_view ASSET_NAME = "nezumiiruka.nro";
 constexpr std::string_view VULKAN_ASSET_NAME = "nezumiiruka-vulkan.nro";

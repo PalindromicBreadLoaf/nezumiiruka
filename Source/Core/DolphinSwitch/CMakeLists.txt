@@ -85,7 +85,7 @@ set_source_files_properties(ShellAchievementsSwitch.cpp ShellCheatsSwitch.cpp Sh
   ShellUpdaterSwitch.cpp
   PROPERTIES COMPILE_OPTIONS "${BOREALIS_EXCEPTIONS}")
 
-if(NEZUMIIRUKA_OUNCE)
+if(ENABLE_VULKAN AND NEZUMIIRUKA_OUNCE)
   target_link_libraries(nezumiiruka PRIVATE ouncevk)
 elseif(ENABLE_VULKAN)
   # NXVK driver archives are self-contained and resolve backwards into Dolphin's own.

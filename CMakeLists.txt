@@ -503,20 +503,16 @@ if(NEZUMIIRUKA)
   # Input goes through Horizon HID.
   set(ENABLE_SDL 0)
 
+  # Vulkan via NXVK or OunceVK. Off by default.
+  option(NEZUMIIRUKA_VULKAN "Build the Vulkan video backend alongside deko3d" OFF)
+  set(ENABLE_VULKAN ${NEZUMIIRUKA_VULKAN})
+  set(ENABLE_DEKO3D 1)
+
   if(NEZUMIIRUKA_OUNCE)
     add_compile_definitions(__SWITCH2__)
 
-    # deko3d is drako3d here, with shaders compiled from SPIR-V by libuam2rt. Vulkan is OunceVK.
-    set(ENABLE_VULKAN 1)
-    set(ENABLE_DEKO3D 1)
+    # deko3d is drako3d here, with shaders compiled from SPIR-V by libuam2rt.
     set(ENABLE_FRAME_GENERATION 0)
-  else()
-    # Vulkan via NXVK. Off by default.
-    option(NEZUMIIRUKA_VULKAN "Build the NXVK-backed Vulkan video backend alongside deko3d" OFF)
-    set(ENABLE_VULKAN ${NEZUMIIRUKA_VULKAN})
-
-    # Deko3d
-    set(ENABLE_DEKO3D 1)
   endif()
 
   set(ENABLE_LLVM 0)
