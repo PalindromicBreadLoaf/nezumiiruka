@@ -959,6 +959,7 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
                    m_config_dirty = true;
                  });
 
+#ifndef __SWITCH2__
   AddChoice<Config::PerformanceProfile>(
       rows, "Clock profile",
       {{"Stock (memory 1331 MHz)", Config::PerformanceProfile::Stock},
@@ -970,6 +971,7 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
         Common::HorizonClocks::ApplyPerformanceConfiguration(
             SwitchSettings::GetPerformanceConfiguration());
       });
+#endif
 
   return rows;
 }

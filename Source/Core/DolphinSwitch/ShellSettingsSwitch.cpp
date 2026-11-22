@@ -640,12 +640,14 @@ void BuildGeneral(PageBuilder& page)
   if (!page.IsPerGame())
   {
     page.Header("Switch");
+#ifndef __SWITCH2__
     page.Choice(
         "Clock profile", Config::SWITCH_PERFORMANCE_PROFILE,
         {{"Stock (memory 1331 MHz)", Config::PerformanceProfile::Stock},
          {"Faster memory (1600 MHz)", Config::PerformanceProfile::FasterMemory},
          {"Faster memory and GPU (460 MHz)", Config::PerformanceProfile::FasterMemoryAndGpu}});
     page.Note("Faster memory helps most games. GPU is almost always unnecessary.");
+#endif
     page.Choice("Performance overlay", Config::SWITCH_PERFORMANCE_OVERLAY,
                 {{"Off", 0}, {"Statistics", 1}, {"Statistics and graphs", 2}});
     page.Note("Press L3 and R3 together in game to cycle the overlay.");
