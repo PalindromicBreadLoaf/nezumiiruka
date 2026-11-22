@@ -852,12 +852,18 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
 
   rows.push_back(Row{.kind = RowKind::Header, .label = "This game"});
 
-  AddChoice<int>(rows, "Internal resolution",
-                 {{"Auto (window size)", 0},
-                  {"Native (640×528)", 1},
-                  {"2× (1280×1056)", 2},
-                  {"3× (1920×1584)", 3},
-                  {"4× (2560×2112)", 4}},
+  Options<int> resolutions{{"Auto", 0},
+                           {"Native (640×528)", 1},
+                           {"2× (1280×1056)", 2},
+                           {"3× (1920×1584)", 3},
+                           {"4× (2560×2112)", 4}};
+#ifdef __SWITCH2__
+  resolutions.insert(resolutions.end(), {{"5× (3200×2640)", 5},
+                                         {"6× (3840×3168)", 6},
+                                         {"7× (4480×3696)", 7},
+                                         {"8× (5120×4224)", 8}});
+#endif
+  AddChoice<int>(rows, "Internal resolution", std::move(resolutions),
                  Config::Get(Config::GFX_EFB_SCALE),
                  [this](const int& value) { WriteForGame(Config::GFX_EFB_SCALE, value); });
 

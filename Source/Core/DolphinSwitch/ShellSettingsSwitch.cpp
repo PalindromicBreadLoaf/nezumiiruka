@@ -658,8 +658,8 @@ void BuildGeneral(PageBuilder& page)
         page.Choice(clock_labels[domain], Config::SWITCH_CLOCK_OVERRIDES[domain],
                     std::move(options));
     }
-    page.Note("Highly Experimental. I am not to blame if you break your console messing with these."
-              "Higher clocks raise heat and power draw, and too high of clocks may cause crashes.");
+    page.Note("Higher clocks raise heat and power draw. It's recommended to drop the GPU "
+              "frequency and bump CPU and RAM to their maximums for optimal performance.");
 #endif
     page.Choice("Performance overlay", Config::SWITCH_PERFORMANCE_OVERLAY,
                 {{"Off", 0}, {"Statistics", 1}, {"Statistics and graphs", 2}});
@@ -702,12 +702,18 @@ void BuildGraphics(PageBuilder& page)
   page.Toggle("V-Sync", Config::GFX_VSYNC);
 
   page.Header("Display");
-  page.Choice("Internal resolution", Config::GFX_EFB_SCALE,
-              {{"Auto (window size)", 0},
-               {"Native (640×528)", 1},
-               {"2× (1280×1056) for 720p", 2},
-               {"3× (1920×1584) for 1080p", 3},
-               {"4× (2560×2112)", 4}});
+  std::vector<Option<int>> resolutions{{"Auto (window size)", 0},
+                                       {"Native (640×528)", 1},
+                                       {"2× (1280×1056) for 720p", 2},
+                                       {"3× (1920×1584) for 1080p", 3},
+                                       {"4× (2560×2112)", 4}};
+#ifdef __SWITCH2__
+  resolutions.insert(resolutions.end(), {{"5× (3200×2640)", 5},
+                                         {"6× (3840×3168) for 4K", 6},
+                                         {"7× (4480×3696)", 7},
+                                         {"8× (5120×4224)", 8}});
+#endif
+  page.Choice("Internal resolution", Config::GFX_EFB_SCALE, std::move(resolutions));
   page.Note("Auto sets 2× in handheld and 3× when docked");
   page.Choice("Aspect ratio", Config::GFX_ASPECT_RATIO,
               {{"Auto", AspectMode::Auto},
