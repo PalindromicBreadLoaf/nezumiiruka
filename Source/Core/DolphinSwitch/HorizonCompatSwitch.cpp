@@ -20,7 +20,9 @@
 
 extern "C" {
 ssize_t getrandom(void* buf, size_t buflen, unsigned int flags);
+#ifndef __SWITCH2__
 int posix_memalign(void** memptr, size_t alignment, size_t size);
+#endif
 
 ssize_t getrandom(void* buf, size_t buflen, unsigned int flags)
 {
@@ -28,6 +30,7 @@ ssize_t getrandom(void* buf, size_t buflen, unsigned int flags)
   return static_cast<ssize_t>(buflen);
 }
 
+#ifndef __SWITCH2__
 int posix_memalign(void** memptr, size_t alignment, size_t size)
 {
   if (alignment < sizeof(void*) || (alignment & (alignment - 1)) != 0)
@@ -40,6 +43,7 @@ int posix_memalign(void** memptr, size_t alignment, size_t size)
   *memptr = ptr;
   return 0;
 }
+#endif
 
 uid_t getuid()
 {

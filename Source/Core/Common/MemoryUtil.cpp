@@ -330,11 +330,15 @@ size_t MemPhysical()
 #ifdef __SWITCH__
 size_t MemUnallocated()
 {
+#ifdef __SWITCH2__
+  return static_cast<size_t>(heapGetFreeSize());
+#else
   const struct mallinfo info = mallinfo();
   const size_t heap_size = static_cast<size_t>(fake_heap_end - fake_heap_start);
   const size_t arena_size = static_cast<size_t>(info.arena);
   const size_t untouched = heap_size > arena_size ? heap_size - arena_size : 0;
   return untouched + static_cast<size_t>(info.fordblks);
+#endif
 }
 #endif
 

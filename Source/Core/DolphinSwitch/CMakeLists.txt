@@ -11,7 +11,6 @@ add_executable(nezumiiruka
   HorizonExceptionEntry.S
   HostSwitch.cpp
   MainSwitch.cpp
-  MallocSwitch.c
   MemoryCardsSwitch.cpp
   MemoryCardsSwitch.h
   PauseMenuSwitch.cpp
@@ -51,6 +50,10 @@ add_executable(nezumiiruka
 )
 
 target_compile_definitions(nezumiiruka PRIVATE NEZUMIIRUKA_VERSION="${NEZUMIIRUKA_VERSION}")
+
+if(NOT NEZUMIIRUKA_OUNCE)
+  target_sources(nezumiiruka PRIVATE MallocSwitch.c)
+endif()
 
 if(USE_MGBA)
   target_sources(nezumiiruka PRIVATE
