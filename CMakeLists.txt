@@ -510,9 +510,6 @@ if(NEZUMIIRUKA)
 
   if(NEZUMIIRUKA_OUNCE)
     add_compile_definitions(__SWITCH2__)
-
-    # deko3d is drako3d here, with shaders compiled from SPIR-V by libuam2rt.
-    set(ENABLE_FRAME_GENERATION 0)
   endif()
 
   set(ENABLE_LLVM 0)

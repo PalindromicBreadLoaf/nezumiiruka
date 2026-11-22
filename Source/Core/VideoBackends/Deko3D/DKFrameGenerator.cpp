@@ -14,6 +14,9 @@
 
 #include <deko3d.hpp>
 #include <fmt/format.h>
+#ifdef __SWITCH2__
+#include <switch.h>
+#endif
 
 #include <lsfg/backend/binding.hpp>
 #include <lsfg/backend/cache_load.hpp>
@@ -160,11 +163,14 @@ public:
   DKFrameGenerator& operator=(const DKFrameGenerator&) = delete;
 
   bool Initialize();
+#ifdef __SWITCH2__
+  void RequestHighRefreshRate();
+#endif
 
   bool Generate(const AbstractTexture* frame, const MathUtil::Rectangle<int>& rect) override;
   const AbstractTexture* GetGeneratedFrame(u32 index) const override;
   u32 GetGeneratedFrameCount() const override { return m_graph_config.generated_frames; }
-  DT GetDisplayInterval() const override { return DISPLAY_INTERVAL; }
+  DT GetDisplayInterval() const override;
   void Reset() override { m_frames_since_reset = 0; }
 
 private:
@@ -213,6 +219,9 @@ private:
   u32 m_frame = 0;
   u32 m_frames_since_reset = 0;
   bool m_failed = false;
+#ifdef __SWITCH2__
+  bool m_high_refresh_requested = false;
+#endif
 };
 
 DKFrameGenerator::DKFrameGenerator(const FrameGenerationConfig& config)
@@ -229,6 +238,36 @@ DKFrameGenerator::~DKFrameGenerator()
 {
   ReleaseAllocation();
   ReleaseBlock(m_code_memory);
+#ifdef __SWITCH2__
+  if (m_high_refresh_requested)
+    nwindowSetSwapInterval(nwindowGetDefault(), 1);
+#endif
+}
+
+#ifdef __SWITCH2__
+void DKFrameGenerator::RequestHighRefreshRate()
+{
+  if (const Result rc = nwindowSetFrameRates(nwindowGetDefault(), 120, 60, true); R_FAILED(rc))
+  {
+    WARN_LOG_FMT(VIDEO, "Frame generation: nwindowSetFrameRates failed: {:#010x}", rc);
+    return;
+  }
+  m_high_refresh_requested = true;
+}
+#endif
+
+DT DKFrameGenerator::GetDisplayInterval() const
+{
+#ifdef __SWITCH2__
+  u16 numerator = 0;
+  u16 denominator = 0;
+  if (R_SUCCEEDED(nwindowGetPresentInterval(nwindowGetDefault(), &numerator, &denominator)) &&
+      numerator != 0 && denominator != 0)
+  {
+    return std::chrono::nanoseconds(u64{1'000'000'000} * numerator / denominator);
+  }
+#endif
+  return DISPLAY_INTERVAL;
 }
 
 void DKFrameGenerator::Fail(std::string_view reason)
@@ -736,6 +775,9 @@ CreateFrameGenerator(const FrameGenerationConfig& config)
   auto generator = std::make_unique<DKFrameGenerator>(config);
   if (!generator->Initialize())
     return nullptr;
+#ifdef __SWITCH2__
+  generator->RequestHighRefreshRate();
+#endif
 
   NOTICE_LOG_FMT(VIDEO, "Frame generation: {}x, flow scale 1/{}, {} mode", config.multiplier,
                  config.flow_scale, config.performance ? "performance" : "quality");

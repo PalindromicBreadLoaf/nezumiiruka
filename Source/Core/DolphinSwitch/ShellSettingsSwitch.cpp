@@ -910,17 +910,23 @@ void BuildFrameGeneration(PageBuilder& page)
   page.Choice("Flow scale", Config::GFX_FRAME_GENERATION_FLOW_SCALE,
               {{"100%", 1u}, {"50%", 2u}, {"33%", 3u}, {"25%", 4u}});
   page.Toggle("Performance mode", Config::GFX_FRAME_GENERATION_PERFORMANCE);
+#ifndef __SWITCH2__
   page.Note("Frame generation raises both CPU and GPU requirements when enabled. You will need "
             "to overclock the system to get good results. Nezumiiruka's stastics counters also do "
             "not account for latency or cost from lsfg running.");
+#endif
   page.Note("A lower flow scale and performance mode are both faster, at some cost to quality. "
             "Increasing the render resolution bumps the GPU workload for both it and framegen. "
-            "Currently, only the Deko3D renderer supports framegen.");
+            "Currently, only the deko3d renderer supports framegen.");
+#ifdef __SWITCH2__
+  page.Note("Frame generation switches the display to 120 Hz where it can to allow higher targets.");
+#else
   page.Toggle("Allow above 60 Hz", Config::GFX_FRAME_GENERATION_HIGH_REFRESH_RATE);
   page.Note("Most people should leave this off. It generates frames however fast the game "
             "already runs, so a 60 FPS game at 2× presents 120 frames a second, or a 30 FPS "
             "game at 4× presents 120 FPS. Only enable it if your display has been overclocked "
             "to refresh faster than 60 Hz.");
+#endif
 
   if (page.IsPerGame())
     return;

@@ -1066,7 +1066,12 @@ u32 Presenter::GenerateFrames(const PresentInfo* present_info)
 
   const u32 generated_frames = m_frame_generator->GetGeneratedFrameCount();
   const DT needed = m_frame_generator->GetDisplayInterval() * (generated_frames + 1);
-  if (!g_ActiveConfig.bFrameGenerationHighRefreshRate && m_real_frame_interval * 10 < needed * 9)
+#ifdef __SWITCH2__
+  const bool allow_above_display = false;
+#else
+  const bool allow_above_display = g_ActiveConfig.bFrameGenerationHighRefreshRate;
+#endif
+  if (!allow_above_display && m_real_frame_interval * 10 < needed * 9)
   {
     m_frame_generator->Reset();
     return 0;

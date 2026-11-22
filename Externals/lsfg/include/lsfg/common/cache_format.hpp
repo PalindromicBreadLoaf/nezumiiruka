@@ -19,7 +19,11 @@ inline constexpr std::uint32_t manifest_magic = 0x4746'534CU; // "LSFG"
 
 inline constexpr std::uint32_t abi_version = 2;
 
+#ifdef LSFG_UAM2RT
+inline constexpr std::uint32_t backend_abi_version = 0x200 | 2;
+#else
 inline constexpr std::uint32_t backend_abi_version = 2;
+#endif
 
 inline constexpr std::uint32_t extractor_version = 1;
 

@@ -24,7 +24,13 @@ endfunction()
 set(_spirv_cross_root "${CMAKE_SOURCE_DIR}/Externals/spirv_cross/SPIRV-Cross")
 
 lsfg_revision("${_spirv_cross_root}" LSFG_SPIRV_CROSS_COMMIT)
-lsfg_revision("${UAM_ROOT}" LSFG_UAM_COMMIT)
+if(NEZUMIIRUKA_OUNCE)
+  file(SHA1 "${UAM2RT_LIBRARY}" _uam2rt_hash)
+  set(LSFG_UAM_COMMIT "uam2rt-${_uam2rt_hash}")
+  set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${UAM2RT_LIBRARY}")
+else()
+  lsfg_revision("${UAM_ROOT}" LSFG_UAM_COMMIT)
+endif()
 configure_file(version.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/include/lsfg/common/version.hpp" @ONLY)
 
 add_library(lsfg_spirv_cross STATIC
@@ -44,7 +50,6 @@ add_library(lsfg STATIC
   src/cache_format.cpp
   src/cache_load.cpp
   src/cache_store.cpp
-  src/compile_uam.cpp
   src/dksh.cpp
   src/error.cpp
   src/image_graph.cpp
@@ -67,4 +72,14 @@ PRIVATE
 set_target_properties(lsfg PROPERTIES CXX_STANDARD 20 CXX_EXTENSIONS OFF)
 target_compile_options(lsfg PRIVATE -w)
 set_source_files_properties(src/translate.cpp PROPERTIES COMPILE_OPTIONS "-fexceptions;-fno-lto")
-target_link_libraries(lsfg PRIVATE lsfg_spirv_cross uam)
+target_link_libraries(lsfg PRIVATE lsfg_spirv_cross)
+
+if(NEZUMIIRUKA_OUNCE)
+  target_sources(lsfg PRIVATE src/compile_uam2rt.cpp)
+  target_compile_definitions(lsfg PUBLIC LSFG_UAM2RT)
+  target_link_libraries(lsfg PRIVATE uam2rt glslang::glslang glslang::SPIRV
+                        glslang::glslang-default-resource-limits)
+else()
+  target_sources(lsfg PRIVATE src/compile_uam.cpp)
+  target_link_libraries(lsfg PRIVATE uam)
+endif()
