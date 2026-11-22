@@ -4,9 +4,12 @@
 
 #include "DolphinSwitch/SettingsSwitch.h"
 
+#include <fmt/format.h>
+
 #include "Common/CommonPaths.h"
 #include "Common/Config/Layer.h"
 #include "Common/FileUtil.h"
+#include "Common/HorizonClocks.h"
 #include "Core/Config/GraphicsSettings.h"
 #include "VideoCommon/VideoConfig.h"
 
@@ -15,6 +18,13 @@ namespace Config
 const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE{
     {System::Main, "Switch", "PerformanceProfile"}, PerformanceProfile::FasterMemory};
 const Info<int> SWITCH_PERFORMANCE_OVERLAY{{System::Main, "Switch", "PerformanceOverlay"}, 1};
+#ifdef __SWITCH2__
+const std::array<Info<u32>, 3> SWITCH_CLOCK_OVERRIDES{
+    Info<u32>{{System::Main, "Switch", "CpuClockOverride"}, 0},
+    Info<u32>{{System::Main, "Switch", "GpuClockOverride"}, 0},
+    Info<u32>{{System::Main, "Switch", "MemoryClockOverride"}, 0},
+};
+#endif
 const Info<std::string> SWITCH_GAME_DIRECTORY{{System::Main, "Switch", "GameDirectory"}, ""};
 const Info<bool> SWITCH_SEPARATE_GAME_DIRECTORIES{
     {System::Main, "Switch", "SeparateGameDirectories"}, false};
@@ -135,4 +145,33 @@ u32 GetPerformanceConfiguration()
     return 0x00020001;
   }
 }
+
+#ifdef __SWITCH2__
+void ApplyClockOverrides()
+{
+  for (size_t i = 0; i < Config::SWITCH_CLOCK_OVERRIDES.size(); ++i)
+  {
+    Common::HorizonClocks::SetClockOverride(static_cast<Common::HorizonClocks::ClockDomain>(i),
+                                            Config::Get(Config::SWITCH_CLOCK_OVERRIDES[i]));
+  }
+}
+
+std::vector<std::pair<std::string, u32>> GetClockOverrideChoices(size_t domain)
+{
+  const std::vector<u32> rates =
+      Common::HorizonClocks::GetClockRates(static_cast<Common::HorizonClocks::ClockDomain>(domain));
+  if (rates.empty())
+    return {};
+
+  std::vector<std::pair<std::string, u32>> choices{{"System", 0}};
+  for (const u32 hz : rates)
+  {
+    const u32 tenths = (hz + 50'000) / 100'000;
+    choices.emplace_back(tenths % 10 == 0 ? fmt::format("{} MHz", tenths / 10) :
+                                            fmt::format("{}.{} MHz", tenths / 10, tenths % 10),
+                         hz);
+  }
+  return choices;
+}
+#endif
 }  // namespace SwitchSettings

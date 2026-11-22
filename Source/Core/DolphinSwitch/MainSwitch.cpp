@@ -183,6 +183,10 @@ std::string RunGame(PadState& pad, const Shell::BootRequest& request)
   ApplyPlatformConfigOverrides();
   Common::HorizonClocks::ApplyPerformanceConfiguration(
       SwitchSettings::GetPerformanceConfiguration());
+#ifdef __SWITCH2__
+  SwitchSettings::ApplyClockOverrides();
+  Common::ScopeGuard clock_override_guard([] { Common::HorizonClocks::ClearClockOverrides(); });
+#endif
 
   const std::string path = request.nand_title_id != 0 ?
                                fmt::format("NAND title {:016x}", request.nand_title_id) :
@@ -314,7 +318,12 @@ int main(int argc, char* argv[])
   Common::ScopeGuard achievements_guard([] { AchievementManager::GetInstance().Shutdown(); });
 #endif
 
-  Common::ScopeGuard clocks_guard([] { Common::HorizonClocks::RestorePerformanceConfiguration(); });
+  Common::ScopeGuard clocks_guard([] {
+    Common::HorizonClocks::RestorePerformanceConfiguration();
+#ifdef __SWITCH2__
+    Common::HorizonClocks::ShutdownClocks();
+#endif
+  });
 
   Common::SetCurrentThreadName("Host thread");
 

@@ -6,6 +6,7 @@
 
 #include <array>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "Common/CommonTypes.h"
@@ -74,6 +75,9 @@ enum class GBAScreenCorner : int
 
 extern const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE;
 extern const Info<int> SWITCH_PERFORMANCE_OVERLAY;
+#ifdef __SWITCH2__
+extern const std::array<Info<u32>, 3> SWITCH_CLOCK_OVERRIDES;
+#endif
 extern const Info<std::string> SWITCH_GAME_DIRECTORY;
 extern const Info<bool> SWITCH_SEPARATE_GAME_DIRECTORIES;
 extern const Info<std::string> SWITCH_GAMECUBE_GAME_DIRECTORY;
@@ -107,4 +111,10 @@ std::string GetGameDirectory();
 std::vector<std::string> GetGameDirectories();
 
 u32 GetPerformanceConfiguration();
+
+#ifdef __SWITCH2__
+void ApplyClockOverrides();
+
+std::vector<std::pair<std::string, u32>> GetClockOverrideChoices(size_t domain);
+#endif
 }  // namespace SwitchSettings

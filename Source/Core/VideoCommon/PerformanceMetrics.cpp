@@ -14,6 +14,7 @@
 #include "VideoCommon/VideoConfig.h"
 
 #ifdef __SWITCH__
+#include "Common/HorizonClocks.h"
 #include "Core/HW/Memmap.h"
 #include "Core/PowerPC/PowerPC.h"
 #include "Core/System.h"
@@ -379,7 +380,8 @@ void PerformanceMetrics::DrawImGuiStats(const float backbuffer_scale)
   }
 
 #ifdef __SWITCH__
-  // Show the current blocker for performance to make sure optimisation work is being allocated properly.
+  // Show the current blocker for performance to make sure optimisation work is being allocated
+  // properly.
   if (g_ActiveConfig.bShowFPS || g_ActiveConfig.bShowSpeed)
   {
     auto& system = Core::System::GetInstance();
@@ -414,7 +416,8 @@ void PerformanceMetrics::DrawImGuiStats(const float backbuffer_scale)
       clamp_window_position();
 
       const ImVec4 color(r, g, b, 1.0f);
-      ImGui::TextColored(color, "Core: %s (%s)", core_name, dual_core ? "dual-core" : "single-core");
+      ImGui::TextColored(color, "Core: %s (%s)", core_name,
+                         dual_core ? "dual-core" : "single-core");
       ImGui::TextColored(color, "Fastmem:%s  VLoader:%s", fastmem ? " on" : " off",
                          software_vertex_loader ? " software" : " native");
       ImGui::TextColored(color, "Bound: %s", bound);
@@ -423,6 +426,24 @@ void PerformanceMetrics::DrawImGuiStats(const float backbuffer_scale)
       else
         ImGui::TextColored(color, "GPU busy: n/a");
       ImGui::TextColored(color, "Render passes: %d", render_passes);
+#ifdef __SWITCH2__
+      if (const auto telemetry = Common::HorizonClocks::GetTelemetry())
+      {
+        const auto clock_line = [&](const char* name, u32 hz, std::optional<u32> microvolts) {
+          if (microvolts)
+            ImGui::TextColored(color, "%s: %u MHz %.3f V", name, hz / 1'000'000, *microvolts / 1e6);
+          else
+            ImGui::TextColored(color, "%s: %u MHz", name, hz / 1'000'000);
+        };
+        clock_line("CPU", telemetry->cpu_hz, telemetry->cpu_microvolts);
+        clock_line("GPU", telemetry->gpu_hz, telemetry->gpu_microvolts);
+        clock_line("Memory", telemetry->memory_hz, std::nullopt);
+        if (telemetry->soc_celsius)
+          ImGui::TextColored(color, "SoC: %.1f °C", *telemetry->soc_celsius);
+        if (telemetry->pcb_celsius)
+          ImGui::TextColored(color, "PCB: %.1f °C", *telemetry->pcb_celsius);
+      }
+#endif
     }
     ImGui::End();
   }

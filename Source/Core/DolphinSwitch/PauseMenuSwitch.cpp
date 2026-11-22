@@ -5,6 +5,7 @@
 #include "DolphinSwitch/PauseMenuSwitch.h"
 
 #include <algorithm>
+#include <array>
 #include <cfloat>
 #include <cmath>
 #include <iterator>
@@ -898,14 +899,14 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
   Options<float> clocks = {{"Off", 0.0f}};
   for (const int percentage : SwitchSettings::CPU_CLOCK_PERCENTAGES)
     clocks.emplace_back(fmt::format("{}%", percentage), static_cast<float>(percentage / 100.0));
-  AddChoice<float>(rows, "CPU clock override", std::move(clocks),
-                   Config::Get(Config::MAIN_OVERCLOCK_ENABLE) ? Config::Get(Config::MAIN_OVERCLOCK) :
-                                                                0.0f,
-                   [this](const float& value) {
-                     WriteForGame(Config::MAIN_OVERCLOCK_ENABLE, value != 0.0f);
-                     if (value != 0.0f)
-                       WriteForGame(Config::MAIN_OVERCLOCK, value);
-                   });
+  AddChoice<float>(
+      rows, "CPU clock override", std::move(clocks),
+      Config::Get(Config::MAIN_OVERCLOCK_ENABLE) ? Config::Get(Config::MAIN_OVERCLOCK) : 0.0f,
+      [this](const float& value) {
+        WriteForGame(Config::MAIN_OVERCLOCK_ENABLE, value != 0.0f);
+        if (value != 0.0f)
+          WriteForGame(Config::MAIN_OVERCLOCK, value);
+      });
 
 #ifdef HAS_FRAME_GENERATION
   if (Config::Get(Config::MAIN_GFX_BACKEND) == "Deko3D")
@@ -959,7 +960,29 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
                    m_config_dirty = true;
                  });
 
-#ifndef __SWITCH2__
+#ifdef __SWITCH2__
+  constexpr std::array<const char*, 3> clock_labels = {
+      "CPU clock (experimental)", "GPU clock (experimental)", "Memory clock (experimental)"};
+  for (size_t domain = 0; domain < clock_labels.size(); ++domain)
+  {
+    auto choices = SwitchSettings::GetClockOverrideChoices(domain);
+    if (choices.empty())
+    {
+      rows.push_back(Row{.kind = RowKind::Choice,
+                         .label = clock_labels[domain],
+                         .value = "Unavailable",
+                         .enabled = false});
+      continue;
+    }
+    AddChoice<u32>(rows, clock_labels[domain], std::move(choices),
+                   Config::Get(Config::SWITCH_CLOCK_OVERRIDES[domain]),
+                   [this, domain](const u32& value) {
+                     WriteGlobal(Config::SWITCH_CLOCK_OVERRIDES[domain], value);
+                     Common::HorizonClocks::SetClockOverride(
+                         static_cast<Common::HorizonClocks::ClockDomain>(domain), value);
+                   });
+  }
+#else
   AddChoice<Config::PerformanceProfile>(
       rows, "Clock profile",
       {{"Stock (memory 1331 MHz)", Config::PerformanceProfile::Stock},

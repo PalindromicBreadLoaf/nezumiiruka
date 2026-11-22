@@ -30,8 +30,7 @@ u64 ReadGcButtons()
       continue;
 
     HidNpadGcState state{};
-    if (hidGetNpadStatesGc(id, &state, 1) != 0 &&
-        (state.attributes & HidNpadAttribute_IsConnected))
+    if (hidGetNpadStatesGc(id, &state, 1) != 0 && (state.attributes & HidNpadAttribute_IsConnected))
       buttons |= state.buttons;
   }
   return buttons;
@@ -39,8 +38,8 @@ u64 ReadGcButtons()
 }  // namespace
 
 PlatformSwitch::PlatformSwitch(PadState& pad, std::string disc_path)
-    : m_pad(pad), m_menu(Core::System::GetInstance(), std::move(disc_path),
-                         [this] { RequestShutdown(); })
+    : m_pad(pad),
+      m_menu(Core::System::GetInstance(), std::move(disc_path), [this] { RequestShutdown(); })
 {
 }
 
@@ -69,6 +68,9 @@ void PlatformSwitch::MainLoop()
     Core::HostDispatchJobs(system);
 
     UpdateBootBoost(system);
+#ifdef __SWITCH2__
+    Common::HorizonClocks::MaintainClocks();
+#endif
 
     svcSleepThread(m_menu.IsOpen() ? MENU_POLL_INTERVAL_NS : HOST_POLL_INTERVAL_NS);
   }

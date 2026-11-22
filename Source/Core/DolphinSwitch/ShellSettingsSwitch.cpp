@@ -647,6 +647,19 @@ void BuildGeneral(PageBuilder& page)
          {"Faster memory (1600 MHz)", Config::PerformanceProfile::FasterMemory},
          {"Faster memory and GPU (460 MHz)", Config::PerformanceProfile::FasterMemoryAndGpu}});
     page.Note("Faster memory helps most games. GPU is almost always unnecessary.");
+#else
+    constexpr std::array<const char*, 3> clock_labels = {"CPU clock", "GPU clock", "Memory clock"};
+    for (size_t domain = 0; domain < clock_labels.size(); ++domain)
+    {
+      std::vector<Option<u32>> options;
+      for (auto& [label, hz] : SwitchSettings::GetClockOverrideChoices(domain))
+        options.push_back({std::move(label), hz});
+      if (!options.empty())
+        page.Choice(clock_labels[domain], Config::SWITCH_CLOCK_OVERRIDES[domain],
+                    std::move(options));
+    }
+    page.Note("Highly Experimental. I am not to blame if you break your console messing with these."
+              "Higher clocks raise heat and power draw, and too high of clocks may cause crashes.");
 #endif
     page.Choice("Performance overlay", Config::SWITCH_PERFORMANCE_OVERLAY,
                 {{"Off", 0}, {"Statistics", 1}, {"Statistics and graphs", 2}});
@@ -919,7 +932,8 @@ void BuildFrameGeneration(PageBuilder& page)
             "Increasing the render resolution bumps the GPU workload for both it and framegen. "
             "Currently, only the deko3d renderer supports framegen.");
 #ifdef __SWITCH2__
-  page.Note("Frame generation switches the display to 120 Hz where it can to allow higher targets.");
+  page.Note(
+      "Frame generation switches the display to 120 Hz where it can to allow higher targets.");
 #else
   page.Toggle("Allow above 60 Hz", Config::GFX_FRAME_GENERATION_HIGH_REFRESH_RATE);
   page.Note("Most people should leave this off. It generates frames however fast the game "
