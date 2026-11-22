@@ -147,7 +147,11 @@ std::optional<CoreLayout> GetCoreLayout()
 {
   const u32 available = GetAvailableCoreMask();
 
+#ifdef __SWITCH2__
+  constexpr int MAX_CORES = 8;
+#else
   constexpr int MAX_CORES = 4;
+#endif
   s32 cores[MAX_CORES];
   int count = 0;
   for (s32 core = 0; core < 32 && count < MAX_CORES; ++core)
@@ -175,6 +179,50 @@ std::optional<CoreLayout> GetCoreLayout()
 
   return CoreLayout{available, cpu_core, gpu_core, shared_core};
 }
+
+#ifdef __SWITCH2__
+u32 GetSpareCoreMask(const CoreLayout& layout)
+{
+  const u32 spare = layout.available & ~(1u << layout.cpu_core) & ~(1u << layout.gpu_core);
+  return std::popcount(spare) >= 2 ? spare : 0;
+}
+
+bool PinToSpareCores(const CoreLayout& layout, ThreadCoreRole role)
+{
+  const u32 spare = GetSpareCoreMask(layout);
+  if (spare == 0)
+    return false;
+
+  int slot = 0;
+  switch (role)
+  {
+  case ThreadCoreRole::Host:
+    slot = 0;
+    break;
+  case ThreadCoreRole::Audio:
+    slot = 1;
+    break;
+  case ThreadCoreRole::Worker:
+    slot = 2;
+    break;
+  case ThreadCoreRole::GBA:
+    slot = 3;
+    break;
+  default:
+    return false;
+  }
+
+  u32 remaining = spare;
+  for (int i = 0; i < slot % std::popcount(spare); ++i)
+    remaining &= remaining - 1;
+  const s32 preferred_core = std::countr_zero(remaining);
+
+  svcSetThreadCoreMask(CUR_THREAD_HANDLE, preferred_core, spare);
+  INFO_LOG_FMT(COMMON, "Allowed thread role {} on core mask {:#x}, preferring core {}",
+               static_cast<int>(role), spare, preferred_core);
+  return true;
+}
+#endif
 }  // namespace
 
 u32 GetShaderCompilerCoreMask()
@@ -183,6 +231,10 @@ u32 GetShaderCompilerCoreMask()
   if (!layout)
     return 0;
 
+#ifdef __SWITCH2__
+  if (const u32 spare = GetSpareCoreMask(*layout))
+    return spare;
+#endif
   const u32 mask = layout->available & ~(1u << layout->cpu_core);
   return mask != 0 ? mask : layout->available;
 }
@@ -200,6 +252,11 @@ void PinCurrentThreadToRole(ThreadCoreRole role)
     INFO_LOG_FMT(COMMON, "Allowed shader compiler thread on core mask {:#x}", mask);
     return;
   }
+
+#ifdef __SWITCH2__
+  if (PinToSpareCores(*layout, role))
+    return;
+#endif
 
   s32 target = layout->shared_core;
   const char* role_name = "shared";
