@@ -13,6 +13,7 @@
 
 #include "Core/System.h"
 
+#include "VideoBackends/Deko3D/Constants.h"
 #include "VideoBackends/Deko3D/DKGfx.h"
 #include "VideoBackends/Deko3D/DKStateTracker.h"
 #include "VideoBackends/Deko3D/DKStreamBuffer.h"
@@ -51,7 +52,7 @@ bool DKVertexManager::Initialize()
   if (!m_vertex_stream_buffer || !m_index_stream_buffer || !m_uniform_stream_buffer ||
       !m_texel_stream_buffer)
   {
-    PanicAlertFmt("Failed to allocate deko3d streaming buffers");
+    PanicAlertFmt("Failed to allocate {} streaming buffers", BACKEND_NAME);
     return false;
   }
 

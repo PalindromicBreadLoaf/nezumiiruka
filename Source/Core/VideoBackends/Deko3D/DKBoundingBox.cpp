@@ -11,6 +11,7 @@
 #include "Common/Logging/Log.h"
 #include "Common/MsgHandler.h"
 
+#include "VideoBackends/Deko3D/Constants.h"
 #include "VideoBackends/Deko3D/DKCommandBufferManager.h"
 #include "VideoBackends/Deko3D/DKContext.h"
 #include "VideoBackends/Deko3D/DKGfx.h"
@@ -37,7 +38,7 @@ bool DKBoundingBox::Initialize()
   m_upload_buffer = DKStreamBuffer::Create(UPLOAD_BUFFER_SIZE, "bounding box upload");
   if (!m_gpu_buffer || !m_readback_buffer || !m_upload_buffer)
   {
-    PanicAlertFmt("Failed to allocate the deko3d bounding box buffers.");
+    PanicAlertFmt("Failed to allocate the {} bounding box buffers.", BACKEND_NAME);
     return false;
   }
 

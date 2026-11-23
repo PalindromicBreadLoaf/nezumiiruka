@@ -69,6 +69,7 @@
 #include "UICommon/GameFile.h"
 #include "UICommon/UICommon.h"
 #ifdef HAS_FRAME_GENERATION
+#include "VideoBackends/Deko3D/Constants.h"
 #include "VideoBackends/Deko3D/DKFrameGenerationShaders.h"
 #endif
 #include "VideoCommon/GraphicsModSystem/Config/GraphicsMod.h"
@@ -934,9 +935,11 @@ void BuildFrameGeneration(PageBuilder& page)
             "to overclock the system to get good results. Nezumiiruka's stastics counters also do "
             "not account for latency or cost from lsfg running.");
 #endif
-  page.Note("A lower flow scale and performance mode are both faster, at some cost to quality. "
-            "Increasing the render resolution bumps the GPU workload for both it and framegen. "
-            "Currently, only the deko3d renderer supports framegen.");
+  page.Note(fmt::format(
+      "A lower flow scale and performance mode are both faster, at some cost to quality. "
+      "Increasing the render resolution bumps the GPU workload for both it and framegen. "
+      "Currently, only the {} renderer supports framegen.",
+      Deko3D::BACKEND_NAME));
 #ifdef __SWITCH2__
   page.Note(
       "Frame generation switches the display to 120 Hz where it can to allow higher targets.");
@@ -1633,8 +1636,9 @@ void BuildAbout(PageBuilder& page)
   page.Choice(
       "Update build", Config::SWITCH_UPDATE_BUILD,
       {{"Standard", Config::UpdateBuild::Standard}, {"Vulkan", Config::UpdateBuild::Vulkan}});
-  page.Note("The Vulkan build adds the Vulkan video backend alongside deko3d. Deko3d is more "
-            " performant and is what should be used unless an issue is found.");
+  page.Note(fmt::format("The Vulkan build adds the Vulkan video backend alongside {0}. {0} is "
+                        "more performant and is what should be used unless an issue is found.",
+                        Deko3D::BACKEND_NAME));
 
   page.Header("System");
   SetSysFirmwareVersion firmware;

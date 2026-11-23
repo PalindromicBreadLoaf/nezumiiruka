@@ -10,6 +10,7 @@
 #include "Common/Assert.h"
 #include "Common/EnumMap.h"
 
+#include "VideoBackends/Deko3D/Constants.h"
 #include "VideoBackends/Deko3D/DKObjectCache.h"
 #include "VideoBackends/Deko3D/DKShader.h"
 #include "VideoBackends/Deko3D/DKVertexFormat.h"
@@ -298,8 +299,8 @@ std::unique_ptr<DKPipeline> DKPipeline::Create(const AbstractPipelineConfig& con
   const u32 num_blend_words = dkCmdBufEndCaptureCmds(scratch);
   if (num_blend_words != expected_blend_words)
   {
-    PanicAlertFmt("Unexpected deko3d blend command size: got {}, expected {}", num_blend_words,
-                  expected_blend_words);
+    PanicAlertFmt("Unexpected {} blend command size: got {}, expected {}", BACKEND_NAME,
+                  num_blend_words, expected_blend_words);
     return nullptr;
   }
   blend_commands.resize(num_blend_words);

@@ -10,6 +10,7 @@
 #include "Common/Assert.h"
 #include "Common/MsgHandler.h"
 
+#include "VideoBackends/Deko3D/Constants.h"
 #include "VideoBackends/Deko3D/DKCommandBufferManager.h"
 #include "VideoBackends/Deko3D/DKContext.h"
 #include "VideoBackends/Deko3D/DKGfx.h"
@@ -36,7 +37,7 @@ bool DKPerfQuery::Initialize()
                          .create();
   if (!m_query_memblock)
   {
-    PanicAlertFmt("Failed to allocate the deko3d performance query buffer.");
+    PanicAlertFmt("Failed to allocate the {} performance query buffer.", BACKEND_NAME);
     return false;
   }
 

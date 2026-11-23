@@ -87,7 +87,7 @@ bool DKStateTracker::Initialize()
                                                "image descriptors");
   if (!m_image_descriptors)
   {
-    PanicAlertFmt("Failed to allocate the deko3d image descriptor set");
+    PanicAlertFmt("Failed to allocate the {} image descriptor set", BACKEND_NAME);
     return false;
   }
 
@@ -97,7 +97,7 @@ bool DKStateTracker::Initialize()
                        .create();
   if (!m_dummy_buffer)
   {
-    PanicAlertFmt("Failed to allocate the deko3d dummy uniform buffer");
+    PanicAlertFmt("Failed to allocate the {} dummy uniform buffer", BACKEND_NAME);
     return false;
   }
 
@@ -121,7 +121,7 @@ bool DKStateTracker::Initialize()
       "dummy compute");
   if (!m_dummy_texture || !m_dummy_compute_texture)
   {
-    PanicAlertFmt("Failed to allocate the deko3d dummy textures");
+    PanicAlertFmt("Failed to allocate the {} dummy textures", BACKEND_NAME);
     return false;
   }
 
@@ -152,7 +152,7 @@ bool DKStateTracker::ReserveImageDescriptors(u32 count, u32* out_first_index)
     DKGfx::GetInstance()->ExecuteCommandBuffer(false);
     if (!m_image_descriptors->ReserveMemory(size, DK_IMAGE_DESCRIPTOR_ALIGNMENT))
     {
-      PanicAlertFmt("Failed to allocate {} deko3d image descriptors", count);
+      PanicAlertFmt("Failed to allocate {} {} image descriptors", count, BACKEND_NAME);
       return false;
     }
   }

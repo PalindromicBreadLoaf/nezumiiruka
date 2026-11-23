@@ -2,6 +2,7 @@
 // Copyright 2026 PalindromicBreadLoaf (palindromicbreadloaf@tuta.com)
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include "VideoBackends/Deko3D/Constants.h"
 #include "VideoBackends/Deko3D/VideoBackend.h"
 
 #include "Common/MsgHandler.h"
@@ -86,14 +87,14 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
   g_dk_context = DKContext::Create();
   if (!g_dk_context)
   {
-    PanicAlertFmt("Failed to create deko3d device.");
+    PanicAlertFmt("Failed to create {} device.", BACKEND_NAME);
     return false;
   }
 
   g_dk_command_buffer_mgr = std::make_unique<DKCommandBufferManager>();
   if (!g_dk_command_buffer_mgr->Initialize())
   {
-    PanicAlertFmt("Failed to create deko3d command buffers.");
+    PanicAlertFmt("Failed to create {} command buffers.", BACKEND_NAME);
     Shutdown();
     return false;
   }
@@ -101,7 +102,7 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
   g_dk_object_cache = DKObjectCache::Create();
   if (!g_dk_object_cache)
   {
-    PanicAlertFmt("Failed to create the deko3d object cache.");
+    PanicAlertFmt("Failed to create the {} object cache.", BACKEND_NAME);
     Shutdown();
     return false;
   }
@@ -110,7 +111,7 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
   // exist before InitializeShared.
   if (!DKStateTracker::CreateInstance())
   {
-    PanicAlertFmt("Failed to create the deko3d state tracker.");
+    PanicAlertFmt("Failed to create the {} state tracker.", BACKEND_NAME);
     Shutdown();
     return false;
   }
@@ -123,7 +124,7 @@ bool VideoBackend::Initialize(const WindowSystemInfo& wsi)
     swap_chain = DKSwapChain::Create(wsi.render_surface);
     if (!swap_chain)
     {
-      PanicAlertFmt("Failed to create deko3d swapchain.");
+      PanicAlertFmt("Failed to create {} swapchain.", BACKEND_NAME);
       Shutdown();
       return false;
     }

@@ -11,6 +11,12 @@
 
 namespace Deko3D
 {
+#ifdef __SWITCH2__
+constexpr const char* BACKEND_NAME = "drako3d";
+#else
+constexpr const char* BACKEND_NAME = "deko3d";
+#endif
+
 // Number of command buffers in flight. Matches the Vulkan backend so frame pacing and the stream
 // buffers' fence tracking behave the same way.
 constexpr size_t NUM_COMMAND_BUFFERS = 8;
