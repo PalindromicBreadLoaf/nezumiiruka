@@ -42,10 +42,16 @@ public:
     psmInitialize();
     nifmInitialize(NifmServiceType_User);
     lblInitialize();
+#ifdef __SWITCH2__
+    hidsysInitialize();
+#endif
   }
 
   ~Services()
   {
+#ifdef __SWITCH2__
+    hidsysExit();
+#endif
     lblExit();
     nifmExit();
     psmExit();
@@ -123,6 +129,9 @@ BootRequest Run(const std::string& notice)
 
   brls::Application::createWindow("nezumiiruka");
   brls::Application::setGlobalQuit(true);
+#ifdef __SWITCH2__
+  brls::Application::getPlatform()->getInputManager()->setPadMouseEnabled(true);
+#endif
 
   BootRequest chosen;
   {
