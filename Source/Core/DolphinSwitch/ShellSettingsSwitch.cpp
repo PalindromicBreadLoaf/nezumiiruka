@@ -1188,6 +1188,21 @@ void BuildWii(PageBuilder& page)
                         "live in {} and {}.",
                         FiguresSwitch::GetSkylanderDirectory(),
                         FiguresSwitch::GetInfinityDirectory()));
+  page.Toggle("Emulate Wii Speak", Config::MAIN_EMULATE_WII_SPEAK);
+  page.Toggle("Wii Speak microphone on", Config::MAIN_WII_SPEAK_MUTED, true);
+  page.Choice("Wii Speak volume", Config::MAIN_WII_SPEAK_VOLUME_MODIFIER,
+              {{"-12 dB", s16{-12}},
+               {"-6 dB", s16{-6}},
+               {"Default", s16{0}},
+               {"+6 dB", s16{6}},
+               {"+12 dB", s16{12}},
+               {"+18 dB", s16{18}},
+               {"+24 dB", s16{24}}});
+#ifdef __SWITCH2__
+  page.Note("Wii Speak uses the console's microphone.");
+#else
+  page.Note("Wii Speak listens through a headset microphone plugged into the console.");
+#endif
 
   if (!page.IsPerGame())
   {

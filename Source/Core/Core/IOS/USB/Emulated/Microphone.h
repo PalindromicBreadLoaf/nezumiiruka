@@ -19,6 +19,13 @@ struct cubeb;
 struct cubeb_stream;
 #endif
 
+#ifdef __SWITCH__
+namespace AudioCommon
+{
+class HorizonAudioIn;
+}
+#endif
+
 namespace IOS::HLE::USB
 {
 class MicrophoneState
@@ -57,6 +64,8 @@ private:
                                 void* output_buffer, long nframes);
   virtual std::string GetInputDeviceId() const = 0;
   virtual std::string GetCubebStreamName() const = 0;
+#endif
+#if defined(HAVE_CUBEB) || defined(__SWITCH__)
   virtual s16 GetVolumeModifier() const = 0;
   virtual bool AreSamplesByteSwapped() const = 0;
 #endif
@@ -122,6 +131,10 @@ private:
   std::shared_ptr<cubeb> m_cubeb_ctx = nullptr;
   cubeb_stream* m_cubeb_stream = nullptr;
   CubebUtils::CoInitSyncWorker m_worker;
+#endif
+
+#ifdef __SWITCH__
+  std::unique_ptr<AudioCommon::HorizonAudioIn> m_audio_in;
 #endif
 };
 }  // namespace IOS::HLE::USB

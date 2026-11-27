@@ -85,6 +85,8 @@ private:
   {
     return fmt::format("Dolphin Emulated Logitech USB Microphone {}", m_index);
   }
+#endif
+#if defined(HAVE_CUBEB) || defined(__SWITCH__)
   s16 GetVolumeModifier() const override
   {
     return Config::Get(Config::MAIN_LOGITECH_MIC_VOLUME_MODIFIER[m_index]);

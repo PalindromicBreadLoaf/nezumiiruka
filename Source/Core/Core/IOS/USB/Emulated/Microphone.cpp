@@ -28,6 +28,10 @@
 #include "jni/AndroidCommon/IDCache.h"
 #endif
 
+#ifdef __SWITCH__
+#include "AudioCommon/HorizonAudioIn.h"
+#endif
+
 namespace IOS::HLE::USB
 {
 #ifdef HAVE_CUBEB
@@ -51,7 +55,42 @@ void Microphone::Initialize()
   StreamInit();
 }
 
-#ifndef HAVE_CUBEB
+#if defined(__SWITCH__)
+void Microphone::StreamInit()
+{
+  StreamStart(m_sampler.GetDefaultSamplingRate());
+}
+
+void Microphone::StreamStart(u32 sampling_rate)
+{
+  {
+    std::lock_guard lock(m_ring_lock);
+    m_stream_buffer.resize(GetStreamSize());
+    m_stream_wpos = 0;
+  }
+
+  m_audio_in = std::make_unique<AudioCommon::HorizonAudioIn>();
+  const bool started = m_audio_in->Start(sampling_rate, [this](std::span<const SampleType> input) {
+    if (Core::GetState(Core::System::GetInstance()) != Core::State::Running || IsMicrophoneMuted())
+    {
+      return;
+    }
+    DataCallback(input.data(), static_cast<long>(input.size()));
+  });
+  if (!started)
+    m_audio_in.reset();
+}
+
+void Microphone::StreamStop()
+{
+  m_audio_in.reset();
+}
+
+void Microphone::StreamTerminate()
+{
+  StreamStop();
+}
+#elif !defined(HAVE_CUBEB)
 void Microphone::StreamInit()
 {
 }
@@ -176,7 +215,9 @@ long Microphone::CubebDataCallback(cubeb_stream* stream, void* user_data, const 
 
   return mic->DataCallback(static_cast<const SampleType*>(input_buffer), nframes);
 }
+#endif
 
+#if defined(HAVE_CUBEB) || defined(__SWITCH__)
 long Microphone::DataCallback(const SampleType* input_buffer, long nframes)
 {
   std::lock_guard lock(m_ring_lock);

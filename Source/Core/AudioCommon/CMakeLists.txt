@@ -39,6 +39,8 @@ endif()
 if(NEZUMIIRUKA)
   message(STATUS "Enabling audout sound backend")
   target_sources(audiocommon PRIVATE
+    HorizonAudioIn.cpp
+    HorizonAudioIn.h
     HorizonSoundStream.cpp
     HorizonSoundStream.h
   )
