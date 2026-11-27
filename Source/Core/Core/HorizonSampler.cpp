@@ -961,7 +961,10 @@ void AppendThread(std::string& out, std::size_t index, std::size_t column)
     std::vector<std::pair<u32, u64>> pcs(guest_pcs.begin(), guest_pcs.end());
     std::sort(pcs.begin(), pcs.end(),
               [](const auto& a, const auto& b) { return a.second > b.second; });
-    out += fmt::format("Guest PCs ({} distinct).\n", pcs.size());
+    out += fmt::format("Last guest PC written ({} distinct). The JIT only stores the PC at slow "
+                       "accesses, exceptions, and the end of a slice, so time spent in fast code "
+                       "lands on whichever PC was stored before it.\n",
+                       pcs.size());
     for (const auto& [guest_pc, count] : pcs)
       out += fmt::format("  {:5.2f}%  {:7}  {:08x}\n", count * percent, count, guest_pc);
   }

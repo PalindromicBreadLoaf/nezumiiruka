@@ -116,12 +116,20 @@ void JitArm64::SafeLoadToReg(u32 dest, s32 addr, s32 offsetReg, u32 flags, s32 o
   };
 
   const bool early_update = !jo.memcheck && dest != static_cast<u32>(addr);
+  const auto write_update = [&] {
+    if (is_immediate)
+    {
+      gpr.SetImmediate(addr, imm_addr);
+    }
+    else
+    {
+      gpr.BindToRegister(addr, false);
+      MOV(gpr.R(addr), addr_reg);
+    }
+  };
+
   if (update && early_update)
-  {
-    gpr.BindToRegister(addr, false);
-    set_addr_reg_if_needed();
-    MOV(gpr.R(addr), addr_reg);
-  }
+    write_update();
 
   BitSet32 regs_in_use = gpr.GetCallerSavedUsed();
   BitSet32 fprs_in_use = fpr.GetCallerSavedUsed();
@@ -162,11 +170,7 @@ void JitArm64::SafeLoadToReg(u32 dest, s32 addr, s32 offsetReg, u32 flags, s32 o
   ASSERT(dest_reg == gpr.R(dest));
 
   if (update && !early_update)
-  {
-    gpr.BindToRegister(addr, false);
-    set_addr_reg_if_needed();
-    MOV(gpr.R(addr), addr_reg);
-  }
+    write_update();
 
   gpr.Unlock(ARM64Reg::W1, ARM64Reg::W30);
   if (jo.memcheck || !jo.fastmem)
@@ -264,12 +268,20 @@ void JitArm64::SafeStoreFromReg(s32 dest, u32 value, s32 regOffset, u32 flags, s
   };
 
   const bool early_update = !jo.memcheck && value != static_cast<u32>(dest);
+  const auto write_update = [&] {
+    if (is_immediate)
+    {
+      gpr.SetImmediate(dest, imm_addr);
+    }
+    else
+    {
+      gpr.BindToRegister(dest, false);
+      MOV(gpr.R(dest), addr_reg);
+    }
+  };
+
   if (update && early_update)
-  {
-    gpr.BindToRegister(dest, false);
-    set_addr_reg_if_needed();
-    MOV(gpr.R(dest), addr_reg);
-  }
+    write_update();
 
   BitSet32 regs_in_use = gpr.GetCallerSavedUsed();
   BitSet32 fprs_in_use = fpr.GetCallerSavedUsed();
@@ -337,11 +349,7 @@ void JitArm64::SafeStoreFromReg(s32 dest, u32 value, s32 regOffset, u32 flags, s
   }
 
   if (update && !early_update)
-  {
-    gpr.BindToRegister(dest, false);
-    set_addr_reg_if_needed();
-    MOV(gpr.R(dest), addr_reg);
-  }
+    write_update();
 
   gpr.Unlock(ARM64Reg::W1, ARM64Reg::W2, ARM64Reg::W30);
   if (!jo.fastmem)

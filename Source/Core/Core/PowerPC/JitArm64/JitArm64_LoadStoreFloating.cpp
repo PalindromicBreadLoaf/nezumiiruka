@@ -158,11 +158,20 @@ void JitArm64::lfXX(UGeckoInstruction inst)
     MOVI2R(XA, imm_addr);
 
   const bool early_update = !jo.memcheck;
+  const auto write_update = [&] {
+    if (is_immediate)
+    {
+      gpr.SetImmediate(a, imm_addr);
+    }
+    else
+    {
+      gpr.BindToRegister(a, false);
+      MOV(gpr.R(a), addr_reg);
+    }
+  };
+
   if (update && early_update)
-  {
-    gpr.BindToRegister(a, false);
-    MOV(gpr.R(a), addr_reg);
-  }
+    write_update();
 
   BitSet32 regs_in_use = gpr.GetCallerSavedUsed();
   BitSet32 fprs_in_use = fpr.GetCallerSavedUsed();
@@ -187,10 +196,7 @@ void JitArm64::lfXX(UGeckoInstruction inst)
   ASSERT(VD == VD_again);
 
   if (update && !early_update)
-  {
-    gpr.BindToRegister(a, false);
-    MOV(gpr.R(a), addr_reg);
-  }
+    write_update();
 
   gpr.Unlock(ARM64Reg::W1, ARM64Reg::W30);
   fpr.Unlock(ARM64Reg::Q0);
@@ -360,12 +366,20 @@ void JitArm64::stfXX(UGeckoInstruction inst)
   };
 
   const bool early_update = !jo.memcheck;
+  const auto write_update = [&] {
+    if (is_immediate)
+    {
+      gpr.SetImmediate(a, imm_addr);
+    }
+    else
+    {
+      gpr.BindToRegister(a, false);
+      MOV(gpr.R(a), addr_reg);
+    }
+  };
+
   if (update && early_update)
-  {
-    gpr.BindToRegister(a, false);
-    set_addr_reg_if_needed();
-    MOV(gpr.R(a), addr_reg);
-  }
+    write_update();
 
   BitSet32 regs_in_use = gpr.GetCallerSavedUsed();
   BitSet32 fprs_in_use = fpr.GetCallerSavedUsed();
@@ -424,11 +438,7 @@ void JitArm64::stfXX(UGeckoInstruction inst)
   }
 
   if (update && !early_update)
-  {
-    gpr.BindToRegister(a, false);
-    set_addr_reg_if_needed();
-    MOV(gpr.R(a), addr_reg);
-  }
+    write_update();
 
   gpr.Unlock(ARM64Reg::W1, ARM64Reg::W2, ARM64Reg::W30);
   fpr.Unlock(ARM64Reg::Q0);

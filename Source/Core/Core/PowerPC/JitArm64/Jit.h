@@ -178,6 +178,8 @@ public:
   // Loadstore paired
   void psq_lXX(UGeckoInstruction inst);
   void psq_stXX(UGeckoInstruction inst);
+  std::optional<u32> GetPairedImmediateAddress(UGeckoInstruction inst, bool indexed, bool update,
+                                               s32 offset) const;
 
   void ConvertDoubleToSingleLower(size_t guest_reg, Arm64Gen::ARM64Reg dest_reg,
                                   Arm64Gen::ARM64Reg src_reg);

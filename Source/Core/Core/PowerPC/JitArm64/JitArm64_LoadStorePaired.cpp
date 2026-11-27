@@ -21,6 +21,26 @@
 
 using namespace Arm64Gen;
 
+std::optional<u32> JitArm64::GetPairedImmediateAddress(UGeckoInstruction inst, bool indexed,
+                                                       bool update, s32 offset) const
+{
+  if (!inst.RA && !update)
+  {
+    if (!indexed)
+      return static_cast<u32>(offset);
+    if (gpr.IsImm(inst.RB))
+      return gpr.GetImm(inst.RB);
+  }
+  else if (gpr.IsImm(inst.RA))
+  {
+    if (!indexed)
+      return gpr.GetImm(inst.RA) + offset;
+    if (gpr.IsImm(inst.RB))
+      return gpr.GetImm(inst.RA) + gpr.GetImm(inst.RB);
+  }
+  return std::nullopt;
+}
+
 void JitArm64::psq_lXX(UGeckoInstruction inst)
 {
   INSTRUCTION_START
@@ -59,7 +79,13 @@ void JitArm64::psq_lXX(UGeckoInstruction inst)
   constexpr ARM64Reg scale_reg = ARM64Reg::W2;
   ARM64Reg VS = fpr.RW(inst.RS, RegType::Single, false);
 
-  if (inst.RA || update)  // Always uses the register on update
+  const std::optional<u32> imm_addr = GetPairedImmediateAddress(inst, indexed, update, offset);
+
+  if (imm_addr)
+  {
+    MOVI2R(addr_reg, *imm_addr);
+  }
+  else if (inst.RA || update)  // Always uses the register on update
   {
     if (indexed)
       ADD(addr_reg, gpr.R(inst.RA), gpr.R(inst.RB));
@@ -68,18 +94,24 @@ void JitArm64::psq_lXX(UGeckoInstruction inst)
   }
   else
   {
-    if (indexed)
-      MOV(addr_reg, gpr.R(inst.RB));
-    else
-      MOVI2R(addr_reg, (u32)offset);
+    MOV(addr_reg, gpr.R(inst.RB));
   }
+
+  const auto write_update = [&] {
+    if (imm_addr)
+    {
+      gpr.SetImmediate(inst.RA, *imm_addr);
+    }
+    else
+    {
+      gpr.BindToRegister(inst.RA, false);
+      MOV(gpr.R(inst.RA), addr_reg);
+    }
+  };
 
   const bool early_update = !jo.memcheck;
   if (update && early_update)
-  {
-    gpr.BindToRegister(inst.RA, false);
-    MOV(gpr.R(inst.RA), addr_reg);
-  }
+    write_update();
 
   if (js.assumeNoPairedQuantize)
   {
@@ -131,10 +163,7 @@ void JitArm64::psq_lXX(UGeckoInstruction inst)
   ASSERT(VS == VS_again);
 
   if (update && !early_update)
-  {
-    gpr.BindToRegister(inst.RA, false);
-    MOV(gpr.R(inst.RA), addr_reg);
-  }
+    write_update();
 
   gpr.Unlock(ARM64Reg::W1, ARM64Reg::W30);
   fpr.Unlock(ARM64Reg::Q0);
@@ -220,21 +249,7 @@ void JitArm64::psq_stXX(UGeckoInstruction inst)
 
   const bool early_update = !jo.memcheck;
 
-  std::optional<u32> imm_addr;
-  if (!inst.RA && !update)
-  {
-    if (!indexed)
-      imm_addr = static_cast<u32>(offset);
-    else if (gpr.IsImm(inst.RB))
-      imm_addr = gpr.GetImm(inst.RB);
-  }
-  else if (gpr.IsImm(inst.RA))
-  {
-    if (!indexed)
-      imm_addr = gpr.GetImm(inst.RA) + offset;
-    else if (gpr.IsImm(inst.RB))
-      imm_addr = gpr.GetImm(inst.RA) + gpr.GetImm(inst.RB);
-  }
+  const std::optional<u32> imm_addr = GetPairedImmediateAddress(inst, indexed, update, offset);
 
   const bool gather_pipe_write = jo.optimizeGatherPipe && imm_addr &&
                                  m_mmu.IsOptimizableGatherPipeWrite(*imm_addr) &&
@@ -247,9 +262,13 @@ void JitArm64::psq_stXX(UGeckoInstruction inst)
                           BackPatchInfo::FLAG_SIZE_32 | (w ? 0 : BackPatchInfo::FLAG_PAIR);
   const u32 float_size = BackPatchInfo::GetFlagSize(float_flags);
 
-  if (!cache_gather_pipe_ptr || update)
+  if (!cache_gather_pipe_ptr)
   {
-    if (inst.RA || update)
+    if (imm_addr)
+    {
+      MOVI2R(addr_reg, *imm_addr);
+    }
+    else if (inst.RA || update)
     {
       if (indexed)
         ADD(addr_reg, gpr.R(inst.RA), gpr.R(inst.RB));
@@ -258,18 +277,24 @@ void JitArm64::psq_stXX(UGeckoInstruction inst)
     }
     else
     {
-      if (indexed)
-        MOV(addr_reg, gpr.R(inst.RB));
-      else
-        MOVI2R(addr_reg, (u32)offset);
+      MOV(addr_reg, gpr.R(inst.RB));
     }
   }
 
+  const auto write_update = [&] {
+    if (imm_addr)
+    {
+      gpr.SetImmediate(inst.RA, *imm_addr);
+    }
+    else
+    {
+      gpr.BindToRegister(inst.RA, false);
+      MOV(gpr.R(inst.RA), addr_reg);
+    }
+  };
+
   if (update && early_update)
-  {
-    gpr.BindToRegister(inst.RA, false);
-    MOV(gpr.R(inst.RA), addr_reg);
-  }
+    write_update();
 
   if (cache_gather_pipe_ptr)
   {
@@ -334,10 +359,7 @@ void JitArm64::psq_stXX(UGeckoInstruction inst)
   }
 
   if (update && !early_update)
-  {
-    gpr.BindToRegister(inst.RA, false);
-    MOV(gpr.R(inst.RA), addr_reg);
-  }
+    write_update();
 
   gpr.Unlock(ARM64Reg::W1, ARM64Reg::W2, ARM64Reg::W30);
   fpr.Unlock(ARM64Reg::Q0);
