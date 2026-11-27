@@ -43,6 +43,8 @@ public:
   int Acquire();
   void Present(int slot);
 
+  void SetVSync(bool enabled);
+
   // Rebuilds the images/swapchain for a new window size. Returns false on failure.
   bool Recreate();
 

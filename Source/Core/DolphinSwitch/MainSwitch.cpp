@@ -182,8 +182,7 @@ std::unique_ptr<BootParameters> CreateBootParameters(const Shell::BootRequest& r
 std::string RunGame(PadState& pad, const Shell::BootRequest& request)
 {
   ApplyPlatformConfigOverrides();
-  Common::HorizonClocks::ApplyPerformanceConfiguration(
-      SwitchSettings::GetPerformanceConfiguration());
+  SwitchSettings::ApplyPerformanceProfile();
 #ifdef __SWITCH2__
   SwitchSettings::ApplyClockOverrides();
   ciface::Horizon::SetMousePointer(Config::Get(Config::SWITCH_POINTER_MOUSE),

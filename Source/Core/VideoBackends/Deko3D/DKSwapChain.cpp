@@ -16,6 +16,7 @@
 #include "VideoBackends/Deko3D/DKTexture.h"
 
 #include "VideoCommon/TextureConfig.h"
+#include "VideoCommon/VideoConfig.h"
 
 namespace Deko3D
 {
@@ -96,6 +97,7 @@ bool DKSwapChain::Initialize()
     ERROR_LOG_FMT(VIDEO, "deko3d: failed to create swapchain");
     return false;
   }
+  SetVSync(g_ActiveConfig.bVSyncActive);
 
   return true;
 }
@@ -123,6 +125,11 @@ int DKSwapChain::Acquire()
 void DKSwapChain::Present(int slot)
 {
   g_dk_context->GetGraphicsQueue().presentImage(m_swapchain, slot);
+}
+
+void DKSwapChain::SetVSync(bool enabled)
+{
+  m_swapchain.setSwapInterval(enabled ? 1 : 0);
 }
 
 bool DKSwapChain::Recreate()

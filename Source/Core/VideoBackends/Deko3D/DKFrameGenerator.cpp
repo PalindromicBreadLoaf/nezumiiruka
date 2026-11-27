@@ -240,7 +240,7 @@ DKFrameGenerator::~DKFrameGenerator()
   ReleaseBlock(m_code_memory);
 #ifdef __SWITCH2__
   if (m_high_refresh_requested)
-    nwindowSetSwapInterval(nwindowGetDefault(), 1);
+    nwindowSetSwapInterval(nwindowGetDefault(), g_ActiveConfig.bVSyncActive ? 1 : 0);
 #endif
 }
 

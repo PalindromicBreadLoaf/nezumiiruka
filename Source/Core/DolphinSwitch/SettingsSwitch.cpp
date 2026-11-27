@@ -133,10 +133,12 @@ std::vector<std::string> GetGameDirectories()
           GetGameDirectory(Config::SWITCH_WII_GAME_DIRECTORY)};
 }
 
-u32 GetPerformanceConfiguration()
+std::optional<u32> GetPerformanceConfiguration()
 {
   switch (Config::Get(Config::SWITCH_PERFORMANCE_PROFILE))
   {
+  case Config::PerformanceProfile::Unchanged:
+    return std::nullopt;
   case Config::PerformanceProfile::Stock:
     // CPU 1020, GPU 307.2, RAM 1331.2.
     return 0x00020003;
@@ -148,6 +150,14 @@ u32 GetPerformanceConfiguration()
     // CPU 1020, GPU 307.2, RAM 1600.
     return 0x00020001;
   }
+}
+
+void ApplyPerformanceProfile()
+{
+  if (const std::optional<u32> configuration = GetPerformanceConfiguration())
+    Common::HorizonClocks::ApplyPerformanceConfiguration(*configuration);
+  else
+    Common::HorizonClocks::RestorePerformanceConfiguration();
 }
 
 #ifdef __SWITCH2__

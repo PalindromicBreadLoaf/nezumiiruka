@@ -200,6 +200,8 @@ std::string_view PerformanceProfileName(Config::PerformanceProfile profile)
     return "stock";
   case Config::PerformanceProfile::FasterMemoryAndGpu:
     return "faster memory and GPU";
+  case Config::PerformanceProfile::Unchanged:
+    return "unchanged";
   case Config::PerformanceProfile::FasterMemory:
   default:
     return "faster memory";
@@ -244,13 +246,14 @@ std::string DescribeHostForProfile()
 
   const bool clkrst = hosversionAtLeast(8, 0, 0);
   const bool clocks_open = R_SUCCEEDED(clkrst ? clkrstInitialize() : pcvInitialize());
-  out +=
-      fmt::format("clocks: CPU {}, GPU {}, memory {}; clock profile {} (configuration {:#010x})\n",
-                  clocks_open ? ProfileClockRate(PcvModule_CpuBus, PcvModuleId_CpuBus) : "n/a",
-                  clocks_open ? ProfileClockRate(PcvModule_GPU, PcvModuleId_GPU) : "n/a",
-                  clocks_open ? ProfileClockRate(PcvModule_EMC, PcvModuleId_EMC) : "n/a",
-                  PerformanceProfileName(Config::Get(Config::SWITCH_PERFORMANCE_PROFILE)),
-                  SwitchSettings::GetPerformanceConfiguration());
+  out += fmt::format("clocks: CPU {}, GPU {}, memory {}; clock profile {} (configuration {})\n",
+                     clocks_open ? ProfileClockRate(PcvModule_CpuBus, PcvModuleId_CpuBus) : "n/a",
+                     clocks_open ? ProfileClockRate(PcvModule_GPU, PcvModuleId_GPU) : "n/a",
+                     clocks_open ? ProfileClockRate(PcvModule_EMC, PcvModuleId_EMC) : "n/a",
+                     PerformanceProfileName(Config::Get(Config::SWITCH_PERFORMANCE_PROFILE)),
+                     SwitchSettings::GetPerformanceConfiguration()
+                         .transform([](u32 value) { return fmt::format("{:#010x}", value); })
+                         .value_or("none"));
   if (clocks_open)
   {
     if (clkrst)
@@ -993,12 +996,12 @@ std::vector<PauseMenu::Row> PauseMenu::BuildSettings()
       rows, "Clock profile",
       {{"Stock (memory 1331 MHz)", Config::PerformanceProfile::Stock},
        {"Faster memory (1600 MHz)", Config::PerformanceProfile::FasterMemory},
-       {"Faster memory and GPU (460 MHz)", Config::PerformanceProfile::FasterMemoryAndGpu}},
+       {"Faster memory and GPU (460 MHz)", Config::PerformanceProfile::FasterMemoryAndGpu},
+       {"Don't change clocks", Config::PerformanceProfile::Unchanged}},
       Config::Get(Config::SWITCH_PERFORMANCE_PROFILE),
       [this](const Config::PerformanceProfile& value) {
         WriteGlobal(Config::SWITCH_PERFORMANCE_PROFILE, value);
-        Common::HorizonClocks::ApplyPerformanceConfiguration(
-            SwitchSettings::GetPerformanceConfiguration());
+        SwitchSettings::ApplyPerformanceProfile();
       });
 #endif
 

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,6 +20,7 @@ enum class PerformanceProfile : int
   Stock,
   FasterMemory,
   FasterMemoryAndGpu,
+  Unchanged,
 };
 
 enum class GameListSort : int
@@ -119,7 +121,8 @@ std::string GetGameDirectory(const Config::Info<std::string>& info);
 std::string GetGameDirectory();
 std::vector<std::string> GetGameDirectories();
 
-u32 GetPerformanceConfiguration();
+std::optional<u32> GetPerformanceConfiguration();
+void ApplyPerformanceProfile();
 
 #ifdef __SWITCH2__
 void ApplyClockOverrides();

@@ -646,8 +646,10 @@ void BuildGeneral(PageBuilder& page)
         "Clock profile", Config::SWITCH_PERFORMANCE_PROFILE,
         {{"Stock (memory 1331 MHz)", Config::PerformanceProfile::Stock},
          {"Faster memory (1600 MHz)", Config::PerformanceProfile::FasterMemory},
-         {"Faster memory and GPU (460 MHz)", Config::PerformanceProfile::FasterMemoryAndGpu}});
-    page.Note("Faster memory helps most games. GPU is almost always unnecessary.");
+         {"Faster memory and GPU (460 MHz)", Config::PerformanceProfile::FasterMemoryAndGpu},
+         {"Don't change clocks", Config::PerformanceProfile::Unchanged}});
+    page.Note("Faster memory helps most games. GPU is almost always unnecessary. Choose "
+              "\"Don't change clocks\" when using HorizonOC or sysclk.");
 #else
     constexpr std::array<const char*, 3> clock_labels = {"CPU clock", "GPU clock", "Memory clock"};
     for (size_t domain = 0; domain < clock_labels.size(); ++domain)
@@ -676,6 +678,9 @@ void BuildGeneral(PageBuilder& page)
                {"125%", 1.25f},
                {"150%", 1.5f},
                {"200%", 2.0f}});
+  page.Toggle("Precision frame timing", Config::MAIN_PRECISION_FRAME_TIMING);
+  page.Note("Spin for the last millisecond of each frame for better pacing. Turn off to save "
+            "some battery.");
 
   page.Header("Interface");
   page.Toggle("Show on-screen messages", Config::MAIN_OSD_MESSAGES);

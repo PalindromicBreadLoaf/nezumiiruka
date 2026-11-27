@@ -295,6 +295,9 @@ void DKGfx::OnConfigChanged(u32 bits)
     ExecuteCommandBuffer(true);
     ResetSamplerStates();
   }
+
+  if (m_swap_chain && (bits & CONFIG_CHANGE_BIT_VSYNC))
+    m_swap_chain->SetVSync(g_ActiveConfig.bVSyncActive);
 }
 
 #ifdef HAS_FRAME_GENERATION
