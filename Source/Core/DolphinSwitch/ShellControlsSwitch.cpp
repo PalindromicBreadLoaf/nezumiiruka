@@ -89,6 +89,9 @@ constexpr std::array INPUT_CHOICES{
     InputChoice{"Sideways Joy-Con, stick left", "`Sideways Stick X-`"},
     InputChoice{"Sideways Joy-Con, stick right", "`Sideways Stick X+`"},
     InputChoice{"Touch screen press", "`Horizon/0/Touchscreen:Touch`"},
+#ifdef __SWITCH2__
+    InputChoice{"Touch screen or Joy-Con mouse in use", "`Horizon/0/Touchscreen:Pointing`"},
+#endif
 };
 
 constexpr std::array OUTPUT_CHOICES{
@@ -131,7 +134,11 @@ const std::vector<Source> DPAD_SOURCES{
 };
 
 const std::vector<Source> POINTER_SOURCES{
+#ifdef __SWITCH2__
+    {"Touch screen or Joy-Con mouse", TOUCH_SCREEN},
+#else
     {"Touch screen", TOUCH_SCREEN},
+#endif
     {"Left stick", LEFT_STICK},
     {"Right stick", RIGHT_STICK},
     {"Nothing", NOTHING},

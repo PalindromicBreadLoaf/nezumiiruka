@@ -47,6 +47,7 @@
 #include "DolphinSwitch/ShellSwitch.h"
 #include "DolphinSwitch/UpdaterSwitch.h"
 #include "DolphinSwitch/UsbStorageSwitch.h"
+#include "InputCommon/ControllerInterface/Horizon/Horizon.h"
 #include "UICommon/UICommon.h"
 #include "VideoCommon/OnScreenUI.h"
 #include "VideoCommon/VideoBackendBase.h"
@@ -185,6 +186,9 @@ std::string RunGame(PadState& pad, const Shell::BootRequest& request)
       SwitchSettings::GetPerformanceConfiguration());
 #ifdef __SWITCH2__
   SwitchSettings::ApplyClockOverrides();
+  ciface::Horizon::SetMousePointer(Config::Get(Config::SWITCH_POINTER_MOUSE),
+                                   Config::Get(Config::SWITCH_POINTER_MOUSE_JOYCON) ==
+                                       Config::PointerJoyCon::Left);
   Common::ScopeGuard clock_override_guard([] { Common::HorizonClocks::ClearClockOverrides(); });
 #endif
 

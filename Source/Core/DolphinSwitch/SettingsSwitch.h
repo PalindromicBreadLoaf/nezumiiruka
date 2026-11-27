@@ -65,6 +65,12 @@ enum class GBAScreens : int
   Large,
 };
 
+enum class PointerJoyCon : int
+{
+  Right,
+  Left,
+};
+
 enum class GBAScreenCorner : int
 {
   TopLeft,
@@ -77,6 +83,9 @@ extern const Info<PerformanceProfile> SWITCH_PERFORMANCE_PROFILE;
 extern const Info<int> SWITCH_PERFORMANCE_OVERLAY;
 #ifdef __SWITCH2__
 extern const std::array<Info<u32>, 3> SWITCH_CLOCK_OVERRIDES;
+extern const Info<bool> SWITCH_MENU_MOUSE;
+extern const Info<bool> SWITCH_POINTER_MOUSE;
+extern const Info<PointerJoyCon> SWITCH_POINTER_MOUSE_JOYCON;
 #endif
 extern const Info<std::string> SWITCH_GAME_DIRECTORY;
 extern const Info<bool> SWITCH_SEPARATE_GAME_DIRECTORIES;

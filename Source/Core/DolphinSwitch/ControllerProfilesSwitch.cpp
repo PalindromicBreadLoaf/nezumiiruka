@@ -128,11 +128,15 @@ void BindPoint(WiimoteEmu::Wiimote& wiimote, bool right_stick)
   if (right_stick)
   {
     group->SetRelativeInput(true);
-    Bind(group, {"`Horizon/0/Touchscreen:Touch Y-` | `Right Y+`",
-                 "`Horizon/0/Touchscreen:Touch Y+` | `Right Y-`",
-                 "`Horizon/0/Touchscreen:Touch X-` | `Right X-`",
-                 "`Horizon/0/Touchscreen:Touch X+` | `Right X+`", "", "`Stick L`",
-                 "`Horizon/0/Touchscreen:Touch`"});
+    Bind(group, {"(`Horizon/0/Touchscreen:Touch Y-` & `Horizon/0/Touchscreen:Pointing`) | "
+                 "`Right Y+`",
+                 "(`Horizon/0/Touchscreen:Touch Y+` & `Horizon/0/Touchscreen:Pointing`) | "
+                 "`Right Y-`",
+                 "(`Horizon/0/Touchscreen:Touch X-` & `Horizon/0/Touchscreen:Pointing`) | "
+                 "`Right X-`",
+                 "(`Horizon/0/Touchscreen:Touch X+` & `Horizon/0/Touchscreen:Pointing`) | "
+                 "`Right X+`",
+                 "", "`Stick L`", "`Horizon/0/Touchscreen:Pointing`"});
   }
   else
   {

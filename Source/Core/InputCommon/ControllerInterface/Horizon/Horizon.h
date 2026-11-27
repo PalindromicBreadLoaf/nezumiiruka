@@ -17,4 +17,8 @@ namespace ciface::Horizon
 std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* controller_interface);
 
 std::optional<std::string> GetPressedInput(const PadState& pad);
+
+#ifdef __SWITCH2__
+void SetMousePointer(bool enabled, bool left_joycon);
+#endif
 }  // namespace ciface::Horizon

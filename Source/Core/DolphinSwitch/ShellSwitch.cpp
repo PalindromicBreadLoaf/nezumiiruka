@@ -16,6 +16,7 @@
 #include "Common/FileUtil.h"
 #include "Common/Logging/Log.h"
 #include "Common/ScopeGuard.h"
+#include "DolphinSwitch/SettingsSwitch.h"
 #ifdef USE_RETRO_ACHIEVEMENTS
 #include "DolphinSwitch/ShellAchievementsSwitch.h"
 #endif
@@ -130,7 +131,8 @@ BootRequest Run(const std::string& notice)
   brls::Application::createWindow("nezumiiruka");
   brls::Application::setGlobalQuit(true);
 #ifdef __SWITCH2__
-  brls::Application::getPlatform()->getInputManager()->setPadMouseEnabled(true);
+  brls::Application::getPlatform()->getInputManager()->setPadMouseEnabled(
+      Config::Get(Config::SWITCH_MENU_MOUSE));
 #endif
 
   BootRequest chosen;

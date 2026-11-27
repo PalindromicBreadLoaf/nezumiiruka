@@ -1356,6 +1356,16 @@ void BuildControls(PageBuilder& page, bool wii)
   {
     page.Header("Controllers");
     page.Action("Change grip and order", "", ShowControllerApplet);
+#ifdef __SWITCH2__
+    page.Toggle("Joy-Con mouse in menus", Config::SWITCH_MENU_MOUSE, false, [] {
+      brls::Application::getPlatform()->getInputManager()->setPadMouseEnabled(
+          Config::Get(Config::SWITCH_MENU_MOUSE));
+    });
+    page.Toggle("Joy-Con mouse aims the Wii Remote pointer", Config::SWITCH_POINTER_MOUSE);
+    page.Choice("Pointer Joy-Con", Config::SWITCH_POINTER_MOUSE_JOYCON,
+                {{"Right Joy-Con", Config::PointerJoyCon::Right},
+                 {"Left Joy-Con", Config::PointerJoyCon::Left}});
+#endif
   }
 
   std::vector<Option<SerialInterface::SIDevices>> port_devices = {

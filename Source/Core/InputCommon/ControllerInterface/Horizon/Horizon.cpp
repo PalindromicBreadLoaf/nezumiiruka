@@ -4,11 +4,15 @@
 
 #include "InputCommon/ControllerInterface/Horizon/Horizon.h"
 
+#include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <initializer_list>
 #include <memory>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -43,6 +47,28 @@ constexpr ControlState DETECT_THRESHOLD = 0.6;
 // Frequencies the Joy-Con LRA is happiest at apparently?
 constexpr float VIBRATION_FREQ_LOW = 160.0f;
 constexpr float VIBRATION_FREQ_HIGH = 320.0f;
+
+#ifdef __SWITCH2__
+constexpr s32 MOUSE_AREA_WIDTH = 1920;
+constexpr s32 MOUSE_AREA_HEIGHT = 1080;
+constexpr s32 MOUSE_ENGAGE_TRAVEL = 64;
+constexpr auto MOUSE_IDLE_TIMEOUT = std::chrono::seconds(3);
+constexpr float MOUSE_GRIP_MIN_ACCEL = 0.85f;
+constexpr float MOUSE_GRIP_MAX_ACCEL = 1.15f;
+
+struct MousePointer
+{
+  std::mutex mutex;
+  u64 serial = 0;
+  ControlState x = 0;
+  ControlState y = 0;
+  std::array<bool, MAX_PLAYERS> engaged{};
+};
+
+MousePointer s_mouse_pointer;
+std::atomic<bool> s_mouse_pointer_enabled = true;
+std::atomic<bool> s_mouse_pointer_left = false;
+#endif
 
 struct ButtonDef
 {
@@ -195,7 +221,13 @@ public:
     AddOutput(new Motor("Motor R", nullptr, &m_rumble_high));
   }
 
-  ~NpadDevice() override { ReleaseHandles(); }
+  ~NpadDevice() override
+  {
+    ReleaseHandles();
+#ifdef __SWITCH2__
+    StopMouse();
+#endif
+  }
 
   std::string GetName() const override { return fmt::format("Player {}", m_player_index + 1); }
   std::string GetSource() const override { return SOURCE; }
@@ -221,6 +253,9 @@ public:
 
     RefreshHandles();
     UpdateSideways();
+#ifdef __SWITCH2__
+    UpdateMouse();
+#endif
     UpdateMotion();
     UpdateRumble();
 
@@ -405,6 +440,19 @@ private:
 
   void UpdateMotion()
   {
+#ifdef __SWITCH2__
+    if (m_mouse_engaged)
+    {
+      m_accel = {0, 0, -1};
+      m_gyro = {};
+      m_left_accel = m_accel;
+      m_left_gyro = m_gyro;
+      m_sideways_accel = m_accel;
+      m_sideways_gyro = m_gyro;
+      return;
+    }
+#endif
+
     if (m_sixaxis_count == 0)
       return;
 
@@ -470,6 +518,194 @@ private:
     UpdateRumble();
   }
 
+#ifdef __SWITCH2__
+  struct MouseReading
+  {
+    bool active = false;
+    s32 x = 0;
+    s32 y = 0;
+    s32 delta_x = 0;
+    s32 delta_y = 0;
+    s32 wheel_delta_y = 0;
+    u32 buttons = 0;
+  };
+
+  bool IsInMouseGrip(bool left) const
+  {
+    if (m_sixaxis_count == 0)
+      return true;
+
+    const s32 index = m_sixaxis_count == 2 && !left ? 1 : 0;
+    HidSixAxisSensorState state{};
+    if (hidGetSixAxisSensorStates(m_sixaxis[index], &state, 1) != 1)
+      return true;
+
+    if (state.acceleration.x == 0 && state.acceleration.y == 0 && state.acceleration.z == -1)
+      return true;
+
+    const float x = left ? state.acceleration.x : -state.acceleration.x;
+    return x >= MOUSE_GRIP_MIN_ACCEL && x <= MOUSE_GRIP_MAX_ACCEL;
+  }
+
+  std::optional<HidNmouseHandle> FindMouseHandle(bool left) const
+  {
+    const u32 wanted = left ? HidNmouseType_JoyLeft : HidNmouseType_JoyRight;
+    for (const HidNpadIdType id : {m_npad_id, HidNpadIdType_Handheld})
+    {
+      if (id == HidNpadIdType_Handheld && m_player_index != 0)
+        continue;
+
+      std::array<HidNmouseHandle, 2> handles{};
+      s32 found = 0;
+      if (R_FAILED(hidGetNmouseHandles(handles.data(), s32(handles.size()), id, &found)))
+        continue;
+
+      for (s32 i = 0; i < std::min(found, s32(handles.size())); ++i)
+      {
+        u32 types = 0;
+        if (R_SUCCEEDED(hidGetNmouseTypeSet(handles[i], &types)) && (types & wanted))
+          return handles[i];
+      }
+    }
+    return std::nullopt;
+  }
+
+  MouseReading ReadMouse(bool left)
+  {
+    MouseReading reading;
+    const std::optional<HidNmouseHandle> handle = FindMouseHandle(left);
+
+    std::array<HidNmouseStateWithDelta, 16> states{};
+    size_t total = 0;
+    if (!handle ||
+        R_FAILED(hidGetNmouseStatesWithDelta(*handle, states.data(), states.size(), &total)) ||
+        total == 0)
+    {
+      m_mouse_tracking = false;
+      return reading;
+    }
+
+    const bool known = m_mouse_tracking && handle->handle == m_mouse_handle.handle;
+    reading.active = true;
+    reading.x = states[0].x;
+    reading.y = states[0].y;
+    reading.buttons = states[0].buttons;
+    if (known)
+    {
+      for (size_t i = 0; i < std::min(total, states.size()); ++i)
+      {
+        if (states[i].sampling_number <= m_mouse_sampling_number)
+          continue;
+        reading.delta_x += states[i].delta_x;
+        reading.delta_y += states[i].delta_y;
+        reading.wheel_delta_y += states[i].wheel_delta_y;
+      }
+    }
+    else
+    {
+      m_mouse_has_anchor = false;
+    }
+
+    m_mouse_tracking = true;
+    m_mouse_handle = *handle;
+    m_mouse_sampling_number = states[0].sampling_number;
+    return reading;
+  }
+
+  void StopMouse()
+  {
+    if (m_mouse_ready)
+      padPointerExit(&m_mouse_lifetime);
+    m_mouse_ready = false;
+    m_mouse_engaged = false;
+    m_mouse_has_anchor = false;
+    m_mouse_tracking = false;
+
+    std::lock_guard lock(s_mouse_pointer.mutex);
+    s_mouse_pointer.engaged[m_player_index] = false;
+  }
+
+  void UpdateMouse()
+  {
+    if (!s_mouse_pointer_enabled.load(std::memory_order_relaxed))
+    {
+      if (m_mouse_ready)
+        StopMouse();
+      return;
+    }
+
+    if (!m_mouse_ready && !m_mouse_failed)
+    {
+      m_mouse_ready =
+          R_SUCCEEDED(padPointerInitialize(&m_mouse_lifetime, MOUSE_AREA_WIDTH, MOUSE_AREA_HEIGHT));
+      m_mouse_failed = !m_mouse_ready;
+      if (m_mouse_failed)
+        WARN_LOG_FMT(CONTROLLERINTERFACE, "{}: Joy-Con mouse unavailable", GetName());
+    }
+    if (!m_mouse_ready)
+      return;
+
+    const bool left = s_mouse_pointer_left.load(std::memory_order_relaxed);
+    const MouseReading mouse = ReadMouse(left);
+
+    const bool was_engaged = m_mouse_engaged;
+    if (!mouse.active)
+    {
+      m_mouse_engaged = false;
+      m_mouse_has_anchor = false;
+    }
+    else
+    {
+      if (!m_mouse_has_anchor)
+      {
+        m_mouse_anchor = {mouse.x, mouse.y};
+        m_mouse_has_anchor = true;
+      }
+
+      const s32 travel_x = mouse.x - m_mouse_anchor[0];
+      const s32 travel_y = mouse.y - m_mouse_anchor[1];
+      const bool travelled =
+          travel_x * travel_x + travel_y * travel_y >= MOUSE_ENGAGE_TRAVEL * MOUSE_ENGAGE_TRAVEL;
+      const bool scrolled = mouse.wheel_delta_y != 0;
+      const bool clicked = mouse.buttons != 0;
+      const auto now = std::chrono::steady_clock::now();
+
+      if (!IsInMouseGrip(left))
+      {
+        m_mouse_engaged = false;
+      }
+      else if (travelled || scrolled || (m_mouse_engaged && clicked))
+      {
+        m_mouse_engaged = true;
+        m_mouse_last_active = now;
+      }
+      else if (m_mouse_engaged && now - m_mouse_last_active >= MOUSE_IDLE_TIMEOUT)
+      {
+        m_mouse_engaged = false;
+      }
+
+      if (travelled || m_mouse_engaged != was_engaged)
+        m_mouse_anchor = {mouse.x, mouse.y};
+    }
+
+    if (m_mouse_engaged != was_engaged)
+    {
+      INFO_LOG_FMT(CONTROLLERINTERFACE, "{}: {} Joy-Con mouse {}", GetName(),
+                   left ? "left" : "right", m_mouse_engaged ? "engaged" : "released");
+    }
+
+    const bool moved = mouse.delta_x != 0 || mouse.delta_y != 0;
+    std::lock_guard lock(s_mouse_pointer.mutex);
+    s_mouse_pointer.engaged[m_player_index] = m_mouse_engaged;
+    if (m_mouse_engaged && (moved || !was_engaged))
+    {
+      s_mouse_pointer.x = ControlState(mouse.x) / MOUSE_AREA_WIDTH * 2 - 1;
+      s_mouse_pointer.y = ControlState(mouse.y) / MOUSE_AREA_HEIGHT * 2 - 1;
+      ++s_mouse_pointer.serial;
+    }
+  }
+#endif
+
   const int m_player_index;
   const HidNpadIdType m_npad_id;
 
@@ -501,6 +737,19 @@ private:
   s32 m_vibration_count = 0;
   bool m_vibration_is_gc_erm = false;
   bool m_log_sensor_sample = false;
+
+#ifdef __SWITCH2__
+  PadPointer m_mouse_lifetime{};
+  HidNmouseHandle m_mouse_handle{};
+  u64 m_mouse_sampling_number = 0;
+  bool m_mouse_tracking = false;
+  bool m_mouse_ready = false;
+  bool m_mouse_failed = false;
+  bool m_mouse_engaged = false;
+  bool m_mouse_has_anchor = false;
+  std::array<s32, 2> m_mouse_anchor{};
+  std::chrono::steady_clock::time_point m_mouse_last_active{};
+#endif
 };
 
 // The panel belongs to the console rather than to any player.
@@ -514,6 +763,7 @@ public:
     AddInput(new Axis("Touch Y-", m_y, -1, false));
     AddInput(new Axis("Touch Y+", m_y, 1, false));
     AddInput(new Trigger("Touch", m_pressed));
+    AddInput(new Trigger("Pointing", m_pointing));
   }
 
   std::string GetName() const override { return "Touchscreen"; }
@@ -526,7 +776,22 @@ public:
     if (hidGetTouchScreenStates(&state, 1) != 1)
       return Core::DeviceRemoval::Keep;
 
+    bool mouse_engaged = false;
+#ifdef __SWITCH2__
+    {
+      std::lock_guard lock(s_mouse_pointer.mutex);
+      if (s_mouse_pointer.serial != m_mouse_serial)
+      {
+        m_mouse_serial = s_mouse_pointer.serial;
+        m_x = s_mouse_pointer.x;
+        m_y = s_mouse_pointer.y;
+      }
+      mouse_engaged = std::ranges::any_of(s_mouse_pointer.engaged, std::identity{});
+    }
+#endif
+
     m_pressed = state.count > 0;
+    m_pointing = m_pressed != 0 || mouse_engaged;
 
     // Leave cursor position where it is rather than snap back to centre.
     if (state.count > 0)
@@ -542,6 +807,10 @@ private:
   ControlState m_x = 0;
   ControlState m_y = 0;
   ControlState m_pressed = 0;
+  ControlState m_pointing = 0;
+#ifdef __SWITCH2__
+  u64 m_mouse_serial = 0;
+#endif
 };
 
 class InputBackend final : public ciface::InputBackend
@@ -568,6 +837,14 @@ std::unique_ptr<ciface::InputBackend> CreateInputBackend(ControllerInterface* co
 {
   return std::make_unique<InputBackend>(controller_interface);
 }
+
+#ifdef __SWITCH2__
+void SetMousePointer(bool enabled, bool left_joycon)
+{
+  s_mouse_pointer_enabled.store(enabled, std::memory_order_relaxed);
+  s_mouse_pointer_left.store(left_joycon, std::memory_order_relaxed);
+}
+#endif
 
 std::optional<std::string> GetPressedInput(const PadState& pad)
 {

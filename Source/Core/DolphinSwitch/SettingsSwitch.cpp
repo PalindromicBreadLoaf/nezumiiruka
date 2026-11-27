@@ -24,6 +24,10 @@ const std::array<Info<u32>, 3> SWITCH_CLOCK_OVERRIDES{
     Info<u32>{{System::Main, "Switch", "GpuClockOverride"}, 0},
     Info<u32>{{System::Main, "Switch", "MemoryClockOverride"}, 0},
 };
+const Info<bool> SWITCH_MENU_MOUSE{{System::Main, "Switch", "MenuMouse"}, true};
+const Info<bool> SWITCH_POINTER_MOUSE{{System::Main, "Switch", "PointerMouse"}, true};
+const Info<PointerJoyCon> SWITCH_POINTER_MOUSE_JOYCON{
+    {System::Main, "Switch", "PointerMouseJoyCon"}, PointerJoyCon::Right};
 #endif
 const Info<std::string> SWITCH_GAME_DIRECTORY{{System::Main, "Switch", "GameDirectory"}, ""};
 const Info<bool> SWITCH_SEPARATE_GAME_DIRECTORIES{
